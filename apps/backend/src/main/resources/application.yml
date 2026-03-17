@@ -1,0 +1,36 @@
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    # Add your project package here, e.g.:
+    com.ollia: INFO
+    io.netty.resolver.dns.macos: ERROR
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ollia}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${CLERK_JWKS_URI:https://big-katydid-84.clerk.accounts.dev/.well-known/jwks.json}
+
+clerk:
+  secret-key: ${CLERK_SECRET_KEY:sk_test_rmM3vga9XaLFQVKbz9UOGOUy4c5juGD1ebXgUHJdNh}
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Ollia",
+    "slug": "ollia",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/icon.png",
+    "scheme": "ollia",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F0E2C4",
+    "splash": {
+      "backgroundColor": "#F0E2C4",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ollia.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F0E2C4"
+      },
+      "package": "com.ollia.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f8caa16a-73ff-4a97-bf1e-00f2350f09ed"
+      }
+    },
+    "owner": "jubafourali"
+  }
+}
