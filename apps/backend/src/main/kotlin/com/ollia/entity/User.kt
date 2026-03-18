@@ -22,6 +22,11 @@ class User(
 
     var region: String? = null,
 
+    @Column(nullable = false)
+    var travelMode: Boolean = false,
+
+    var travelDestination: String? = null,
+
     var lastSeenAt: Instant? = null,
 
     val createdAt: Instant = Instant.now()

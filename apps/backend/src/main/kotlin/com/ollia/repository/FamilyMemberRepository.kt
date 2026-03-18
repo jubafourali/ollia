@@ -9,4 +9,5 @@ interface FamilyMemberRepository : JpaRepository<FamilyMember, UUID> {
     fun findByCircleIdAndUserId(circleId: UUID, userId: UUID): FamilyMember?
     fun findAllByUserId(userId: UUID): List<FamilyMember>
     fun deleteAllByUserId(userId: UUID)
+    fun countByCircleId(circleId: UUID): Long
 }

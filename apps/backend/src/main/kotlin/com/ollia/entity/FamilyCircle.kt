@@ -14,5 +14,11 @@ class FamilyCircle(
     @Column(nullable = false)
     val ownerId: UUID,
 
+    @Column(unique = true, nullable = false)
+    var inviteCode: String = UUID.randomUUID().toString(),
+
+    @Column(nullable = false)
+    var plan: String = "free",
+
     val createdAt: Instant = Instant.now()
 )

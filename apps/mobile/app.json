@@ -16,7 +16,9 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.ollia.app",
-      "associatedDomains": ["applinks:ollia.app"],
+      "associatedDomains": [
+        "applinks:ollia.app"
+      ],
       "infoPlist": {
         "UIBackgroundModes": [
           "fetch",
@@ -44,7 +46,10 @@
               "pathPrefix": "/invite"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -62,7 +67,8 @@
         {
           "sounds": []
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "router": {},

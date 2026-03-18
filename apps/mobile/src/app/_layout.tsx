@@ -1,98 +1,105 @@
-import React, { useEffect } from 'react';
-import { Slot, useRouter, useSegments } from 'expo-router';
-import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
-import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-import * as Notifications from 'expo-notifications';
-import { theme } from '../lib/theme';
-import { api } from '../lib/api';
-import { registerBackgroundHeartbeat } from '../lib/background';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  useFonts,
+} from "@expo-google-fonts/inter";
+import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
+import * as SecureStore from "expo-secure-store";
+import { Stack, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import React, { useEffect } from "react";
+import { Platform } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
-const tokenCache = {
-  async getToken(key: string) {
-    return SecureStore.getItemAsync(key);
-  },
-  async saveToken(key: string, value: string) {
-    return SecureStore.setItemAsync(key, value);
-  },
-};
+import { FamilyProvider } from "@/context/FamilyContext";
 
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+SplashScreen.preventAutoHideAsync();
 
-function AuthGate() {
-  const { isSignedIn, isLoaded, getToken } = useAuth();
-  const { user } = useUser();
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+
+const tokenCache =
+  Platform.OS === "web"
+    ? undefined
+    : {
+        async getToken(key: string) {
+          try {
+            return await SecureStore.getItemAsync(key);
+          } catch {
+            return null;
+          }
+        },
+        async saveToken(key: string, value: string) {
+          try {
+            await SecureStore.setItemAsync(key, value);
+          } catch {}
+        },
+      };
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { isSignedIn, isLoaded } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoaded) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-
-    if (isSignedIn && !inAuthGroup) {
-      router.replace('/(auth)/status');
-    } else if (!isSignedIn && inAuthGroup) {
-      router.replace('/');
+    const inAuth = segments[0] === "(auth)";
+    if (!isSignedIn && !inAuth) {
+      router.replace("/(auth)/sign-in");
+    } else if (isSignedIn && inAuth) {
+      router.replace("/(tabs)");
     }
-  }, [isSignedIn, isLoaded]);
+  }, [isSignedIn, isLoaded, segments]);
 
-  useEffect(() => {
-    if (!isSignedIn || !user) return;
+  return <>{children}</>;
+}
 
-    const bootstrap = async () => {
-      try {
-        const token = await getToken();
-        if (!token) return;
-
-        // 1. Create user first — everything depends on this
-        await api.syncUser(
-          { name: user.fullName ?? 'New User', email: user.primaryEmailAddress?.emailAddress ?? '' },
-          token,
-        );
-
-        // 2. Only after user exists in DB, run these in parallel
-        const expoPushToken = (await Notifications.getExpoPushTokenAsync()).data;
-        await Promise.all([
-          api.heartbeat(token),
-          api.savePushToken(expoPushToken, token),
-        ]);
-      } catch (error) {
-        console.error('Bootstrap failed:', error);
-      }
-    };
-
-    bootstrap();
-    registerBackgroundHeartbeat();
-  }, [isSignedIn, user]);
-
+function RootLayoutNav() {
   return (
-    <>
-      <Slot />
-      {!isLoaded && (
-        <View style={styles.loading} pointerEvents="none">
-          <ActivityIndicator size="large" color={theme.colors.accent} />
-        </View>
-      )}
-    </>
+    <AuthGate>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="member/[id]"
+          options={{ headerShown: false, animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="join"
+          options={{ headerShown: false, animation: "slide_from_bottom" }}
+        />
+      </Stack>
+    </AuthGate>
   );
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <StatusBar style="dark" />
-      <AuthGate />
+      <SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <FamilyProvider>
+            <RootLayoutNav />
+          </FamilyProvider>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
     </ClerkProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  loading: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background,
-  },
-});

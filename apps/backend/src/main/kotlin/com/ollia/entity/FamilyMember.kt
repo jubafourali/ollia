@@ -17,5 +17,8 @@ class FamilyMember(
     val userId: UUID,
 
     @Column(nullable = false)
-    val role: String = "member"
+    val role: String = "member",
+
+    @Column(nullable = false)
+    var relation: String = "Family"
 )

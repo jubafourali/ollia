@@ -8,12 +8,13 @@ import java.time.Instant
 class StatusService {
 
     fun computeStatus(lastSeenAt: Instant?): String {
-        if (lastSeenAt == null) return "checkin"
-        val hours = Duration.between(lastSeenAt, Instant.now()).toHours()
+        if (lastSeenAt == null) return "inactive"
+        val minutes = Duration.between(lastSeenAt, Instant.now()).toMinutes()
         return when {
-            hours < 6 -> "safe"
-            hours < 18 -> "quiet"
-            else -> "checkin"
+            minutes < 30 -> "active"
+            minutes < 180 -> "recent"    // 3 hours
+            minutes < 720 -> "away"      // 12 hours
+            else -> "inactive"
         }
     }
 }
