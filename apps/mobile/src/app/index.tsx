@@ -148,7 +148,10 @@ export default function OnboardingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
-        <Text style={styles.logo}>Ollia</Text>
+        <View style={{ flexDirection: 'row' }}>
+          <Text style={styles.logo}>Oll</Text>
+          <Text style={[styles.logo, { color: '#F59E0B' }]}>ia</Text>
+        </View>
         <Text style={styles.tagline}>Your family knows you're safe</Text>
       </View>
 
@@ -230,10 +233,13 @@ const styles = StyleSheet.create({
     marginBottom: 48,
   },
   logo: {
-    fontSize: 48,
+    fontSize: 52,
     fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: 8,
+    color: '#1a1a1a',
+    letterSpacing: -1,
+  },
+  logoAccent: {
+    color: '#F59E0B',
   },
   tagline: {
     fontSize: 18,

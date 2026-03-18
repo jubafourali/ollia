@@ -4,32 +4,57 @@
     "slug": "ollia",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/assets/icon.png",
+    "icon": "./assets/icon.png",
     "scheme": "ollia",
     "userInterfaceStyle": "light",
     "backgroundColor": "#F0E2C4",
     "splash": {
+      "image": "./assets/splash.png",
       "backgroundColor": "#F0E2C4",
       "resizeMode": "contain"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.ollia.app",
+      "associatedDomains": ["applinks:ollia.app"],
       "infoPlist": {
         "UIBackgroundModes": [
           "fetch",
+          "remote-notification",
+          "fetch",
           "remote-notification"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#F0E2C4"
       },
-      "package": "com.ollia.app"
+      "package": "com.ollia.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "ollia.app",
+              "pathPrefix": "/invite"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "origin": "https://ollia.app"
+        }
+      ],
       "expo-font",
       "expo-secure-store",
       [

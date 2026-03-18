@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,18 +8,25 @@ import {
   Alert,
   SafeAreaView,
   Share,
+  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import { File, Paths } from 'expo-file-system/next';
 import { theme } from '../../lib/theme';
 import { api } from '../../lib/api';
+import InviteCard from '../../components/InviteCard';
 
 export default function SettingsScreen() {
   const { signOut, getToken } = useAuth();
   const { user } = useUser();
   const router = useRouter();
 
+  const cardRef = useRef<View>(null);
+  const [inviteLink, setInviteLink] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [region, setRegion] = useState('');
   const [saving, setSaving] = useState(false);
@@ -53,9 +60,42 @@ export default function SettingsScreen() {
       const token = await getToken();
       if (!token) return;
       const invite = await api.createInvite(token);
-      await Share.share({
-        message: `Join my family circle on Ollia: ${invite.deepLink}`,
+
+      // Set the link so the off-screen card renders with it
+      setInviteLink(invite.deepLink);
+
+      // Wait one frame for the card to render, then capture
+      await new Promise((r) => setTimeout(r, 100));
+
+      const tmpUri = await captureRef(cardRef, {
+        format: 'png',
+        quality: 1,
       });
+
+      // Copy to a stable path so Share can access it
+      const source = new File(tmpUri);
+      const dest = new File(Paths.cache, 'ollia-invite.png');
+      source.copy(dest);
+      const imageUri = dest.uri;
+
+      const message = `Join my family circle on Ollia\n${invite.deepLink}`;
+
+      if (Platform.OS === 'ios') {
+        // iOS Share supports both message and url (image attachment)
+        await Share.share({ message, url: imageUri });
+      } else {
+        // Android: share image via expo-sharing with the link baked into the card,
+        // then fall back to plain text share if sharing isn't available
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(imageUri, {
+            mimeType: 'image/png',
+            dialogTitle: 'Invite to Ollia',
+          });
+        } else {
+          await Share.share({ message });
+        }
+      }
     } catch (e) {
       Alert.alert('Error', 'Failed to create invite.');
     }
@@ -102,6 +142,11 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Off-screen card for view-shot capture */}
+      <View style={styles.offscreen} pointerEvents="none">
+        <InviteCard ref={cardRef} deepLink={inviteLink} />
+      </View>
+
       <Text style={styles.title}>Settings</Text>
 
       <View style={styles.section}>
@@ -163,6 +208,11 @@ const styles = StyleSheet.create({
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  offscreen: {
+    position: 'absolute',
+    left: -9999,
+    top: 0,
   },
   title: {
     fontSize: 32,

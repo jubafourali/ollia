@@ -68,7 +68,7 @@ class FamilyController(
             )
         )
 
-        return InviteResponse(token = token, deepLink = "ollia://invite?token=$token")
+        return InviteResponse(token = token, deepLink = "https://ollia.app/invite?token=$token")
     }
 
     @PostMapping("/invite/{token}/accept")
