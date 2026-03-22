@@ -46,6 +46,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isLoaded) return;
     const inAuth = segments[0] === "(auth)";
+    const inInvite = segments[0] === "invite";
+    // Allow invite onboarding flow without auth — it handles auth inline
+    if (inInvite) return;
     if (!isSignedIn && !inAuth) {
       router.replace("/(auth)/sign-in");
     } else if (isSignedIn && inAuth) {
@@ -69,6 +72,10 @@ function RootLayoutNav() {
         <Stack.Screen
           name="join"
           options={{ headerShown: false, animation: "slide_from_bottom" }}
+        />
+        <Stack.Screen
+          name="invite"
+          options={{ headerShown: false, animation: "fade" }}
         />
       </Stack>
     </AuthGate>

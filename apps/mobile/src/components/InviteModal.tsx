@@ -73,11 +73,10 @@ export function InviteModal({
 
   function buildInviteLink(): string {
     const ownerName = encodeURIComponent(myProfile?.name ?? "Someone");
-    return Linking.createURL("/join", {
+    return Linking.createURL("/invite", {
       queryParams: {
-        code: inviteCode,
-        owner: ownerName,
-        relation: encodeURIComponent(relation || "Family"),
+        token: inviteCode,
+        name: ownerName,
       },
     });
   }
@@ -217,7 +216,7 @@ export function InviteModal({
           <View style={styles.linkPreview}>
             <Feather name="link" size={14} color={BRAND.textMuted} />
             <Text style={styles.linkPreviewText} numberOfLines={1}>
-              ollia://join?code={inviteCode ? inviteCode.substring(0, 8) : "…"}…
+              ollia://invite?token={inviteCode ? inviteCode.substring(0, 8) : "…"}…
             </Text>
           </View>
 

@@ -3,5 +3,8 @@
   "private": true,
   "workspaces": [
     "apps/mobile"
-  ]
+  ],
+  "dependencies": {
+    "react-native-worklets": "^0.5.1"
+  }
 }
