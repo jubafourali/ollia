@@ -276,10 +276,10 @@ class ReferenceApiController(
     // Response: 204 No Content
     @DeleteMapping("/users/me")
     @Transactional
-    fun deleteAccount(): ResponseEntity<Void> {
+    fun deleteAccount(): Map<String, Boolean> {
         val user = currentUserService.getCurrentUser()
         userRepository.delete(user)
         clerkService.deleteUserAsync(user.clerkId)
-        return ResponseEntity.noContent().build()
+        return mapOf("success" to true)
     }
 }
