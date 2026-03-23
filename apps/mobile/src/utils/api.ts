@@ -52,6 +52,7 @@ export type ApiActivityResponse = {
 export type ApiMemberStatus = "active" | "recent" | "away" | "inactive";
 
 export type ApiCircleMember = {
+  id: string;
   userId: string;
   name: string;
   region?: string;

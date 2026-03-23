@@ -201,6 +201,34 @@ class ReferenceApiController(
         return getCircle(circle.id.toString())
     }
 
+    // ─── DELETE /api/circles/{circleId}/members/{memberId} ─── remove member
+    @DeleteMapping("/circles/{circleId}/members/{memberId}")
+    @Transactional
+    fun removeMember(
+        @PathVariable circleId: String,
+        @PathVariable memberId: String
+    ): Map<String, Boolean> {
+        val currentUser = currentUserService.getCurrentUser()
+        val circle = familyCircleRepository.findById(UUID.fromString(circleId))
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Circle not found") }
+
+        // Only circle owner can remove members
+        if (circle.ownerId != currentUser.id) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Only the circle owner can remove members")
+        }
+
+        val member = familyMemberRepository.findById(UUID.fromString(memberId))
+            .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Member not found") }
+
+        // Prevent owner from removing themselves
+        if (member.userId == currentUser.id) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot remove yourself from the circle")
+        }
+
+        familyMemberRepository.delete(member)
+        return mapOf("success" to true)
+    }
+
     // ─── PATCH /api/circles/{circleId}/plan ─── upgrade plan
     // Request: { plan: string }
     // Response: CircleDetail

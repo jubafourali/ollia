@@ -15,6 +15,7 @@ export type ActivityStatus = "active" | "recent" | "away" | "inactive";
 
 export type FamilyMember = {
   id: string;
+  userId: string;
   name: string;
   relation: string;
   avatar: string;
@@ -124,7 +125,8 @@ function getStatusFromLastSeen(lastSeen: Date | null): ActivityStatus {
 
 function apiMemberToLocal(m: ApiCircleMember, meId: string): FamilyMember {
   return {
-    id: m.userId,
+    id: m.id,
+    userId: m.userId,
     name: m.name,
     relation: m.relation,
     avatar: m.name[0]?.toUpperCase() ?? "?",
