@@ -70,6 +70,23 @@ class ReferenceApiController(
         )
     }
 
+    // ─── POST /api/users ─── upsert user
+    // Request: { id: string, name: string, region?: string }
+    // Response: ApiUser
+    @PostMapping("/users")
+    fun getMe(): ApiUserResponse {
+        val clerkId = currentUserService.getClerkId()
+        val user = userRepository.findByClerkId(clerkId)!!
+        return ApiUserResponse(
+            id = clerkId,
+            name = user.name,
+            region = user.region,
+            travelMode = user.travelMode,
+            travelDestination = user.travelDestination,
+            createdAt = user.createdAt.toString()
+        )
+    }
+
     // ─── POST /api/activity ─── send heartbeat
     // Request: { userId: string, signalType: string }
     // Response: { recorded: boolean, timestamp: string }

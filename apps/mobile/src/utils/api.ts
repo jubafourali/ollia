@@ -103,6 +103,12 @@ export const api = {
     return req("/users", { method: "POST", body: JSON.stringify(payload) });
   },
 
+  getMe(id: string): Promise<ApiUser> {
+    return req(`/users/me/${id}`, {
+      method: "GET"
+    });
+  },
+
   sendHeartbeat(userId: string, signalType = "heartbeat"): Promise<ApiActivityResponse> {
     return req("/activity", {
       method: "POST",

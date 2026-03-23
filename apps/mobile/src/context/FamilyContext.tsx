@@ -384,12 +384,25 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         } catch (e) {
           console.warn("upsertUser failed:", e);
         }
-        const cId = await setupCircle(uid);
-        if (cId) {
-          startHeartbeat(uid);
-          startRefresh();
-          refreshPatterns(uid);
+      } else {
+        try {
+          const user = await api.getMe(uid);
+          if (user?.name) {
+            const profile = { name: user.name, region: user.region ?? "" };
+            setMyProfileState(profile);
+            await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+            setIsRegistered(true);
+          }
+        } catch (e) {
+          console.warn("getMe failed:", e);
         }
+      }
+
+      const cId = await setupCircle(uid);
+      if (cId) {
+        startHeartbeat(uid);
+        startRefresh();
+        refreshPatterns(uid);
       }
 
       startSafetyRefresh();
