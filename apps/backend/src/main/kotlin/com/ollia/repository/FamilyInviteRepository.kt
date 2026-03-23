@@ -7,4 +7,5 @@ import java.util.UUID
 interface FamilyInviteRepository : JpaRepository<FamilyInvite, UUID> {
     fun findByToken(token: String): FamilyInvite?
     fun deleteAllByCreatedBy(createdBy: UUID)
+    fun deleteAllByCircleId(circleId: UUID)
 }

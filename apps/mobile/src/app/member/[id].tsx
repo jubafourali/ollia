@@ -1,8 +1,9 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -51,11 +52,28 @@ export default function MemberDetailScreen() {
         </Pressable>
         <Pressable
           onPress={() => {
-            if (Platform.OS !== "web") {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            }
-            removeMember(member.id);
-            router.back();
+            Alert.alert(
+              "Remove member",
+              `Remove ${member.name} from your circle?`,
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Remove",
+                  style: "destructive",
+                  onPress: async () => {
+                    if (Platform.OS !== "web") {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    }
+                    try {
+                      await removeMember(member.id);
+                      router.back();
+                    } catch {
+                      Alert.alert("Error", "Failed to remove member. Please try again.");
+                    }
+                  },
+                },
+              ]
+            );
           }}
           style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.6 }]}
         >

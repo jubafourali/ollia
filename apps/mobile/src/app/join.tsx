@@ -39,7 +39,7 @@ export default function JoinScreen() {
     relation: string;
   }>();
   const { userId, getToken } = useAuth();
-  const { reloadCircleFromStorage } = useFamilyContext();
+  const { reloadCircleFromStorage, clearAllState } = useFamilyContext();
 
   const inviteCode = params.code ?? "";
   const ownerName = decodeURIComponent(params.owner ?? "Someone");
@@ -76,6 +76,9 @@ export default function JoinScreen() {
       if (Platform.OS !== "web") {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
+
+      // Clear any stale cached data before joining a new circle
+      await clearAllState();
 
       setAuthTokenGetter(getToken);
 

@@ -147,4 +147,12 @@ export const api = {
   getPatterns(userId: string): Promise<ApiPattern> {
     return req(`/users/${userId}/patterns`);
   },
+
+  removeMember(circleId: string, memberId: string): Promise<void> {
+    return req(`/circles/${circleId}/members/${memberId}`, { method: "DELETE" });
+  },
+
+  deleteAccount(): Promise<void> {
+    return req("/users/me", { method: "DELETE" });
+  },
 };

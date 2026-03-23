@@ -52,7 +52,7 @@ export default function InviteOnboardingScreen() {
   const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
   const { startSSOFlow } = useSSO();
-  const { reloadCircleFromStorage } = useFamilyContext();
+  const { reloadCircleFromStorage, clearAllState } = useFamilyContext();
 
   const inviteToken = params.token ?? "";
   const inviterName = decodeURIComponent(params.name ?? "Someone");
@@ -150,6 +150,9 @@ export default function InviteOnboardingScreen() {
     setError("");
 
     try {
+      // Clear any stale cached data from a previous user before setting up new circle
+      await clearAllState();
+
       setAuthTokenGetter(getToken);
 
       await api.upsertUser({
@@ -198,7 +201,7 @@ export default function InviteOnboardingScreen() {
     } finally {
       setLoading(false);
     }
-  }, [userId, getToken, userName, inviteToken, inviterName, reloadCircleFromStorage]);
+  }, [userId, getToken, userName, inviteToken, inviterName, reloadCircleFromStorage, clearAllState]);
 
   // --- Auth handlers (same pattern as sign-in.tsx) ---
 

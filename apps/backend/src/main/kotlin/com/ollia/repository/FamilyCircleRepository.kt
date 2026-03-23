@@ -6,6 +6,7 @@ import java.util.UUID
 
 interface FamilyCircleRepository : JpaRepository<FamilyCircle, UUID> {
     fun findByOwnerId(ownerId: UUID): FamilyCircle?
+    fun findAllByOwnerId(ownerId: UUID): List<FamilyCircle>
     fun findByInviteCode(inviteCode: String): FamilyCircle?
     fun deleteAllByOwnerId(ownerId: UUID)
 }

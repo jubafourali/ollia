@@ -58,7 +58,8 @@ type FamilyContextType = {
   patterns: ApiPattern | null;
   alertPrefs: AlertPrefs;
   addMember: (member: Omit<FamilyMember, "id" | "status" | "lastSeen">) => void;
-  removeMember: (id: string) => void;
+  removeMember: (id: string) => Promise<void>;
+  clearAllState: () => Promise<void>;
   respondToCheckIn: (requestId: string, response: "fine" | "help") => void;
   sendHeartbeat: () => void;
   setMyProfile: (profile: MyProfile) => Promise<void>;
@@ -80,6 +81,19 @@ const INVITE_CODE_KEY = "@ollia_invite_code_v2";
 const PLAN_KEY = "@ollia_plan";
 const TRAVEL_KEY = "@ollia_travel";
 const ALERT_PREFS_KEY = "@ollia_alert_prefs";
+const PENDING_INVITE_KEY = "@ollia_pending_invite";
+
+/** All @ollia_* storage keys — cleared on sign out to prevent cross-user data leaks */
+const ALL_STORAGE_KEYS = [
+  CHECKINS_KEY,
+  PROFILE_KEY,
+  CIRCLE_KEY,
+  INVITE_CODE_KEY,
+  PLAN_KEY,
+  TRAVEL_KEY,
+  ALERT_PREFS_KEY,
+  PENDING_INVITE_KEY,
+];
 
 export type AlertPrefs = {
   usgs: boolean;
@@ -148,7 +162,41 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const deviceIdRef = useRef<string>("");
   const circleIdRef = useRef<string>("");
 
+  const prevUserIdRef = useRef<string | null>(null);
+
   const myStatus: ActivityStatus = getStatusFromLastSeen(myLastSeen);
+
+  const stopAllIntervals = useCallback(() => {
+    if (heartbeatRef.current) { clearInterval(heartbeatRef.current); heartbeatRef.current = null; }
+    if (refreshRef.current) { clearInterval(refreshRef.current); refreshRef.current = null; }
+    if (safetyRef.current) { clearInterval(safetyRef.current); safetyRef.current = null; }
+  }, []);
+
+  /** Wipe all local state and AsyncStorage — call on sign out or user switch */
+  const clearAllState = useCallback(async () => {
+    stopAllIntervals();
+    // Clear AsyncStorage
+    await AsyncStorage.multiRemove(ALL_STORAGE_KEYS);
+    // Reset all in-memory state
+    setDeviceId("");
+    setMembers([]);
+    setCheckInRequests([]);
+    setMyLastSeen(new Date());
+    setMyProfileState(null);
+    setCircleId("");
+    setInviteCode("");
+    setIsRegistered(false);
+    setPlan("free");
+    setTravelModeState(false);
+    setTravelDestinationState("");
+    setSafetyEvents([]);
+    setPatterns(null);
+    setAlertPrefsState({ usgs: true, noaa: true, gdacs: true });
+    // Clear refs
+    deviceIdRef.current = "";
+    circleIdRef.current = "";
+    setAuthTokenGetter(null);
+  }, [stopAllIntervals]);
 
   const sendHeartbeatToServer = useCallback(async (uid: string) => {
     if (!uid) return;
@@ -265,9 +313,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     });
     return () => {
       sub.remove();
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-      if (refreshRef.current) clearInterval(refreshRef.current);
-      if (safetyRef.current) clearInterval(safetyRef.current);
+      stopAllIntervals();
     };
   }, [sendHeartbeatToServer, refreshCircle]);
 
@@ -364,10 +410,25 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!authLoaded) return;
+
+    const prevUserId = prevUserIdRef.current;
+    prevUserIdRef.current = userId ?? null;
+
     if (!userId) {
-      setAuthTokenGetter(null);
+      // Signed out — clear everything
+      clearAllState();
       return;
     }
+
+    // User changed (sign out then sign in as different user)
+    if (prevUserId && prevUserId !== userId) {
+      clearAllState().then(() => {
+        setAuthTokenGetter(getToken);
+        bootstrap(userId);
+      });
+      return;
+    }
+
     setAuthTokenGetter(getToken);
     bootstrap(userId);
   }, [userId, authLoaded]);
@@ -385,8 +446,19 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const removeMember = useCallback((id: string) => {
-    setMembers((prev) => prev.filter((m) => m.id !== id));
+  const removeMember = useCallback(async (id: string) => {
+    const cId = circleIdRef.current;
+    if (!cId) {
+      console.warn("removeMember: no circleId");
+      return;
+    }
+    try {
+      await api.removeMember(cId, id);
+      setMembers((prev) => prev.filter((m) => m.id !== id));
+    } catch (e: any) {
+      console.error("removeMember failed:", e);
+      throw e;
+    }
   }, []);
 
   const respondToCheckIn = useCallback(
@@ -547,6 +619,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         alertPrefs,
         addMember,
         removeMember,
+        clearAllState,
         respondToCheckIn,
         sendHeartbeat,
         setMyProfile,

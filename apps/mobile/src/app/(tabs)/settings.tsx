@@ -1,6 +1,7 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -18,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
 import { CityPicker } from "@/components/CityPicker";
+import { api } from "@/utils/api";
 
 type SettingRowProps = {
   icon: string;
@@ -229,8 +231,10 @@ const srcStyles = StyleSheet.create({
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { signOut } = useAuth();
-  const { members, removeMember, plan, upgradePlan, alertPrefs, setAlertPref, myProfile, setMyProfile } = useFamilyContext();
+  const { members, removeMember, clearAllState, plan, upgradePlan, alertPrefs, setAlertPref, myProfile, setMyProfile } = useFamilyContext();
+  const [deleting, setDeleting] = useState(false);
 
   const [editName, setEditName] = useState(myProfile?.name ?? "");
   const [editCity, setEditCity] = useState(myProfile?.region ?? "");
@@ -446,10 +450,27 @@ export default function SettingsScreen() {
                   ) : (
                     <Pressable
                       onPress={() => {
-                        if (Platform.OS !== "web") {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        }
-                        removeMember(m.id);
+                        Alert.alert(
+                          "Remove member",
+                          `Remove ${m.name} from your circle?`,
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "Remove",
+                              style: "destructive",
+                              onPress: async () => {
+                                if (Platform.OS !== "web") {
+                                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                }
+                                try {
+                                  await removeMember(m.id);
+                                } catch {
+                                  Alert.alert("Error", "Failed to remove member. Please try again.");
+                                }
+                              },
+                            },
+                          ]
+                        );
                       }}
                       style={({ pressed }) => [styles.removeBtn, pressed && { opacity: 0.6 }]}
                     >
@@ -470,13 +491,53 @@ export default function SettingsScreen() {
             {
               text: "Sign out",
               style: "destructive",
-              onPress: () => signOut(),
+              onPress: async () => {
+                await clearAllState();
+                await signOut();
+              },
             },
           ]);
         }}
       >
         <Feather name="log-out" size={17} color={BRAND.statusRed} />
         <Text style={styles.signOutText}>Sign out</Text>
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [styles.deleteAccountBtn, pressed && { opacity: 0.7 }]}
+        disabled={deleting}
+        onPress={() => {
+          Alert.alert(
+            "Delete account",
+            "Are you sure? This will permanently delete your account and remove you from all family circles. This cannot be undone.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Delete account",
+                style: "destructive",
+                onPress: async () => {
+                  setDeleting(true);
+                  try {
+                    await api.deleteAccount();
+                    await clearAllState();
+                    await signOut();
+                    router.replace("/(auth)/sign-in");
+                  } catch (e) {
+                    console.error("Delete account failed:", e);
+                    Alert.alert("Error", "Failed to delete account. Please try again.");
+                  } finally {
+                    setDeleting(false);
+                  }
+                },
+              },
+            ]
+          );
+        }}
+      >
+        <Feather name="trash-2" size={17} color="#EF4444" />
+        <Text style={styles.deleteAccountText}>
+          {deleting ? "Deleting…" : "Delete account"}
+        </Text>
       </Pressable>
 
       <View style={styles.aboutCard}>
@@ -776,6 +837,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_500Medium",
     color: BRAND.statusRed,
+  },
+  deleteAccountBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingVertical: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#EF444440",
+    backgroundColor: "#EF444410",
+  },
+  deleteAccountText: {
+    fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
+    color: "#EF4444",
   },
   aboutCard: {
     alignItems: "center",
