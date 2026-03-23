@@ -278,35 +278,8 @@ class ReferenceApiController(
     @Transactional
     fun deleteAccount(): ResponseEntity<Void> {
         val user = currentUserService.getCurrentUser()
-        val userId = user.id!!
-        val clerkId = user.clerkId
-
-        // 1. Delete activity signals
-        activitySignalRepository.deleteAllByUserId(userId)
-
-        // 2. Delete push tokens
-        pushTokenRepository.deleteAllByUserId(userId)
-
-        // 3. Delete family memberships (circles the user has joined)
-        familyMemberRepository.deleteAllByUserId(userId)
-
-        // 4. Delete invites created by this user
-        familyInviteRepository.deleteAllByCreatedBy(userId)
-
-        // 5. Delete owned circles (and their members/invites first)
-        val ownedCircles = familyCircleRepository.findAllByOwnerId(userId)
-        for (circle in ownedCircles) {
-            familyMemberRepository.deleteAllByCircleId(circle.id!!)
-            familyInviteRepository.deleteAllByCircleId(circle.id!!)
-        }
-        familyCircleRepository.deleteAllByOwnerId(userId)
-
-        // 6. Delete the user record
         userRepository.delete(user)
-
-        // 7. Delete from Clerk (async — don't block the response)
-        clerkService.deleteUserAsync(clerkId)
-
+        clerkService.deleteUserAsync(user.clerkId)
         return ResponseEntity.noContent().build()
     }
 }
