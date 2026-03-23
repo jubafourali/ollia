@@ -104,7 +104,7 @@ export const api = {
   },
 
   getMe(): Promise<ApiUser> {
-    return req(`/users/`, {
+    return req(`/users`, {
       method: "GET"
     });
   },

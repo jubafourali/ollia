@@ -141,6 +141,7 @@ class ReferenceApiController(
         val memberResponses = members.mapNotNull { member ->
             val memberUser = userRepository.findById(member.userId).orElse(null) ?: return@mapNotNull null
             CircleMemberResponse(
+                id = member.id.toString(),
                 userId = memberUser.clerkId,
                 name = memberUser.name,
                 region = memberUser.region,

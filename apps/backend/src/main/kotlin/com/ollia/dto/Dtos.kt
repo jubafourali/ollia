@@ -49,6 +49,7 @@ data class CircleDetailResponse(
 
 // Circle member within CircleWithMembers
 data class CircleMemberResponse(
+    val id: String,
     val userId: String,
     val name: String,
     val region: String? = null,
