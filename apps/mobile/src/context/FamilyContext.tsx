@@ -386,7 +386,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         try {
-          const user = await api.getMe(uid);
+          const user = await api.getMe();
           if (user?.name) {
             const profile = { name: user.name, region: user.region ?? "" };
             setMyProfileState(profile);

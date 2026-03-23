@@ -103,8 +103,8 @@ export const api = {
     return req("/users", { method: "POST", body: JSON.stringify(payload) });
   },
 
-  getMe(id: string): Promise<ApiUser> {
-    return req(`/users/me/${id}`, {
+  getMe(): Promise<ApiUser> {
+    return req(`/users/`, {
       method: "GET"
     });
   },

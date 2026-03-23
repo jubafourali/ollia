@@ -73,7 +73,7 @@ class ReferenceApiController(
     // ─── POST /api/users ─── upsert user
     // Request: { id: string, name: string, region?: string }
     // Response: ApiUser
-    @PostMapping("/users")
+    @GetMapping("/users")
     fun getMe(): ApiUserResponse {
         val clerkId = currentUserService.getClerkId()
         val user = userRepository.findByClerkId(clerkId)!!
