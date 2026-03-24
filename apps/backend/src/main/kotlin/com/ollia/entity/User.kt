@@ -29,5 +29,12 @@ class User(
 
     var lastSeenAt: Instant? = null,
 
+    @Column(nullable = false)
+    var plan: String = "free",
+
+    var stripeCustomerId: String? = null,
+
+    var stripeSubscriptionId: String? = null,
+
     val createdAt: Instant = Instant.now()
 )

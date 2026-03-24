@@ -19,6 +19,7 @@ import { useFamilyContext } from "@/context/FamilyContext";
 import { MemberCard } from "@/components/MemberCard";
 import { CheckInModal } from "@/components/CheckInModal";
 import { InviteModal } from "@/components/InviteModal";
+import { UpgradeModal } from "@/components/UpgradeModal";
 import type { ApiSafetyEvent } from "@/utils/api";
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -99,10 +100,12 @@ export default function FamilyScreen() {
     travelDestination,
     refreshCircle,
     refreshSafetyEvents,
+    upgradePlan,
   } = useFamilyContext();
   const [showInvite, setShowInvite] = useState(false);
   const [eventsExpanded, setEventsExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -127,11 +130,17 @@ export default function FamilyScreen() {
   const significantEvents = safetyEvents.filter(
     (e) => e.severity === "high" || e.severity === "medium"
   );
-  const visibleEvents = eventsExpanded ? safetyEvents.slice(0, 5) : significantEvents.slice(0, 2);
+  // Fix: show all events when expanded (not capped at 5)
+  const visibleEvents = eventsExpanded ? safetyEvents : significantEvents.slice(0, 2);
   const travelingMembers = members.filter((m) => m.travelMode);
   const hasLocation = !!(travelMode && travelDestination) || !!myProfile?.region;
 
   const atLimit = plan === "free" && members.length >= 3;
+
+  // For free users: "Set your city" banner is a premium upsell
+  // For premium users: show banner only if city not set
+  const showCityBanner = plan !== "premium" || !hasLocation;
+  const cityBannerIsUpsell = plan !== "premium";
 
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
@@ -190,14 +199,24 @@ export default function FamilyScreen() {
           </View>
         )}
 
-        {!hasLocation && (
+        {showCityBanner && (
           <Pressable
             style={styles.locationPrompt}
-            onPress={() => router.push("/(tabs)/settings")}
+            onPress={() => {
+              if (cityBannerIsUpsell) {
+                setShowUpgrade(true);
+              } else {
+                router.push("/(tabs)/settings");
+              }
+            }}
           >
-            <Feather name="map-pin" size={14} color={BRAND.primary} />
+            <Feather name={cityBannerIsUpsell ? "lock" : "map-pin"} size={14} color={BRAND.primary} />
             <Text style={styles.locationPromptText}>
-              Set your city to see safety alerts for your area
+              {cityBannerIsUpsell
+                ? hasLocation
+                  ? `Upgrade to Premium to filter alerts for ${myProfile?.region ?? "your city"}`
+                  : "Upgrade to Premium to see safety alerts for your city"
+                : "Set your city to see safety alerts for your area"}
             </Text>
             <Feather name="chevron-right" size={14} color={BRAND.primary} />
           </Pressable>
@@ -223,9 +242,11 @@ export default function FamilyScreen() {
               <Feather name="info" size={11} color={BRAND.textMuted} />
               <Text style={styles.eventsFooterText}>
                 Official data from USGS, NOAA &amp; GDACS.{" "}
-                {hasLocation
+                {plan === "premium" && hasLocation
                   ? `Showing alerts for ${travelMode && travelDestination ? travelDestination : myProfile?.region}.`
-                  : "Showing all regions — set your city to filter by location."
+                  : plan === "premium"
+                  ? "Showing all regions — set your city to filter by location."
+                  : "Showing global alerts — upgrade to Premium to filter by city."
                 }{" "}
                 Tap any alert to view the original report.
               </Text>
@@ -279,6 +300,15 @@ export default function FamilyScreen() {
       </ScrollView>
 
       <CheckInModal request={pendingCheckIn} onRespond={respondToCheckIn} />
+
+      <UpgradeModal
+        visible={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        onSelect={async (planType) => {
+          await upgradePlan(planType);
+          setShowUpgrade(false);
+        }}
+      />
 
       <InviteModal
         visible={showInvite}

@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@clerk/clerk-expo";
+import * as WebBrowser from "expo-web-browser";
 import React, {
   createContext,
   useCallback,
@@ -68,7 +69,8 @@ type FamilyContextType = {
   refreshCircle: () => Promise<void>;
   reloadCircleFromStorage: () => Promise<void>;
   setTravelMode: (on: boolean, destination?: string) => Promise<void>;
-  upgradePlan: () => Promise<void>;
+  upgradePlan: (plan: "monthly" | "annual") => Promise<void>;
+  syncSubscription: () => Promise<void>;
   refreshSafetyEvents: () => Promise<void>;
   setAlertPref: (source: keyof AlertPrefs, enabled: boolean) => Promise<void>;
 };
@@ -311,13 +313,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       ) {
         sendHeartbeatToServer(deviceIdRef.current);
         refreshCircle();
+        syncSubscription();
       }
     });
     return () => {
       sub.remove();
       stopAllIntervals();
     };
-  }, [sendHeartbeatToServer, refreshCircle]);
+  }, [sendHeartbeatToServer, refreshCircle, syncSubscription]);
 
   const setupCircle = useCallback(
     async (devId: string) => {
@@ -354,6 +357,16 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
+
+  const syncSubscription = useCallback(async () => {
+    try {
+      const status = await api.getSubscriptionStatus();
+      setPlan(status.plan);
+      await AsyncStorage.setItem(PLAN_KEY, status.plan);
+    } catch (e) {
+      console.warn("syncSubscription failed:", e);
+    }
+  }, []);
 
   const bootstrap = useCallback(async (uid: string) => {
     if (!uid) return;
@@ -407,6 +420,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         refreshPatterns(uid);
       }
 
+      // Sync subscription status from server (authoritative source for plan)
+      try {
+        const status = await api.getSubscriptionStatus();
+        setPlan(status.plan);
+        await AsyncStorage.setItem(PLAN_KEY, status.plan);
+      } catch {}
+
       startSafetyRefresh();
 
       const checkins = await AsyncStorage.getItem(CHECKINS_KEY);
@@ -421,7 +441,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error("Bootstrap error:", e);
     }
-  }, [setupCircle, startHeartbeat, startRefresh, startSafetyRefresh, refreshPatterns]);
+  }, [setupCircle, startHeartbeat, startRefresh, startSafetyRefresh, refreshPatterns, syncSubscription]);
 
   useEffect(() => {
     if (!authLoaded) return;
@@ -544,17 +564,12 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const upgradePlan = useCallback(async () => {
-    const cId = circleIdRef.current;
-    if (!cId) return;
-    try {
-      await api.upgradePlan(cId, "premium");
-      setPlan("premium");
-      await AsyncStorage.setItem(PLAN_KEY, "premium");
-    } catch (e) {
-      console.warn("upgradePlan failed:", e);
-    }
-  }, []);
+  const upgradePlan = useCallback(async (planType: "monthly" | "annual") => {
+    const { url } = await api.createCheckout(planType);
+    await WebBrowser.openBrowserAsync(url);
+    // After browser closes, sync subscription status
+    await syncSubscription();
+  }, [syncSubscription]);
 
   const reloadCircleFromStorage = useCallback(async () => {
     const uid = deviceIdRef.current;
@@ -598,7 +613,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     ? activeLocation.split(",").pop()?.trim().toLowerCase() ?? ""
     : activeLocation.trim().toLowerCase();
 
-  const filteredSafetyEvents = userCountry
+  // City-filtered alerts are a Premium feature — free users always see global alerts
+  const filteredSafetyEvents = (plan === "premium" && userCountry)
     ? prefFilteredEvents.filter((e) => {
         const haystack = `${e.region ?? ""} ${e.title ?? ""}`.toLowerCase();
         if (e.source === "NOAA") {
@@ -643,6 +659,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         reloadCircleFromStorage,
         setTravelMode,
         upgradePlan,
+        syncSubscription,
         refreshSafetyEvents,
         setAlertPref,
       }}

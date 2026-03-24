@@ -18,6 +18,7 @@ class SecurityConfig {
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
                 it.requestMatchers("/actuator/health").permitAll()
+                it.requestMatchers("/api/subscriptions/webhook").permitAll()
                 it.anyRequest().authenticated()
             }
             .oauth2ResourceServer { it.jwt {} }

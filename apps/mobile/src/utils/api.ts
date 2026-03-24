@@ -42,6 +42,12 @@ export type ApiUser = {
   travelMode?: boolean;
   travelDestination?: string;
   createdAt?: string;
+  plan?: string;
+};
+
+export type ApiSubscriptionStatus = {
+  plan: string;
+  subscriptionId?: string;
 };
 
 export type ApiActivityResponse = {
@@ -161,5 +167,16 @@ export const api = {
 
   deleteAccount(): Promise<void> {
     return req("/users/me", { method: "DELETE" });
+  },
+
+  createCheckout(plan: "monthly" | "annual"): Promise<{ url: string }> {
+    return req("/subscriptions/checkout", {
+      method: "POST",
+      body: JSON.stringify({ plan }),
+    });
+  },
+
+  getSubscriptionStatus(): Promise<ApiSubscriptionStatus> {
+    return req("/subscriptions/status");
   },
 };

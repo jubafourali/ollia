@@ -26,6 +26,7 @@ import { useFamilyContext } from "@/context/FamilyContext";
 import { getStatusColor, getStatusLabel } from "@/components/StatusDot";
 import { formatLastSeen } from "@/utils/time";
 import { CityPicker } from "@/components/CityPicker";
+import { UpgradeModal } from "@/components/UpgradeModal";
 
 function HeartbeatTimer({ lastSeen }: { lastSeen: Date }) {
   const [elapsed, setElapsed] = useState(0);
@@ -88,12 +89,17 @@ export default function MyStatusScreen() {
     travelDestination,
     setTravelMode,
     patterns,
+    plan,
+    upgradePlan,
   } = useFamilyContext();
   const statusColor = getStatusColor(myStatus);
   const statusLabel = getStatusLabel(myStatus);
   const isActive = myStatus === "active";
   const [refreshing, setRefreshing] = useState(false);
   const [showTravelInput, setShowTravelInput] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
+  const isPremium = plan === "premium";
 
   const scale = useSharedValue(1);
   const ringScale = useSharedValue(1);
@@ -249,7 +255,7 @@ export default function MyStatusScreen() {
         </Pressable>
       </View>
 
-      {patterns?.hasPattern && patterns.insight ? (
+      {isPremium && patterns?.hasPattern && patterns.insight ? (
         <View style={styles.patternCard}>
           <Feather name="trending-up" size={15} color={BRAND.primary} />
           <View style={{ flex: 1 }}>
@@ -257,6 +263,17 @@ export default function MyStatusScreen() {
             <Text style={styles.patternText}>{patterns.insight}</Text>
           </View>
         </View>
+      ) : !isPremium ? (
+        <Pressable style={styles.patternCardLocked} onPress={() => setShowUpgrade(true)}>
+          <View style={styles.patternLockedIcon}>
+            <Feather name="lock" size={14} color={BRAND.textMuted} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.patternTitle}>Activity Patterns</Text>
+            <Text style={styles.patternText}>Unlock with Premium to see your activity trends</Text>
+          </View>
+          <Feather name="chevron-right" size={14} color={BRAND.textMuted} />
+        </Pressable>
       ) : null}
 
       <View style={styles.connectionCard}>
@@ -306,20 +323,31 @@ export default function MyStatusScreen() {
 
         <View style={[styles.connectionRow, { borderBottomWidth: 0 }]}>
           <View style={styles.connectionLeft}>
-            <Feather name="navigation" size={16} color={travelMode ? BRAND.primary : BRAND.textSecondary} />
+            <Feather name="navigation" size={16} color={isPremium && travelMode ? BRAND.primary : BRAND.textSecondary} />
             <View>
               <Text style={styles.connectionLabel}>Travel mode</Text>
-              {travelMode && travelDestination ? (
+              {isPremium && travelMode && travelDestination ? (
                 <Text style={styles.travelSubtitle}>{travelDestination}</Text>
+              ) : !isPremium ? (
+                <Text style={styles.travelSubtitle}>Premium</Text>
               ) : null}
             </View>
           </View>
-          <Switch
-            value={travelMode}
-            onValueChange={handleTravelToggle}
-            trackColor={{ false: BRAND.border, true: `${BRAND.primary}80` }}
-            thumbColor={travelMode ? BRAND.primary : BRAND.backgroundCard}
-          />
+          {isPremium ? (
+            <Switch
+              value={travelMode}
+              onValueChange={handleTravelToggle}
+              trackColor={{ false: BRAND.border, true: `${BRAND.primary}80` }}
+              thumbColor={travelMode ? BRAND.primary : BRAND.backgroundCard}
+            />
+          ) : (
+            <Pressable
+              onPress={() => setShowUpgrade(true)}
+              style={styles.lockBtn}
+            >
+              <Feather name="lock" size={16} color={BRAND.textMuted} />
+            </Pressable>
+          )}
         </View>
 
       </View>
@@ -334,7 +362,18 @@ export default function MyStatusScreen() {
         />
       )}
 
-      {atRiskMembers.length > 0 && (
+      {!isPremium ? (
+        <Pressable style={styles.smartAlertsLocked} onPress={() => setShowUpgrade(true)}>
+          <Feather name="lock" size={14} color={BRAND.textMuted} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.smartAlertsLockedTitle}>Smart Inactivity Alerts</Text>
+            <Text style={styles.smartAlertsLockedText}>
+              Get notified when family goes quiet — Premium feature
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={14} color={BRAND.textMuted} />
+        </Pressable>
+      ) : atRiskMembers.length > 0 ? (
         <>
           <View style={styles.sectionHeader}>
             <Feather name="alert-triangle" size={16} color="#F59E0B" />
@@ -347,7 +386,7 @@ export default function MyStatusScreen() {
             <InactivityAlert key={m.id} name={m.name} status={m.status} />
           ))}
         </>
-      )}
+      ) : null}
 
       <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 12 }]}>
         Who can see your status
@@ -399,6 +438,15 @@ export default function MyStatusScreen() {
       </View>
 
       <View style={{ height: Platform.OS === "web" ? 34 : 20 }} />
+
+      <UpgradeModal
+        visible={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        onSelect={async (planType) => {
+          await upgradePlan(planType);
+          setShowUpgrade(false);
+        }}
+      />
     </ScrollView>
   );
 }
@@ -679,6 +727,58 @@ const styles = StyleSheet.create({
     color: BRAND.textMuted,
     textAlign: "center",
     paddingHorizontal: 24,
+  },
+  patternCardLocked: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+    backgroundColor: BRAND.backgroundCard,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: BRAND.borderLight,
+    marginBottom: 16,
+  },
+  patternLockedIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: BRAND.backgroundDeep,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lockBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: BRAND.backgroundDeep,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: BRAND.borderLight,
+  },
+  smartAlertsLocked: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: BRAND.backgroundCard,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: BRAND.borderLight,
+    marginBottom: 16,
+  },
+  smartAlertsLockedTitle: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: BRAND.textSecondary,
+    marginBottom: 1,
+  },
+  smartAlertsLockedText: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.textMuted,
+    lineHeight: 16,
   },
   privacyCard: {
     flexDirection: "row",

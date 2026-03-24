@@ -66,13 +66,12 @@ class ReferenceApiController(
             region = user.region,
             travelMode = user.travelMode,
             travelDestination = user.travelDestination,
-            createdAt = user.createdAt.toString()
+            createdAt = user.createdAt.toString(),
+            plan = user.plan
         )
     }
 
-    // ─── POST /api/users ─── upsert user
-    // Request: { id: string, name: string, region?: string }
-    // Response: ApiUser
+    // ─── GET /api/users ─── get current user
     @GetMapping("/users")
     fun getMe(): ApiUserResponse {
         val clerkId = currentUserService.getClerkId()
@@ -83,7 +82,8 @@ class ReferenceApiController(
             region = user.region,
             travelMode = user.travelMode,
             travelDestination = user.travelDestination,
-            createdAt = user.createdAt.toString()
+            createdAt = user.createdAt.toString(),
+            plan = user.plan
         )
     }
 
@@ -178,8 +178,9 @@ class ReferenceApiController(
         // Check if already a member
         val existing = familyMemberRepository.findByCircleIdAndUserId(circle.id!!, user.id!!)
         if (existing == null) {
-            // Enforce free plan cap
-            if (circle.plan == "free") {
+            // Enforce free plan cap — check circle owner's user plan
+            val circleOwner = userRepository.findById(circle.ownerId).orElse(null)
+            if (circleOwner?.plan != "premium") {
                 val count = familyMemberRepository.countByCircleId(circle.id!!)
                 if (count >= FREE_PLAN_MEMBER_LIMIT) {
                     throw ResponseStatusException(
@@ -260,6 +261,9 @@ class ReferenceApiController(
         @RequestBody request: SetTravelModeRequest
     ): ApiUserResponse {
         val user = currentUserService.getCurrentUser()
+        if (request.travelMode && user.plan != "premium") {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Travel mode requires a Premium subscription")
+        }
         user.travelMode = request.travelMode
         user.travelDestination = if (request.travelMode) request.travelDestination else null
         userRepository.save(user)
@@ -269,7 +273,8 @@ class ReferenceApiController(
             region = user.region,
             travelMode = user.travelMode,
             travelDestination = user.travelDestination,
-            createdAt = user.createdAt.toString()
+            createdAt = user.createdAt.toString(),
+            plan = user.plan
         )
     }
 

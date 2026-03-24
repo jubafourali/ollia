@@ -28,6 +28,12 @@ spring:
 clerk:
   secret-key: ${CLERK_SECRET_KEY:sk_test_rmM3vga9XaLFQVKbz9UOGOUy4c5juGD1ebXgUHJdNh}
 
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:}
+  price-id: ${STRIPE_PRICE_ID:}
+  annual-price-id: ${STRIPE_ANNUAL_PRICE_ID:}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+
 server:
   port: ${PORT:8080}
 

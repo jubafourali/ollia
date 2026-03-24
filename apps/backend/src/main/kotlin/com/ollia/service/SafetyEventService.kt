@@ -190,8 +190,8 @@ class SafetyEventService(
                     "DR" -> "drought"
                     else -> "disaster"
                 }
-                val name = properties["eventname"] as? String ?: properties["name"] as? String ?: "Unknown event"
-                val country = properties["country"] as? String ?: "Unknown"
+                val name = (properties["eventname"] as? String ?: properties["name"] as? String ?: "").trim()
+                val country = (properties["country"] as? String ?: "Unknown").trim()
                 val alertLevel = properties["alertlevel"] as? String
                 val severity = when (alertLevel?.lowercase()) {
                     "red" -> "critical"
@@ -207,10 +207,12 @@ class SafetyEventService(
                 val gdacsUrl = properties["url"] as? String
                     ?: "https://www.gdacs.org/report.aspx?eventid=${properties["eventid"]}&eventtype=${properties["eventtype"]}"
 
+                val gdacsTitle = if (name.isBlank()) country else "$name - $country"
+
                 safetyEventRepository.save(
                     SafetyEvent(
                         type = eventType,
-                        title = "$name - $country",
+                        title = gdacsTitle,
                         description = properties["description"] as? String,
                         region = country,
                         severity = severity,

@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
 import { CityPicker } from "@/components/CityPicker";
+import { UpgradeModal } from "@/components/UpgradeModal";
 import { api } from "@/utils/api";
 
 type SettingRowProps = {
@@ -77,9 +78,9 @@ function PlanCard({ plan, onUpgrade }: { plan: string; onUpgrade: () => void }) 
           <Feather
             name={isPremium ? "star" : "users"}
             size={14}
-            color={isPremium ? "#7C3AED" : BRAND.primary}
+            color={isPremium ? "#F59E0B" : BRAND.primary}
           />
-          <Text style={[styles.planBadgeText, isPremium && { color: "#7C3AED" }]}>
+          <Text style={[styles.planBadgeText, isPremium && { color: "#F59E0B" }]}>
             {isPremium ? "Premium" : "Free Plan"}
           </Text>
         </View>
@@ -116,8 +117,9 @@ function PlanCard({ plan, onUpgrade }: { plan: string; onUpgrade: () => void }) 
             onPress={onUpgrade}
           >
             <Feather name="star" size={15} color={BRAND.white} />
-            <Text style={styles.upgradeBtnText}>Upgrade to Premium — $5/mo</Text>
+            <Text style={styles.upgradeBtnText}>Upgrade to Premium</Text>
           </Pressable>
+          <Text style={styles.upgradePriceHint}>$9.99/mo · $79.99/yr</Text>
         </>
       )}
     </View>
@@ -235,6 +237,7 @@ export default function SettingsScreen() {
   const { signOut } = useAuth();
   const { members, removeMember, clearAllState, plan, upgradePlan, alertPrefs, setAlertPref, myProfile, setMyProfile } = useFamilyContext();
   const [deleting, setDeleting] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const [editName, setEditName] = useState(myProfile?.name ?? "");
   const [editCity, setEditCity] = useState(myProfile?.region ?? "");
@@ -274,21 +277,7 @@ export default function SettingsScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    if (Platform.OS === "web") {
-      upgradePlan();
-      return;
-    }
-    Alert.alert(
-      "Upgrade to Premium",
-      "Unlock unlimited family members, travel mode, disaster alerts, and more for $5/month.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Upgrade",
-          onPress: () => upgradePlan(),
-        },
-      ]
-    );
+    setShowUpgrade(true);
   };
 
   return (
@@ -540,6 +529,15 @@ export default function SettingsScreen() {
         </Text>
       </Pressable>
 
+      <UpgradeModal
+        visible={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        onSelect={async (planType) => {
+          await upgradePlan(planType);
+          setShowUpgrade(false);
+        }}
+      />
+
       <View style={styles.aboutCard}>
         <View style={styles.aboutLogo}>
           <Text style={styles.aboutLogoText}>Oll</Text>
@@ -729,7 +727,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#7C3AED",
+    backgroundColor: "#F59E0B",
     paddingVertical: 13,
     borderRadius: 14,
     marginTop: 4,
@@ -738,6 +736,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Inter_600SemiBold",
     color: BRAND.white,
+  },
+  upgradePriceHint: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.textMuted,
+    textAlign: "center",
+    marginTop: -4,
   },
   memberRow: {
     flexDirection: "row",

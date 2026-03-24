@@ -18,7 +18,8 @@ data class ApiUserResponse(
     val region: String? = null,
     val travelMode: Boolean? = null,
     val travelDestination: String? = null,
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    val plan: String? = null
 )
 
 // POST /api/activity — request
@@ -112,6 +113,18 @@ data class PatternResponse(
     val totalSignals: Int? = null,
     val todaySignals: Int? = null,
     val insight: String? = null
+)
+
+// POST /api/subscriptions/checkout — request
+data class CheckoutRequest(val plan: String) // "monthly" | "annual"
+
+// POST /api/subscriptions/checkout — response
+data class CheckoutResponse(val url: String)
+
+// GET /api/subscriptions/status — response
+data class SubscriptionStatusResponse(
+    val plan: String,
+    val subscriptionId: String? = null
 )
 
 // Legacy DTOs kept for scheduler/push
