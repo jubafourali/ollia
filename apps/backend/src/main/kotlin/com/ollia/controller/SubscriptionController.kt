@@ -6,10 +6,10 @@ import com.ollia.dto.SubscriptionStatusResponse
 import com.ollia.repository.FamilyCircleRepository
 import com.ollia.repository.UserRepository
 import com.ollia.service.CurrentUserService
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.stripe.Stripe
 import com.stripe.model.Customer
 import com.stripe.model.Event
-import com.stripe.model.Subscription
 import com.stripe.model.checkout.Session
 import com.stripe.net.Webhook
 import com.stripe.param.CustomerCreateParams
@@ -31,7 +31,8 @@ class SubscriptionController(
     @Value("\${stripe.webhook-secret:}") private val webhookSecret: String,
     private val currentUserService: CurrentUserService,
     private val userRepository: UserRepository,
-    private val familyCircleRepository: FamilyCircleRepository
+    private val familyCircleRepository: FamilyCircleRepository,
+    private val objectMapper: ObjectMapper,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -68,8 +69,9 @@ class SubscriptionController(
         val params = SessionCreateParams.builder()
             .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
             .setCustomer(customerId)
-            .setSuccessUrl("https://ollia.app/premium-success")
-            .setCancelUrl("https://ollia.app/premium-cancel")
+            .setSuccessUrl("ollia://premium-success")
+            .setCancelUrl("ollia://premium-cancel")
+            .putMetadata("userId", user.id.toString())
             .addLineItem(
                 SessionCreateParams.LineItem.builder()
                     .setPrice(priceId)
@@ -105,52 +107,31 @@ class SubscriptionController(
 
         logger.info("Stripe webhook: ${event.type}")
 
+        val eventJson = objectMapper.readTree(payloadStr)
+        val dataObj = eventJson.path("data").path("object")
+
         when (event.type) {
             "checkout.session.completed" -> {
-                val session = event.dataObjectDeserializer.`object`.orElse(null) as? Session
-                if (session == null) {
-                    logger.warn("checkout.session.completed: failed to deserialize session — possible Stripe API version mismatch")
-                    return ResponseEntity.ok(mapOf("received" to true))
-                }
-                val customerId = session.customer
-                val subscriptionId = session.subscription
-                logger.info("checkout.session.completed: customerId=$customerId subscriptionId=$subscriptionId")
+                val customerId = dataObj.path("customer").asText(null)
+                val subscriptionId = dataObj.path("subscription").asText(null)
+                val userIdStr = dataObj.path("metadata").path("userId").asText(null)
+                logger.info("checkout.session.completed: customerId=$customerId subscriptionId=$subscriptionId metadataUserId=$userIdStr")
 
-                if (customerId == null) {
-                    logger.warn("checkout.session.completed: session has no customerId, skipping")
-                    return ResponseEntity.ok(mapOf("received" to true))
-                }
+                // Primary lookup by stripeCustomerId
+                var user = customerId?.let { userRepository.findByStripeCustomerId(it) }
 
-                // Primary lookup by stored stripeCustomerId
-                var user = userRepository.findByStripeCustomerId(customerId)
-
-                // Fallback: retrieve Customer from Stripe and look up by userId in metadata
-                // (handles race where the checkout save hadn't committed yet when webhook arrived)
-                if (user == null) {
-                    logger.warn("checkout.session.completed: no user found for stripeCustomerId=$customerId — attempting metadata fallback")
-                    try {
-                        if (stripeSecretKey.isNotBlank()) Stripe.apiKey = stripeSecretKey
-                        val customer = Customer.retrieve(customerId)
-                        val userIdStr = customer.metadata["userId"]
-                        if (userIdStr != null) {
-                            val userId = UUID.fromString(userIdStr)
-                            user = userRepository.findById(userId).orElse(null)
-                            if (user != null) {
-                                logger.info("checkout.session.completed: found user via metadata userId=$userIdStr — backfilling stripeCustomerId")
-                                user.stripeCustomerId = customerId
-                            } else {
-                                logger.warn("checkout.session.completed: metadata userId=$userIdStr not found in DB")
-                            }
-                        } else {
-                            logger.warn("checkout.session.completed: Stripe Customer $customerId has no userId metadata")
-                        }
-                    } catch (e: Exception) {
-                        logger.error("checkout.session.completed: metadata fallback failed", e)
+                // Fallback: use userId embedded in session metadata (no extra Stripe API call)
+                if (user == null && userIdStr != null) {
+                    logger.warn("checkout.session.completed: no user found for stripeCustomerId=$customerId — trying metadataUserId=$userIdStr")
+                    user = runCatching { userRepository.findById(UUID.fromString(userIdStr)).orElse(null) }.getOrNull()
+                    if (user != null && customerId != null) {
+                        logger.info("checkout.session.completed: found user via metadata — backfilling stripeCustomerId")
+                        user.stripeCustomerId = customerId
                     }
                 }
 
                 if (user == null) {
-                    logger.error("checkout.session.completed: could not resolve user for customerId=$customerId — plan NOT updated")
+                    logger.error("checkout.session.completed: could not resolve user (customerId=$customerId metadataUserId=$userIdStr) — plan NOT updated")
                     return ResponseEntity.ok(mapOf("received" to true))
                 }
 
@@ -161,7 +142,7 @@ class SubscriptionController(
 
                 val circle = familyCircleRepository.findByOwnerId(user.id!!)
                 if (circle == null) {
-                    logger.warn("checkout.session.completed: no circle found for ownerId=${user.id} — user plan updated but circle plan NOT updated")
+                    logger.warn("checkout.session.completed: no circle for ownerId=${user.id} — user upgraded but circle NOT updated")
                 } else {
                     circle.plan = "premium"
                     familyCircleRepository.save(circle)
@@ -169,12 +150,7 @@ class SubscriptionController(
                 }
             }
             "customer.subscription.deleted" -> {
-                val subscription = event.dataObjectDeserializer.`object`.orElse(null) as? Subscription
-                if (subscription == null) {
-                    logger.warn("customer.subscription.deleted: failed to deserialize subscription object")
-                    return ResponseEntity.ok(mapOf("received" to true))
-                }
-                val customerId = subscription.customer
+                val customerId = dataObj.path("customer").asText(null)
                 logger.info("customer.subscription.deleted: customerId=$customerId")
 
                 if (customerId == null) {
@@ -192,7 +168,7 @@ class SubscriptionController(
                     userRepository.save(user)
                     val circle = familyCircleRepository.findByOwnerId(user.id!!)
                     if (circle == null) {
-                        logger.warn("customer.subscription.deleted: no circle found for ownerId=${user.id} — user plan updated but circle plan NOT updated")
+                        logger.warn("customer.subscription.deleted: no circle for ownerId=${user.id} — user downgraded but circle NOT updated")
                     } else {
                         circle.plan = "free"
                         familyCircleRepository.save(circle)
