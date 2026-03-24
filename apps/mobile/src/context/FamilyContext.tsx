@@ -566,8 +566,9 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   const upgradePlan = useCallback(async (planType: "monthly" | "annual") => {
     const { url } = await api.createCheckout(planType);
-    await WebBrowser.openBrowserAsync(url);
-    // After browser closes, sync subscription status
+    // openAuthSessionAsync captures the https://ollia.app/premium-* redirect automatically
+    await WebBrowser.openAuthSessionAsync(url, "https://ollia.app/premium-success");
+    // Always sync after the session closes (success or cancel)
     await syncSubscription();
   }, [syncSubscription]);
 

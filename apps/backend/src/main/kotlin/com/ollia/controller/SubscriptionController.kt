@@ -67,8 +67,8 @@ class SubscriptionController(
         val params = SessionCreateParams.builder()
             .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
             .setCustomer(customerId)
-            .setSuccessUrl("ollia://checkout-complete?success=true")
-            .setCancelUrl("ollia://checkout-complete?cancelled=true")
+            .setSuccessUrl("https://ollia.app/premium-success")
+            .setCancelUrl("https://ollia.app/premium-cancel")
             .addLineItem(
                 SessionCreateParams.LineItem.builder()
                     .setPrice(priceId)

@@ -51,6 +51,26 @@
             "BROWSABLE",
             "DEFAULT"
           ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "ollia.app",
+              "pathPrefix": "/premium-success"
+            },
+            {
+              "scheme": "https",
+              "host": "ollia.app",
+              "pathPrefix": "/premium-cancel"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },

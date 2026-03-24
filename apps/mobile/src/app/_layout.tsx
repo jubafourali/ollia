@@ -49,9 +49,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
     const inAuth = segments[0] === "(auth)";
     const inInvite = segments[0] === "invite";
+    const inPremiumRedirect =
+      segments[0] === "premium-success" || segments[0] === "premium-cancel";
 
-    // Allow invite onboarding flow without auth — it handles auth inline
-    if (inInvite) {
+    // Allow invite onboarding and post-checkout redirect screens without auth gate
+    if (inInvite || inPremiumRedirect) {
       setAuthReady(true);
       return;
     }
@@ -89,6 +91,14 @@ function RootLayoutNav() {
         />
         <Stack.Screen
           name="invite"
+          options={{ headerShown: false, animation: "fade" }}
+        />
+        <Stack.Screen
+          name="premium-success"
+          options={{ headerShown: false, animation: "fade" }}
+        />
+        <Stack.Screen
+          name="premium-cancel"
           options={{ headerShown: false, animation: "fade" }}
         />
       </Stack>
