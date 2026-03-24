@@ -78,7 +78,8 @@
       [
         "expo-router",
         {
-          "origin": "https://ollia.app"
+          "origin": "https://ollia.app",
+          "root": "src"
         }
       ],
       "expo-font",
