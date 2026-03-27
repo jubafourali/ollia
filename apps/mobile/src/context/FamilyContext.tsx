@@ -47,6 +47,7 @@ type FamilyContextType = {
   members: FamilyMember[];
   checkInRequests: CheckInRequest[];
   myStatus: ActivityStatus;
+  heartbeatIntervalLabel: string;
   myLastSeen: Date;
   myProfile: MyProfile | null;
   circleId: string;
@@ -104,8 +105,8 @@ export type AlertPrefs = {
   gdacs: boolean;
 };
 
-const HEARTBEAT_INTERVAL_MS = 30_000;
-const CIRCLE_REFRESH_MS = 30_000;
+const HEARTBEAT_INTERVAL_MS = 1800000;
+const CIRCLE_REFRESH_MS = 1800000;
 const SAFETY_REFRESH_MS = 15 * 60 * 1000;
 
 function generateId(len = 20): string {
@@ -169,6 +170,17 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const prevUserIdRef = useRef<string | null>(null);
 
   const myStatus: ActivityStatus = getStatusFromLastSeen(myLastSeen);
+
+  function formatInterval(ms: number): string {
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `Every ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    return remMins === 0
+        ? `Every ${hours} hr`
+        : `Every ${hours} hr ${remMins} min`;
+  }
+  const heartbeatIntervalLabel = formatInterval(HEARTBEAT_INTERVAL_MS);
 
   const stopAllIntervals = useCallback(() => {
     if (heartbeatRef.current) { clearInterval(heartbeatRef.current); heartbeatRef.current = null; }
@@ -637,6 +649,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         members,
         checkInRequests,
         myStatus,
+        heartbeatIntervalLabel,
         myLastSeen,
         myProfile,
         circleId,

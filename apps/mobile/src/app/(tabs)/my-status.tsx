@@ -79,6 +79,7 @@ export default function MyStatusScreen() {
   const insets = useSafeAreaInsets();
   const {
     myStatus,
+    heartbeatIntervalLabel,
     myLastSeen,
     sendHeartbeat,
     members,
@@ -297,7 +298,7 @@ export default function MyStatusScreen() {
           </View>
           <View style={[styles.pill, { backgroundColor: `${BRAND.primary}18` }]}>
             <View style={[styles.pillDot, { backgroundColor: BRAND.primary }]} />
-            <Text style={[styles.pillText, { color: BRAND.primary }]}>Every 30s</Text>
+            <Text style={[styles.pillText, { color: BRAND.primary }]}>{heartbeatIntervalLabel}</Text>
           </View>
         </View>
 
