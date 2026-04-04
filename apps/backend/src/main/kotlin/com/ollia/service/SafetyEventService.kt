@@ -160,6 +160,8 @@ class SafetyEventService(
 
     private fun fetchGdacsEvents() {
         try {
+            safetyEventRepository.deleteBySource("GDACS")
+
             val url = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?alertlevel=Green;Orange;Red&eventlist=EQ;TC;FL;VO;WF;DR&fromDate=${
                 Instant.now().minus(7, ChronoUnit.DAYS).toString().substringBefore("T")
             }"
@@ -207,7 +209,7 @@ class SafetyEventService(
                 val gdacsUrl = properties["url"] as? String
                     ?: "https://www.gdacs.org/report.aspx?eventid=${properties["eventid"]}&eventtype=${properties["eventtype"]}"
 
-                val gdacsTitle = if (name.isBlank()) country else "$name - $country"
+                val gdacsTitle = if (name.isBlank()) country else name
 
                 safetyEventRepository.save(
                     SafetyEvent(
