@@ -1,0 +1,23 @@
+appId: com.ollia.app
+---
+- launchApp
+- waitForAnimationToEnd:
+      timeout: 5000
+- tapOn:
+      id: "settings-nav-btn"
+- waitForAnimationToEnd:
+      timeout: 2000
+- scrollUntilVisible:
+      element:
+          id: "sign-out-btn"
+      direction: DOWN
+- tapOn:
+      id: "sign-out-btn"
+- waitForAnimationToEnd:
+      timeout: 1000
+- tapOn:
+        text: "Sign out"
+        index: 1
+- waitForAnimationToEnd:
+      timeout: 3000
+- assertVisible: "Welcome"

@@ -1,0 +1,47 @@
+appId: com.ollia.app
+---
+- tapOn:
+    id: "settings-nav-btn"
+- assertVisible: "Settings"
+- assertVisible: "My Profile"
+- assertVisible: "Your name"
+- assertVisible: "Your city"
+- assertVisible: "Used to show you relevant safety alerts"
+- tapOn: "Your name"
+- inputText: "Juba"
+- tapOn: "Save profile"
+- assertVisible: "Your Plan"
+- assertVisible: "Free Plan"
+- assertVisible: "Up to 3 family members"
+- assertVisible: "Basic activity reassurance"
+- assertVisible:
+    id: "upgrade-to-premium-btn"
+- assertVisible: "Safety Data Sources"
+- scrollUntilVisible:
+    element:
+      text: "U.S. Geological Survey"
+    direction: DOWN
+- assertVisible: "National Weather Service"
+- assertVisible: "Global Disaster Alert"
+- assertVisible: "Notifications"
+- scrollUntilVisible:
+    element:
+      id: "activity-alerts-row"
+    direction: DOWN
+- assertVisible:
+    id: "activity-alerts-row"
+- assertVisible:
+    id: "inactivity-alerts-row"
+- assertVisible: "Privacy"
+- assertVisible:
+    id: "share-region-row"
+- scrollUntilVisible:
+    element:
+      id: "sign-out-btn"
+    direction: DOWN
+- assertVisible:
+    id: "sign-out-btn"
+- scrollUntilVisible:
+    element:
+      text: "A quiet signal that lets your family know you're okay."
+- assertVisible: "Version 2.0.0"

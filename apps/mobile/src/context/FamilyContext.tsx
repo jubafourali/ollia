@@ -57,6 +57,7 @@ type FamilyContextType = {
   plan: string;
   travelMode: boolean;
   travelDestination: string;
+  isLoading: boolean;
   safetyEvents: ApiSafetyEvent[];
   patterns: ApiPattern | null;
   alertPrefs: AlertPrefs;
@@ -159,6 +160,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [safetyEvents, setSafetyEvents] = useState<ApiSafetyEvent[]>([]);
   const [patterns, setPatterns] = useState<ApiPattern | null>(null);
   const [alertPrefs, setAlertPrefsState] = useState<AlertPrefs>({ usgs: true, noaa: true, gdacs: true });
+  const [isLoading, setIsLoading] = useState(true);
 
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const refreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -208,6 +210,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setSafetyEvents([]);
     setPatterns(null);
     setAlertPrefsState({ usgs: true, noaa: true, gdacs: true });
+    setIsLoading(false);
     // Clear refs
     deviceIdRef.current = "";
     circleIdRef.current = "";
@@ -431,6 +434,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         startRefresh();
         refreshPatterns(uid);
       }
+      setIsLoading(false);
 
       // Sync subscription status from server (authoritative source for plan)
       try {
@@ -452,6 +456,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       console.error("Bootstrap error:", e);
+      setIsLoading(false);
     }
   }, [setupCircle, startHeartbeat, startRefresh, startSafetyRefresh, refreshPatterns, syncSubscription]);
 
@@ -656,6 +661,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         inviteCode,
         deviceId,
         isRegistered,
+        isLoading,
         plan,
         travelMode,
         travelDestination,

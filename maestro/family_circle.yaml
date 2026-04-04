@@ -1,0 +1,38 @@
+appId: com.ollia.app
+---
+- waitForAnimationToEnd:
+      timeout: 5000
+- assertVisible: "Family Circle"
+- assertVisible: "Ollia is quietly watching over everyone"
+#- assertVisible: "Safety Alerts"
+- assertVisible: "Your circle is empty"
+- assertVisible: "Invite family members so they can receive a quiet signal that you're safe."
+- tapOn:
+      id: "invite-someone-btn"
+- waitForAnimationToEnd:
+      timeout: 2000
+- assertVisible: "Invite to circle"
+- assertVisible: "Send them a smart link"
+- assertVisible: "Their relation to you"
+- assertVisible: "Mother"
+- assertVisible: "Father"
+- assertVisible: "Sister"
+- assertVisible: "Brother"
+- assertVisible: "Partner"
+- assertVisible: "Child"
+- assertVisible: "Friend"
+- assertVisible: "Other"
+#- assertVisible: "Share invite link"
+#- assertVisible: "Copy link"
+- tapOn: "Mother"
+- tapOn:
+      id: "share-link-btn"
+- tapOn:
+        point: "50%,30%"
+- waitForAnimationToEnd:
+        timeout: 500
+- swipe:
+        direction: DOWN
+        duration: 500
+- waitForAnimationToEnd:
+        timeout: 1000

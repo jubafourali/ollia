@@ -33,8 +33,10 @@ type Props = {
 export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
   const insets = useSafeAreaInsets();
   const [selecting, setSelecting] = React.useState<"monthly" | "annual" | null>(null);
+  const [showComingSoon, setShowComingSoon] = React.useState(false);
 
-  const handleSelect = async (plan: "monthly" | "annual") => {
+  // Checkout logic preserved — will be re-enabled when Stripe is ready
+  const _handleSelect = async (plan: "monthly" | "annual") => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -44,6 +46,13 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
     } finally {
       setSelecting(null);
     }
+  };
+
+  const handleSelect = (_plan: "monthly" | "annual") => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setShowComingSoon(true);
   };
 
   const isLoading = loading || selecting !== null;
@@ -60,86 +69,116 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
         {/* Handle */}
         <View style={styles.handle} />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.starBadge}>
-            <Feather name="star" size={16} color="#F59E0B" />
-          </View>
-          <Text style={styles.title}>Unlock Premium</Text>
-          <Text style={styles.tagline}>
-            Keep your family close, wherever they are.
-          </Text>
-        </View>
-
-        {/* Feature list */}
-        <View style={styles.features}>
-          {UNLOCK_FEATURES.map((f) => (
-            <View key={f.text} style={styles.featureRow}>
-              <View style={styles.featureIcon}>
-                <Feather name={f.icon as any} size={14} color="#F59E0B" />
-              </View>
-              <Text style={styles.featureText}>{f.text}</Text>
+        {showComingSoon ? (
+          <View style={styles.comingSoonWrap}>
+            <View style={styles.starBadge}>
+              <Feather name="heart" size={16} color="#F59E0B" />
             </View>
-          ))}
-        </View>
+            <Text style={styles.title}>Coming very soon</Text>
+            <Text style={styles.comingSoonBody}>
+              Premium is coming very soon. We'll notify you the moment it's ready.
+            </Text>
+            {/*<Pressable
+              style={({ pressed }) => [
+                styles.ctaBtn,
+                styles.ctaBtnAnnual,
+                { justifyContent: "center" },
+                pressed && { opacity: 0.88 },
+              ]}
+              onPress={() => {
+                setShowComingSoon(false);
+                onClose();
+              }}
+            >
+              <Text style={styles.ctaBtnTitle}>OK</Text>
+            </Pressable>*/}
+          </View>
+        ) : (
+          <>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.starBadge}>
+                <Feather name="star" size={16} color="#F59E0B" />
+              </View>
+              <Text style={styles.title}>Unlock Premium</Text>
+              <Text style={styles.tagline}>
+                Keep your family close, wherever they are.
+              </Text>
+            </View>
 
-        {/* CTAs */}
-        <View style={styles.ctaSection}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.ctaBtn,
-              styles.ctaBtnAnnual,
-              pressed && { opacity: 0.88 },
-              isLoading && styles.ctaBtnDisabled,
-            ]}
-            onPress={() => handleSelect("annual")}
-            disabled={isLoading}
-          >
-            {selecting === "annual" ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <View style={styles.ctaBtnLeft}>
-                  <Text style={styles.ctaBtnTitle}>Annual</Text>
-                  <Text style={styles.ctaBtnSub}>Save ~33%</Text>
+            {/* Feature list */}
+            <View style={styles.features}>
+              {UNLOCK_FEATURES.map((f) => (
+                <View key={f.text} style={styles.featureRow}>
+                  <View style={styles.featureIcon}>
+                    <Feather name={f.icon as any} size={14} color="#F59E0B" />
+                  </View>
+                  <Text style={styles.featureText}>{f.text}</Text>
                 </View>
-                <View style={styles.ctaBtnRight}>
-                  <Text style={styles.ctaBtnPrice}>$79.99</Text>
-                  <Text style={styles.ctaBtnPriceSub}>/year</Text>
-                </View>
-              </>
+              ))}
+            </View>
+
+            {/* CTAs */}
+            <View style={styles.ctaSection}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.ctaBtn,
+                  styles.ctaBtnAnnual,
+                  pressed && { opacity: 0.88 },
+                  isLoading && styles.ctaBtnDisabled,
+                ]}
+                testID="annual-plan-btn"
+                onPress={() => handleSelect("annual")}
+                disabled={isLoading}
+              >
+                {selecting === "annual" ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <View style={styles.ctaBtnLeft}>
+                      <Text style={styles.ctaBtnTitle}>Annual</Text>
+                      <Text style={styles.ctaBtnSub}>Save ~33%</Text>
+                    </View>
+                    <View style={styles.ctaBtnRight}>
+                      <Text style={styles.ctaBtnPrice}>$79.99</Text>
+                      <Text style={styles.ctaBtnPriceSub}>/year</Text>
+                    </View>
+                  </>
+                )}
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.ctaBtn,
+                  styles.ctaBtnMonthly,
+                  pressed && { opacity: 0.88 },
+                  isLoading && styles.ctaBtnDisabled,
+                ]}
+                testID="monthly-plan-btn"
+                onPress={() => handleSelect("monthly")}
+                disabled={isLoading}
+              >
+                {selecting === "monthly" ? (
+                  <ActivityIndicator color={BRAND.primary} size="small" />
+                ) : (
+                  <>
+                    <Text style={styles.ctaBtnMonthlyText}>Monthly</Text>
+                    <Text style={styles.ctaBtnMonthlyPrice}>$9.99 / month</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+
+            <Text style={styles.legalNote}>
+              Cancel anytime from your account settings. No hidden fees.
+            </Text>
+
+            {!isLoading && (
+              <Pressable onPress={onClose} style={styles.dismissBtn}>
+                <Text style={styles.dismissText}>Not now</Text>
+              </Pressable>
             )}
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.ctaBtn,
-              styles.ctaBtnMonthly,
-              pressed && { opacity: 0.88 },
-              isLoading && styles.ctaBtnDisabled,
-            ]}
-            onPress={() => handleSelect("monthly")}
-            disabled={isLoading}
-          >
-            {selecting === "monthly" ? (
-              <ActivityIndicator color={BRAND.primary} size="small" />
-            ) : (
-              <>
-                <Text style={styles.ctaBtnMonthlyText}>Monthly</Text>
-                <Text style={styles.ctaBtnMonthlyPrice}>$9.99 / month</Text>
-              </>
-            )}
-          </Pressable>
-        </View>
-
-        <Text style={styles.legalNote}>
-          Cancel anytime from your account settings. No hidden fees.
-        </Text>
-
-        {!isLoading && (
-          <Pressable onPress={onClose} style={styles.dismissBtn}>
-            <Text style={styles.dismissText}>Not now</Text>
-          </Pressable>
+          </>
         )}
       </View>
     </Modal>
@@ -307,5 +346,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_400Regular",
     color: BRAND.textMuted,
+  },
+  comingSoonWrap: {
+    alignItems: "center",
+    gap: 12,
+    paddingBottom: 8,
+  },
+  comingSoonBody: {
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
+    paddingHorizontal: 12,
+    marginBottom: 8,
   },
 });

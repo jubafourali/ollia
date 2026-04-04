@@ -52,7 +52,7 @@ export default function InviteOnboardingScreen() {
   const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
   const { startSSOFlow } = useSSO();
-  const { reloadCircleFromStorage, clearAllState } = useFamilyContext();
+  const { reloadCircleFromStorage, clearAllState, refreshCircle } = useFamilyContext();
 
   const inviteToken = params.token ?? "";
   const inviterName = decodeURIComponent(params.name ?? "Someone");
@@ -69,6 +69,9 @@ export default function InviteOnboardingScreen() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Auto-retry tracking
+  const authRetryCount = useRef(0);
 
   // Animations
   const fadeIn = useSharedValue(0);
@@ -137,12 +140,14 @@ export default function InviteOnboardingScreen() {
     transform: [{ scale: successScale.value }],
   }));
 
-  // If user is already signed in when landing here, skip to identity or process invite
+  // If user is already signed in when landing here, skip straight to joining
+  const hasSkippedToJoin = useRef(false);
   useEffect(() => {
-    if (isSignedIn && step === "signup") {
+    if (isSignedIn && userId && !hasSkippedToJoin.current && (step === "welcome" || step === "identity")) {
+      hasSkippedToJoin.current = true;
       handlePostAuth();
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, userId, step]);
 
   const handlePostAuth = useCallback(async () => {
     if (!userId || !getToken) return;
@@ -155,13 +160,22 @@ export default function InviteOnboardingScreen() {
 
       setAuthTokenGetter(getToken);
 
+      // Use the entered name, or fetch existing profile name for already-signed-in users
+      let profileName = userName.trim();
+      if (!profileName) {
+        try {
+          const me = await api.getMe();
+          profileName = me?.name ?? "";
+        } catch {}
+      }
+
       await api.upsertUser({
         id: userId,
-        name: userName.trim(),
+        name: profileName,
       });
       await AsyncStorage.setItem(
         PROFILE_KEY,
-        JSON.stringify({ name: userName.trim(), region: "" })
+        JSON.stringify({ name: profileName, region: "" })
       );
 
       const circle = await api.joinCircle({
@@ -173,13 +187,19 @@ export default function InviteOnboardingScreen() {
       await AsyncStorage.setItem(CIRCLE_KEY, circle.id);
       await AsyncStorage.setItem(INVITE_CODE_KEY, circle.inviteCode);
       await api.sendHeartbeat(userId, "app_open");
-      await reloadCircleFromStorage();
+
+      // Fetch circle directly — the invitee's AsyncStorage has no circleId yet,
+      // so reloadCircleFromStorage would no-op
+      const freshCircle = await api.getCircle(circle.id);
 
       // Find the inviter in circle members
-      const inviter = circle.members.find(
+      const inviter = freshCircle.members.find(
         (m) => m.userId !== userId && m.name.toLowerCase() === inviterName.toLowerCase()
-      ) ?? circle.members.find((m) => m.userId !== userId) ?? null;
+      ) ?? freshCircle.members.find((m) => m.userId !== userId) ?? null;
       setInviterMember(inviter);
+
+      // Now that storage is populated, also reload into context for the main app
+      await reloadCircleFromStorage();
 
       await AsyncStorage.removeItem(PENDING_INVITE_KEY);
 
@@ -205,7 +225,7 @@ export default function InviteOnboardingScreen() {
 
   // --- Auth handlers (same pattern as sign-in.tsx) ---
 
-  async function handleEmailContinue() {
+  async function handleEmailContinue(isRetry = false) {
     if (!email.trim() || !isClerkLoaded) return;
     setLoading(true);
     setError("");
@@ -221,6 +241,7 @@ export default function InviteOnboardingScreen() {
         });
         setAuthMode("sign-in");
         setAuthStep("otp");
+        authRetryCount.current = 0;
       }
     } catch (e: any) {
       const code = e?.errors?.[0]?.code;
@@ -232,12 +253,23 @@ export default function InviteOnboardingScreen() {
           });
           setAuthMode("sign-up");
           setAuthStep("otp");
+          authRetryCount.current = 0;
         } catch (e2: any) {
+          if (!isRetry && authRetryCount.current === 0) {
+            authRetryCount.current = 1;
+            setLoading(false);
+            return handleEmailContinue(true);
+          }
           setError(
             e2?.errors?.[0]?.longMessage ?? "Something went wrong. Try again."
           );
         }
       } else {
+        if (!isRetry && authRetryCount.current === 0) {
+          authRetryCount.current = 1;
+          setLoading(false);
+          return handleEmailContinue(true);
+        }
         setError(
           e?.errors?.[0]?.longMessage ?? "Something went wrong. Try again."
         );
@@ -247,7 +279,7 @@ export default function InviteOnboardingScreen() {
     }
   }
 
-  async function handleVerifyOtp() {
+  async function handleVerifyOtp(isRetry = false) {
     if (!otp.trim() || !isClerkLoaded) return;
     setLoading(true);
     setError("");
@@ -259,7 +291,6 @@ export default function InviteOnboardingScreen() {
         });
         if (result.status === "complete") {
           await setSignInActive!({ session: result.createdSessionId });
-          // handlePostAuth will be triggered by isSignedIn change or called directly
         }
       } else {
         const result = await signUp!.attemptEmailAddressVerification({
@@ -269,7 +300,13 @@ export default function InviteOnboardingScreen() {
           await setSignUpActive!({ session: result.createdSessionId! });
         }
       }
+      authRetryCount.current = 0;
     } catch (e: any) {
+      if (!isRetry && authRetryCount.current === 0) {
+        authRetryCount.current = 1;
+        setLoading(false);
+        return handleVerifyOtp(true);
+      }
       setError(e?.errors?.[0]?.longMessage ?? "Incorrect code. Try again.");
       setLoading(false);
       return;
@@ -368,16 +405,10 @@ export default function InviteOnboardingScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
-        <ScrollView
-          contentContainerStyle={[
-            styles.screenContainer,
-            { paddingTop: topInset + 24, paddingBottom: bottomInset + 24 },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <Animated.View style={contentStyle}>
+        <View style={[styles.flex, { paddingTop: topInset + 24, paddingHorizontal: 28 }]}>
+          <Animated.View style={[{ flex: 1 }, contentStyle]}>
             {/* Back button */}
             <Pressable
               style={styles.backButton}
@@ -401,28 +432,33 @@ export default function InviteOnboardingScreen() {
               autoCorrect={false}
               returnKeyType="done"
               onSubmitEditing={() => {
-                if (userName.trim()) setStep("signup");
+                if (userName.trim()) {
+                  setError("");
+                  setStep("signup");
+                }
               }}
             />
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.ctaButton,
-                !userName.trim() && styles.ctaDisabled,
-                pressed && { opacity: 0.85 },
-              ]}
-              onPress={() => {
-                if (Platform.OS !== "web") {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }
-                setStep("signup");
-              }}
-              disabled={!userName.trim()}
-            >
-              <Text style={styles.ctaButtonText}>Continue</Text>
-            </Pressable>
           </Animated.View>
-        </ScrollView>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.ctaButton,
+              !userName.trim() && styles.ctaDisabled,
+              pressed && { opacity: 0.85 },
+              { marginBottom: bottomInset + 24 },
+            ]}
+            onPress={() => {
+              if (Platform.OS !== "web") {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+              setError("");
+              setStep("signup");
+            }}
+            disabled={!userName.trim()}
+          >
+            <Text style={styles.ctaButtonText}>Continue</Text>
+          </Pressable>
+        </View>
       </KeyboardAvoidingView>
     );
   }

@@ -226,37 +226,11 @@ export function InviteModal({
               pressed && { opacity: 0.85 },
             ]}
             onPress={handleShare}
+            testID="share-link-btn"
           >
             <Feather name="share-2" size={18} color={BRAND.white} />
             <Text style={styles.primaryBtnText}>Share invite link</Text>
           </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.secondaryBtn,
-              pressed && { opacity: 0.75 },
-            ]}
-            onPress={handleCopyLink}
-          >
-            {linkCopied ? (
-              <Animated.View style={[styles.copyRow, checkStyle]}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={18}
-                  color={BRAND.statusGreen}
-                />
-                <Text style={[styles.secondaryBtnText, { color: BRAND.statusGreen }]}>
-                  Link copied!
-                </Text>
-              </Animated.View>
-            ) : (
-              <View style={styles.copyRow}>
-                <Feather name="copy" size={16} color={BRAND.textSecondary} />
-                <Text style={styles.secondaryBtnText}>Copy link</Text>
-              </View>
-            )}
-          </Pressable>
-
           <View style={styles.privacyNote}>
             <Feather name="shield" size={13} color={BRAND.textMuted} />
             <Text style={styles.privacyText}>

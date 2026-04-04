@@ -1,0 +1,9 @@
+appId: com.ollia.app
+---
+- runFlow: auth_signin.yaml
+- runFlow: family_circle.yaml
+- runFlow: my_status.yaml
+- runFlow: settings.yaml
+- runFlow: premium_gates.yaml
+- runFlow: safety_alerts.yaml
+- runFlow: auth_signout.yaml

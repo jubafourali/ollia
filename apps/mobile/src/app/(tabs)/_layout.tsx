@@ -42,6 +42,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Family",
+          "tabBarButtonTestID": "family-nav-btn",
           tabBarIcon: ({ color }) => (
             <Feather name="users" size={22} color={color} />
           ),
@@ -51,15 +52,18 @@ export default function TabLayout() {
         name="my-status"
         options={{
           title: "My Status",
+          "tabBarButtonTestID": "my-status-nav-btn",
           tabBarIcon: ({ color }) => (
             <Feather name="heart" size={22} color={color} />
           ),
         }}
+        tabBarButtonTestID="my-status-nav-btn"
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
+          "tabBarButtonTestID": "settings-nav-btn",
           tabBarIcon: ({ color }) => (
             <Feather name="settings" size={22} color={color} />
           ),

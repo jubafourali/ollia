@@ -1,0 +1,19 @@
+appId: com.ollia.app
+---
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: "Family Circle"
+- assertVisible: "Safety Alerts"
+- scrollUntilVisible:
+    element:
+      text: "Show more"
+    direction: DOWN
+    optional: true
+- tapOn:
+    text: "Show more"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertNotVisible: "- Tonga"
+- assertNotVisible: "- Japan"

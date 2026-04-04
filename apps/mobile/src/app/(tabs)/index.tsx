@@ -1,7 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
+  Animated,
   Linking,
   Platform,
   Pressable,
@@ -21,6 +22,64 @@ import { CheckInModal } from "@/components/CheckInModal";
 import { InviteModal } from "@/components/InviteModal";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import type { ApiSafetyEvent } from "@/utils/api";
+
+function SkeletonCard() {
+  const opacity = React.useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, []);
+
+  return (
+    <Animated.View style={[skeletonStyles.card, { opacity }]}>
+      <View style={skeletonStyles.row}>
+        <View style={skeletonStyles.avatar} />
+        <View style={skeletonStyles.lines}>
+          <View style={skeletonStyles.lineLong} />
+          <View style={skeletonStyles.lineShort} />
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
+const skeletonStyles = StyleSheet.create({
+  card: {
+    backgroundColor: BRAND.backgroundCard,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: BRAND.borderLight,
+  },
+  row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: BRAND.borderLight,
+  },
+  lines: { flex: 1, gap: 8 },
+  lineLong: {
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: BRAND.borderLight,
+    width: "60%",
+  },
+  lineShort: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: BRAND.borderLight,
+    width: "35%",
+  },
+});
 
 const SEVERITY_COLORS: Record<string, string> = {
   high: "#EF4444",
@@ -98,6 +157,7 @@ export default function FamilyScreen() {
     plan,
     travelMode,
     travelDestination,
+    isLoading,
     refreshCircle,
     refreshSafetyEvents,
     upgradePlan,
@@ -263,14 +323,20 @@ export default function FamilyScreen() {
           </View>
         )}
 
-        {members.length === 0 ? (
+        {isLoading ? (
+          <View style={{ gap: 0 }}>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </View>
+        ) : members.length === 0 ? (
           <View style={styles.empty}>
             <Feather name="users" size={48} color={BRAND.border} />
             <Text style={styles.emptyTitle}>Your circle is empty</Text>
             <Text style={styles.emptyText}>
               Invite family members so they can receive a quiet signal that you're safe.
             </Text>
-            <Pressable style={styles.emptyBtn} onPress={() => setShowInvite(true)}>
+            <Pressable style={styles.emptyBtn} onPress={() => setShowInvite(true)} testID="invite-someone-btn">
               <Feather name="user-plus" size={16} color={BRAND.white} />
               <Text style={styles.emptyBtnText}>Invite someone</Text>
             </Pressable>

@@ -1,0 +1,18 @@
+appId: com.ollia.app
+---
+- launchApp
+- waitForAnimationToEnd:
+      timeout: 5000
+- assertVisible: "Welcome"
+- tapOn: "you@example.com"
+- inputText: "testuser+clerk_test@gmail.com"
+- pressKey: Enter
+- waitForAnimationToEnd:
+      timeout: 3000
+- assertVisible: "Check your email"
+- tapOn: "000000"
+- inputText: "424242"
+- tapOn: "Verify code"
+- waitForAnimationToEnd:
+      timeout: 5000
+- assertVisible: "Family Circle"

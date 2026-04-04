@@ -250,6 +250,7 @@ export default function MyStatusScreen() {
         <Pressable
           style={({ pressed }) => [styles.heartbeatBtn, pressed && { opacity: 0.8 }]}
           onPress={handleHeartbeat}
+          testID="send-heartbeat-btn"
         >
           <Ionicons name="heart" size={16} color={BRAND.white} />
           <Text style={styles.heartbeatBtnText}>Send heartbeat now</Text>
@@ -345,6 +346,7 @@ export default function MyStatusScreen() {
             <Pressable
               onPress={() => setShowUpgrade(true)}
               style={styles.lockBtn}
+              testID="travel-lock-btn"
             >
               <Feather name="lock" size={16} color={BRAND.textMuted} />
             </Pressable>

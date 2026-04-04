@@ -34,13 +34,14 @@ type SettingRowProps = {
   danger?: boolean;
 };
 
-function SettingRow({ icon, iconLib = "feather", label, value, onToggle, subtitle, onPress, chevron, danger }: SettingRowProps) {
+function SettingRow({ icon, iconLib = "feather", label, value, onToggle, subtitle, onPress, chevron, danger, testID }: SettingRowProps) {
   const IconComp = iconLib === "ionicons" ? Ionicons : Feather;
   const color = danger ? "#EF4444" : BRAND.primary;
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && onPress && { opacity: 0.7 }]}
       onPress={onPress}
+      testID={testID}
     >
       <View style={[styles.rowIcon, { backgroundColor: `${color}15` }]}>
         <IconComp name={icon as any} size={18} color={color} />
@@ -115,6 +116,7 @@ function PlanCard({ plan, onUpgrade }: { plan: string; onUpgrade: () => void }) 
           <Pressable
             style={({ pressed }) => [styles.upgradeBtn, pressed && { opacity: 0.85 }]}
             onPress={onUpgrade}
+            testID="upgrade-to-premium-btn"
           >
             <Feather name="star" size={15} color={BRAND.white} />
             <Text style={styles.upgradeBtnText}>Upgrade to Premium</Text>
@@ -378,6 +380,7 @@ export default function SettingsScreen() {
           subtitle="Notify when family is active"
           value={notifActivity}
           onToggle={setNotifActivity}
+          testID="activity-alerts-row"
         />
         <View style={styles.divider} />
         <SettingRow
@@ -386,6 +389,7 @@ export default function SettingsScreen() {
           subtitle="Notify if someone goes quiet"
           value={notifInactivity}
           onToggle={setNotifInactivity}
+          testID="inactivity-alerts-row"
         />
       </View>
 
@@ -397,6 +401,7 @@ export default function SettingsScreen() {
           subtitle="Show city-level location only"
           value={shareRegion}
           onToggle={setShareRegion}
+          testID="share-region-row"
         />
       </View>
 
@@ -474,6 +479,7 @@ export default function SettingsScreen() {
 
       <Pressable
         style={({ pressed }) => [styles.signOutBtn, pressed && { opacity: 0.7 }]}
+        testID="sign-out-btn"
         onPress={() => {
           Alert.alert("Sign out", "Are you sure you want to sign out?", [
             { text: "Cancel", style: "cancel" },

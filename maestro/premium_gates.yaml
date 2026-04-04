@@ -1,0 +1,45 @@
+appId: com.ollia.app
+---
+- launchApp
+- waitForAnimationToEnd:
+        timeout: 5000
+- tapOn:
+        id: "settings-nav-btn"
+- waitForAnimationToEnd:
+        timeout: 2000
+- scrollUntilVisible:
+        element:
+              id: "upgrade-to-premium-btn"
+        direction: DOWN
+- tapOn:
+        id: "upgrade-to-premium-btn"
+- waitForAnimationToEnd:
+        timeout: 2000
+- assertVisible: "Unlock Premium"
+- assertVisible: "Keep your family close, wherever they are."
+- assertVisible: "Unlimited family members"
+- assertVisible: "Travel mode — alert your circle when traveling"
+- assertVisible:
+          id: "annual-plan-btn"
+- assertVisible:
+          id: "monthly-plan-btn"
+- assertVisible: "Not now"
+- tapOn:
+          id: "annual-plan-btn"
+- waitForAnimationToEnd:
+        timeout: 1000
+- assertVisible: "Coming very soon"
+- tapOn:
+    point: "50%,20%"
+- waitForAnimationToEnd:
+        timeout: 1000
+- tapOn:
+        id: "my-status-nav-btn"
+- waitForAnimationToEnd:
+        timeout: 2000
+- tapOn:
+        id: "travel-lock-btn"
+- waitForAnimationToEnd:
+        timeout: 2000
+- assertVisible: "Unlock Premium"
+- tapOn: "Not now"
