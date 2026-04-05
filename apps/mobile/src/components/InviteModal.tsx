@@ -72,7 +72,7 @@ export function InviteModal({
   }));
 
   function buildInviteLink(): string {
-    const ownerName = encodeURIComponent(myProfile?.name ?? "Someone");
+    const ownerName = encodeURIComponent(myProfile?.name || editingName.trim() || "Someone");
     return Linking.createURL("/invite", {
       queryParams: {
         token: inviteCode,
@@ -86,7 +86,7 @@ export function InviteModal({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     const link = buildInviteLink();
-    const name = myProfile?.name ?? "Someone";
+    const name = myProfile?.name || editingName.trim() || "Someone";
     try {
       await Share.share({
         message: `${name} cares about you \u{1F49B}\n\nThey're using Ollia to quietly make sure everyone is okay.\n\nJoin their circle:\n${link}`,

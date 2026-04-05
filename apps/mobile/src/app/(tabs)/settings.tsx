@@ -255,6 +255,15 @@ export default function SettingsScreen() {
     setEditCity(myProfile?.region ?? "");
   }, [myProfile]);
 
+  useEffect(() => {
+    api.getNotificationPrefs()
+      .then((prefs) => {
+        setNotifActivity(prefs.notifyActivity);
+        setNotifInactivity(prefs.notifyInactivity);
+      })
+      .catch(() => {});
+  }, []);
+
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
   const profileDirty =
@@ -379,7 +388,10 @@ export default function SettingsScreen() {
           label="Activity alerts"
           subtitle="Notify when family is active"
           value={notifActivity}
-          onToggle={setNotifActivity}
+          onToggle={(v) => {
+            setNotifActivity(v);
+            api.updateNotificationPrefs({ notifyActivity: v }).catch(() => setNotifActivity(!v));
+          }}
           testID="activity-alerts-row"
         />
         <View style={styles.divider} />
@@ -388,7 +400,10 @@ export default function SettingsScreen() {
           label="Inactivity alerts"
           subtitle="Notify if someone goes quiet"
           value={notifInactivity}
-          onToggle={setNotifInactivity}
+          onToggle={(v) => {
+            setNotifInactivity(v);
+            api.updateNotificationPrefs({ notifyInactivity: v }).catch(() => setNotifInactivity(!v));
+          }}
           testID="inactivity-alerts-row"
         />
       </View>

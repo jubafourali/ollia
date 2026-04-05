@@ -31,6 +31,7 @@ class CheckInScheduler(
         val tokenMap = pushTokens.associateBy { it.userId }
 
         for (user in inactiveUsers) {
+            if (!user.notifyInactivity) continue
             val pushToken = tokenMap[user.id] ?: continue
             pushNotificationService.sendPushNotification(
                 expoPushToken = pushToken.token,

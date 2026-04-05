@@ -36,5 +36,11 @@ class User(
 
     var stripeSubscriptionId: String? = null,
 
+    @Column(nullable = false)
+    var notifyActivity: Boolean = true,
+
+    @Column(nullable = false)
+    var notifyInactivity: Boolean = true,
+
     val createdAt: Instant = Instant.now()
 )

@@ -179,4 +179,15 @@ export const api = {
   getSubscriptionStatus(): Promise<ApiSubscriptionStatus> {
     return req("/subscriptions/status");
   },
+
+  updateNotificationPrefs(prefs: { notifyActivity?: boolean; notifyInactivity?: boolean }): Promise<{ notifyActivity: boolean; notifyInactivity: boolean }> {
+    return req("/users/me/preferences", {
+      method: "PATCH",
+      body: JSON.stringify(prefs),
+    });
+  },
+
+  getNotificationPrefs(): Promise<{ notifyActivity: boolean; notifyInactivity: boolean }> {
+    return req("/users/me/preferences");
+  },
 };

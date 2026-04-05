@@ -323,6 +323,31 @@ class ReferenceApiController(
         )
     }
 
+    // ─── PATCH /api/users/me/preferences ─── update notification preferences
+    // Request: { notifyActivity?: boolean, notifyInactivity?: boolean }
+    // Response: PreferencesResponse
+    @PatchMapping("/users/me/preferences")
+    fun updatePreferences(@RequestBody request: UpdatePreferencesRequest): PreferencesResponse {
+        val user = currentUserService.getCurrentUser()
+        if (request.notifyActivity != null) user.notifyActivity = request.notifyActivity
+        if (request.notifyInactivity != null) user.notifyInactivity = request.notifyInactivity
+        userRepository.save(user)
+        return PreferencesResponse(
+            notifyActivity = user.notifyActivity,
+            notifyInactivity = user.notifyInactivity
+        )
+    }
+
+    // ─── GET /api/users/me/preferences ─── get notification preferences
+    @GetMapping("/users/me/preferences")
+    fun getPreferences(): PreferencesResponse {
+        val user = currentUserService.getCurrentUser()
+        return PreferencesResponse(
+            notifyActivity = user.notifyActivity,
+            notifyInactivity = user.notifyInactivity
+        )
+    }
+
     // ─── DELETE /api/users/me ─── delete account and all associated data
     // Response: 204 No Content
     @DeleteMapping("/users/me")

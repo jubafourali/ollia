@@ -127,5 +127,17 @@ data class SubscriptionStatusResponse(
     val subscriptionId: String? = null
 )
 
+// PATCH /api/users/me/preferences — request
+data class UpdatePreferencesRequest(
+    val notifyActivity: Boolean? = null,
+    val notifyInactivity: Boolean? = null
+)
+
+// PATCH /api/users/me/preferences — response
+data class PreferencesResponse(
+    val notifyActivity: Boolean,
+    val notifyInactivity: Boolean
+)
+
 // Legacy DTOs kept for scheduler/push
 data class PushTokenRequest(val token: String, val platform: String = "expo")

@@ -95,6 +95,16 @@ export default function InviteOnboardingScreen() {
     }
   }, [inviteToken, inviterName]);
 
+  // Persist entered name so it survives SSO redirects
+  useEffect(() => {
+    if (step === "signup" && userName.trim() && inviteToken) {
+      AsyncStorage.setItem(
+        PENDING_INVITE_KEY,
+        JSON.stringify({ token: inviteToken, inviterName, userName: userName.trim() })
+      );
+    }
+  }, [step, userName, inviteToken, inviterName]);
+
   // Animate in on step change
   useEffect(() => {
     fadeIn.value = 0;
@@ -160,8 +170,17 @@ export default function InviteOnboardingScreen() {
 
       setAuthTokenGetter(getToken);
 
-      // Use the entered name, or fetch existing profile name for already-signed-in users
+      // Use the entered name, or restore from storage (survives SSO redirects), or fetch existing profile
       let profileName = userName.trim();
+      if (!profileName) {
+        try {
+          const pending = await AsyncStorage.getItem(PENDING_INVITE_KEY);
+          if (pending) {
+            const parsed = JSON.parse(pending);
+            profileName = parsed.userName ?? "";
+          }
+        } catch {}
+      }
       if (!profileName) {
         try {
           const me = await api.getMe();

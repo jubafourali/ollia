@@ -590,8 +590,12 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   }, [syncSubscription]);
 
   const reloadCircleFromStorage = useCallback(async () => {
-    const uid = deviceIdRef.current;
+    const uid = deviceIdRef.current || userId;
     if (!uid) return;
+    if (!deviceIdRef.current) {
+      deviceIdRef.current = uid;
+      setDeviceId(uid);
+    }
     const cId = await AsyncStorage.getItem(CIRCLE_KEY) ?? "";
     const code = await AsyncStorage.getItem(INVITE_CODE_KEY) ?? "";
     if (!cId) return;
@@ -606,7 +610,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.warn("reloadCircleFromStorage fetch failed:", e);
     }
-  }, []);
+  }, [userId]);
 
   const setAlertPref = useCallback(async (source: keyof AlertPrefs, enabled: boolean) => {
     setAlertPrefsState((prev) => {

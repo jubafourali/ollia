@@ -15,6 +15,11 @@ interface SafetyEventRepository : JpaRepository<SafetyEvent, UUID> {
 
     @Modifying
     @Transactional
+    @Query("DELETE FROM SafetyEvent e WHERE e.source = :source")
+    fun deleteBySource(@Param("source") source: String)
+
+    @Modifying
+    @Transactional
     @Query("DELETE FROM SafetyEvent e WHERE e.fetchedAt < :cutoff")
     fun deleteAllByFetchedAtBefore(@Param("cutoff") cutoff: Instant)
 }

@@ -59,8 +59,7 @@ class ActivityPatternService(
             }
         }
 
-        val daySpan = ChronoUnit.DAYS.between(signals.last().createdAt, Instant.now()).coerceAtLeast(1)
-        val avgPerDay = signals.size.toDouble() / daySpan
+        val avgPerDay = signals.size.toDouble() / activeDays.size
 
         return ActivityPattern(
             totalSignals = signals.size,
