@@ -14,6 +14,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BRAND from "@/constants/colors";
@@ -568,6 +569,12 @@ export default function SettingsScreen() {
           A quiet signal that lets your family know you're okay.
         </Text>
         <Text style={styles.aboutVersion}>Version 2.0.0</Text>
+        <Pressable onPress={() => Linking.openURL('https://ollia.app/terms')}>
+          <Text>Terms of Service</Text>
+        </Pressable>
+        <Pressable onPress={() => Linking.openURL('https://ollia.app/privacy')}>
+          <Text>Privacy Policy</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
