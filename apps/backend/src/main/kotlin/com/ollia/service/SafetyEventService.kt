@@ -42,6 +42,8 @@ class SafetyEventService(
 
     private fun fetchUsgsEarthquakes() {
         try {
+            safetyEventRepository.deleteBySource("USGS")
+
             val url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson"
             val response = webClient.get().uri(url).retrieve()
                 .bodyToMono(Map::class.java).block() ?: return
@@ -96,6 +98,8 @@ class SafetyEventService(
 
     private fun fetchNoaaAlerts() {
         try {
+            safetyEventRepository.deleteBySource("NOAA")
+
             val url = "https://api.weather.gov/alerts/active?severity=Extreme,Severe"
             val response = webClient.get().uri(url)
                 .header("User-Agent", "OlliaApp/1.0 (safety@ollia.app)")
