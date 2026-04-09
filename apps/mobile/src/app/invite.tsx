@@ -17,6 +17,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useTranslation } from "react-i18next";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -53,6 +54,7 @@ export default function InviteOnboardingScreen() {
   const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
   const { startSSOFlow } = useSSO();
   const { reloadCircleFromStorage, clearAllState, refreshCircle } = useFamilyContext();
+  const { t } = useTranslation();
 
   const inviteToken = params.token ?? "";
   const inviterName = decodeURIComponent(params.name ?? "Someone");
@@ -230,11 +232,11 @@ export default function InviteOnboardingScreen() {
     } catch (e: any) {
       const msg = e?.message ?? "";
       if (msg.includes("404") || msg.includes("not found")) {
-        setError("This invite link is no longer valid.");
+        setError(t("join.errorInvalid"));
       } else if (msg.includes("PLAN_LIMIT") || msg.includes("Member limit")) {
-        setError("This circle is full. Ask the owner to upgrade their plan.");
+        setError(t("join.errorFull"));
       } else {
-        setError("Something went wrong. Please try again.");
+        setError(t("join.errorGeneric"));
       }
       console.error("Join error:", e);
     } finally {
@@ -326,7 +328,7 @@ export default function InviteOnboardingScreen() {
         setLoading(false);
         return handleVerifyOtp(true);
       }
-      setError(e?.errors?.[0]?.longMessage ?? "Incorrect code. Try again.");
+      setError(e?.errors?.[0]?.longMessage ?? t("onboarding.errorCode"));
       setLoading(false);
       return;
     }
@@ -352,7 +354,7 @@ export default function InviteOnboardingScreen() {
         // handlePostAuth will be triggered by isSignedIn change
       }
     } catch (e: any) {
-      setError(e?.errors?.[0]?.longMessage ?? "Sign-in failed. Try again.");
+      setError(e?.errors?.[0]?.longMessage ?? t("onboarding.errorSignInFailed"));
     } finally {
       setLoading(false);
     }
@@ -442,7 +444,7 @@ export default function InviteOnboardingScreen() {
 
             <TextInput
               style={styles.nameInput}
-              placeholder="Your name"
+              placeholder={t("join.yourNamePlaceholder")}
               placeholderTextColor={BRAND.textMuted}
               value={userName}
               onChangeText={setUserName}
@@ -747,7 +749,7 @@ export default function InviteOnboardingScreen() {
     const statusLabel = getStatusLabel(status);
     const lastSeen = member?.lastSeen
       ? formatTimeAgo(new Date(member.lastSeen))
-      : "Just now";
+      : t("common.justNow");
     const city = member?.region ?? "";
 
     return (

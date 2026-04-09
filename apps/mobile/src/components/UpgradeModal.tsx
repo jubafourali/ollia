@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
-  Pressable,
+  Pressable, ScrollView,
   StyleSheet,
   Text,
   View,
@@ -114,16 +114,21 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
             </View>
 
             {/* Feature list */}
-            <View style={styles.features}>
-              {unlockFeatures.map((f) => (
-                <View key={f.text} style={styles.featureRow}>
-                  <View style={styles.featureIcon}>
-                    <Feather name={f.icon as any} size={14} color="#F59E0B" />
+            <ScrollView
+                style={{ maxHeight: 400 }}
+                showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.features}>
+                {unlockFeatures.map((f) => (
+                  <View key={f.text} style={styles.featureRow}>
+                    <View style={styles.featureIcon}>
+                      <Feather name={f.icon as any} size={14} color="#F59E0B" />
+                    </View>
+                    <Text style={styles.featureText}>{f.text}</Text>
                   </View>
-                  <Text style={styles.featureText}>{f.text}</Text>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            </ScrollView>
 
             {/* CTAs */}
             <View style={styles.ctaSection}>
@@ -347,7 +352,7 @@ const styles = StyleSheet.create({
   },
   dismissBtn: {
     alignItems: "center",
-    paddingVertical: 10,
+    // paddingVertical: 3,
   },
   dismissText: {
     fontSize: 14,
