@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { useTranslation } from "react-i18next";
 
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
@@ -143,6 +144,7 @@ function SafetyEventBanner({ event }: { event: ApiSafetyEvent }) {
 }
 
 export default function FamilyScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const {
     members,
@@ -206,9 +208,9 @@ export default function FamilyScreen() {
     <View style={[styles.container, { paddingTop: topInset }]}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Family Circle</Text>
+          <Text style={styles.greeting}>{t("family.title")}</Text>
           <Text style={styles.subtitle}>
-            {activeCount} of {members.length} active now
+            {t("family.activeNow", { count: activeCount, total: members.length })}
           </Text>
         </View>
         <Pressable
@@ -245,7 +247,7 @@ export default function FamilyScreen() {
             <View style={[styles.pulseInner, { backgroundColor: BRAND.statusGreen }]} />
           </View>
           <Text style={styles.bannerText}>
-            Ollia is quietly watching over everyone
+            {t("family.watching")}
           </Text>
         </View>
 
@@ -253,8 +255,12 @@ export default function FamilyScreen() {
           <View style={styles.travelBanner}>
             <Feather name="map-pin" size={14} color={BRAND.primary} />
             <Text style={styles.travelText}>
-              {travelingMembers.map((m) => m.name).join(", ")}{" "}
-              {travelingMembers.length === 1 ? "is" : "are"} currently traveling
+              {t(
+                travelingMembers.length === 1
+                  ? "family.travelBanner_one"
+                  : "family.travelBanner_other",
+                { names: travelingMembers.map((m) => m.name).join(", ") }
+              )}
             </Text>
           </View>
         )}
@@ -274,9 +280,9 @@ export default function FamilyScreen() {
             <Text style={styles.locationPromptText}>
               {cityBannerIsUpsell
                 ? hasLocation
-                  ? `Upgrade to Premium to filter alerts for ${myProfile?.region ?? "your city"}`
-                  : "Upgrade to Premium to see safety alerts for your city"
-                : "Set your city to see safety alerts for your area"}
+                  ? t("family.cityBannerUpgrade", { city: myProfile?.region ?? "" })
+                  : t("family.cityBannerNoCity")
+                : t("family.cityBannerSet")}
             </Text>
             <Feather name="chevron-right" size={14} color={BRAND.primary} />
           </Pressable>
@@ -286,11 +292,11 @@ export default function FamilyScreen() {
           <View style={styles.eventsSection}>
             <View style={styles.eventsSectionHeader}>
               <Feather name="shield" size={14} color="#EF4444" />
-              <Text style={styles.eventsSectionTitle}>Safety Alerts</Text>
+              <Text style={styles.eventsSectionTitle}>{t("family.safetyAlerts")}</Text>
               {safetyEvents.length > 2 && (
                 <Pressable onPress={() => setEventsExpanded((v) => !v)}>
                   <Text style={styles.eventsToggle}>
-                    {eventsExpanded ? "Show less" : `+${safetyEvents.length - 2} more`}
+                    {eventsExpanded ? t("family.showLess") : t("family.showMore", { count: safetyEvents.length - 2 })}
                   </Text>
                 </Pressable>
               )}
@@ -301,14 +307,16 @@ export default function FamilyScreen() {
             <View style={styles.eventsFooter}>
               <Feather name="info" size={11} color={BRAND.textMuted} />
               <Text style={styles.eventsFooterText}>
-                Official data from USGS, NOAA &amp; GDACS.{" "}
-                {plan === "premium" && hasLocation
-                  ? `Showing alerts for ${travelMode && travelDestination ? travelDestination : myProfile?.region}.`
-                  : plan === "premium"
-                  ? "Showing all regions — set your city to filter by location."
-                  : "Showing global alerts — upgrade to Premium to filter by city."
-                }{" "}
-                Tap any alert to view the original report.
+                {t("family.footerNote", {
+                  context:
+                    plan === "premium" && hasLocation
+                      ? t("family.footerPremiumCity", {
+                          city: travelMode && travelDestination ? travelDestination : myProfile?.region,
+                        })
+                      : plan === "premium"
+                      ? t("family.footerPremiumNoCity")
+                      : t("family.footerFree"),
+                })}
               </Text>
             </View>
           </View>
@@ -318,7 +326,7 @@ export default function FamilyScreen() {
           <View style={styles.limitBanner}>
             <Feather name="lock" size={14} color={BRAND.primary} />
             <Text style={styles.limitText}>
-              Free plan: 3 members max. Go to Settings to upgrade.
+              {t("family.freeLimitBanner")}
             </Text>
           </View>
         )}
@@ -332,13 +340,13 @@ export default function FamilyScreen() {
         ) : members.length === 0 ? (
           <View style={styles.empty}>
             <Feather name="users" size={48} color={BRAND.border} />
-            <Text style={styles.emptyTitle}>Your circle is empty</Text>
+            <Text style={styles.emptyTitle}>{t("family.emptyTitle")}</Text>
             <Text style={styles.emptyText}>
-              Invite family members so they can receive a quiet signal that you're safe.
+              {t("family.emptyText")}
             </Text>
             <Pressable style={styles.emptyBtn} onPress={() => setShowInvite(true)} testID="invite-someone-btn">
               <Feather name="user-plus" size={16} color={BRAND.white} />
-              <Text style={styles.emptyBtnText}>Invite someone</Text>
+              <Text style={styles.emptyBtnText}>{t("family.inviteSomeone")}</Text>
             </Pressable>
           </View>
         ) : (
@@ -358,7 +366,7 @@ export default function FamilyScreen() {
                 onPress={() => setShowInvite(true)}
               >
                 <Feather name="user-plus" size={16} color={BRAND.primary} />
-                <Text style={styles.inviteMoreText}>Invite another person</Text>
+                <Text style={styles.inviteMoreText}>{t("family.inviteSomeone")}</Text>
               </Pressable>
             )}
           </>

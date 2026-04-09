@@ -163,5 +163,8 @@ data class UpdateSafetyPreferencesRequest(
     val scheduledCheckInDeadline: String? = null
 )
 
+// PATCH /api/users/me/language — request
+data class UpdateLanguageRequest(val preferredLanguage: String)
+
 // Legacy DTOs kept for scheduler/push
 data class PushTokenRequest(val token: String, val platform: String = "expo")

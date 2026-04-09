@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Pressable,
   StyleSheet,
@@ -19,17 +20,18 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
 
-const FEATURES = [
-  "Unlimited family members",
-  "Travel mode",
-  "Smart inactivity alerts",
-  "City-filtered safety alerts",
-  "Activity patterns",
-];
-
 export default function PremiumSuccessScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { syncSubscription } = useFamilyContext();
+
+  const features = [
+    t("premiumSuccess.features.unlimitedMembers"),
+    t("premiumSuccess.features.travelMode"),
+    t("premiumSuccess.features.smartAlerts"),
+    t("premiumSuccess.features.cityAlerts"),
+    t("premiumSuccess.features.activityPatterns"),
+  ];
   const [synced, setSynced] = useState(false);
   const syncedRef = useRef(false);
 
@@ -70,13 +72,13 @@ export default function PremiumSuccessScreen() {
         </Reanimated.View>
 
         <Reanimated.View style={[styles.textBlock, contentStyle]}>
-          <Text style={styles.title}>Welcome to Premium</Text>
+          <Text style={styles.title}>{t("premiumSuccess.title")}</Text>
           <Text style={styles.subtitle}>
-            Your circle is now unlimited. Here's what just unlocked:
+            {t("premiumSuccess.subtitle")}
           </Text>
 
           <View style={styles.featureList}>
-            {FEATURES.map((f, i) => (
+            {features.map((f, i) => (
               <View key={f} style={styles.featureRow}>
                 <View style={styles.checkWrap}>
                   <Feather name="check" size={13} color="#F59E0B" />
@@ -93,11 +95,11 @@ export default function PremiumSuccessScreen() {
           style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.88 }]}
           onPress={handleContinue}
         >
-          <Text style={styles.continueBtnText}>Continue to Ollia</Text>
+          <Text style={styles.continueBtnText}>{t("premiumSuccess.continue")}</Text>
           <Feather name="arrow-right" size={17} color="#fff" />
         </Pressable>
         <Text style={styles.footerNote}>
-          Manage your subscription anytime in Settings.
+          {t("premiumSuccess.footerNote")}
         </Text>
       </Reanimated.View>
     </View>

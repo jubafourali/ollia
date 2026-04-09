@@ -5,6 +5,8 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  I18nManager,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -16,12 +18,15 @@ import {
 } from "react-native";
 import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
 import { CityPicker } from "@/components/CityPicker";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { api } from "@/utils/api";
+import i18n, { SUPPORTED_LANGUAGES, LANGUAGE_STORAGE_KEY, type LanguageCode } from "@/i18n";
 import {
   APP_CATALOG,
   getDetectionCapability,
@@ -42,6 +47,7 @@ type SettingRowProps = {
   onPress?: () => void;
   chevron?: boolean;
   danger?: boolean;
+  testID?: string;
 };
 
 function SettingRow({ icon, iconLib = "feather", label, value, onToggle, subtitle, onPress, chevron, danger, testID }: SettingRowProps) {
@@ -80,7 +86,27 @@ function SettingRow({ icon, iconLib = "feather", label, value, onToggle, subtitl
 }
 
 function PlanCard({ plan, onUpgrade }: { plan: string; onUpgrade: () => void }) {
+  const { t } = useTranslation();
   const isPremium = plan === "premium";
+
+  const premiumFeatures = [
+    t("upgrade.plan.unlimitedMembers"),
+    t("upgrade.plan.passiveDetection"),
+    t("upgrade.plan.smartEscalation"),
+    t("upgrade.plan.customInactivity"),
+    t("upgrade.plan.scheduledMode"),
+    t("upgrade.plan.activityApps"),
+    t("upgrade.plan.travelMode"),
+    t("upgrade.plan.cityAlerts"),
+    t("upgrade.plan.severityControl"),
+    t("upgrade.plan.activityPatterns"),
+  ];
+
+  const freeFeatures = [
+    t("upgrade.freePlan.members"),
+    t("upgrade.freePlan.basicReassurance"),
+    t("upgrade.freePlan.safetyAlerts"),
+  ];
 
   return (
     <View style={[styles.planCard, isPremium && styles.planCardPremium]}>
@@ -92,14 +118,14 @@ function PlanCard({ plan, onUpgrade }: { plan: string; onUpgrade: () => void }) 
             color={isPremium ? "#F59E0B" : BRAND.primary}
           />
           <Text style={[styles.planBadgeText, isPremium && { color: "#F59E0B" }]}>
-            {isPremium ? "Premium" : "Free Plan"}
+            {isPremium ? t("settings.premium") : t("settings.freePlan")}
           </Text>
         </View>
       </View>
 
       {isPremium ? (
         <View style={styles.planFeatures}>
-          {["Unlimited family members", "Smart inactivity alerts", "Travel mode", "Disaster awareness", "Priority notifications"].map((f) => (
+          {premiumFeatures.map((f) => (
             <View key={f} style={styles.planFeatureRow}>
               <Feather name="check" size={13} color="#7C3AED" />
               <Text style={[styles.planFeatureText, { color: "#7C3AED" }]}>{f}</Text>
@@ -109,13 +135,13 @@ function PlanCard({ plan, onUpgrade }: { plan: string; onUpgrade: () => void }) 
       ) : (
         <>
           <View style={styles.planFeatures}>
-            {["Up to 3 family members", "Basic activity reassurance"].map((f) => (
+            {freeFeatures.map((f) => (
               <View key={f} style={styles.planFeatureRow}>
                 <Feather name="check" size={13} color={BRAND.primary} />
                 <Text style={styles.planFeatureText}>{f}</Text>
               </View>
             ))}
-            {["Unlimited family members", "Smart inactivity alerts", "Travel mode", "Disaster awareness"].map((f) => (
+            {premiumFeatures.map((f) => (
               <View key={f} style={styles.planFeatureRow}>
                 <Feather name="lock" size={13} color={BRAND.textMuted} />
                 <Text style={[styles.planFeatureText, { color: BRAND.textMuted }]}>{f}</Text>
@@ -129,9 +155,9 @@ function PlanCard({ plan, onUpgrade }: { plan: string; onUpgrade: () => void }) 
             testID="upgrade-to-premium-btn"
           >
             <Feather name="star" size={15} color={BRAND.white} />
-            <Text style={styles.upgradeBtnText}>Upgrade to Premium</Text>
+            <Text style={styles.upgradeBtnText}>{t("settings.upgradeBtn")}</Text>
           </Pressable>
-          <Text style={styles.upgradePriceHint}>$9.99/mo · $79.99/yr</Text>
+          <Text style={styles.upgradePriceHint}>{t("settings.upgradePrice")}</Text>
         </>
       )}
     </View>
@@ -150,6 +176,7 @@ type SourceRowProps = {
 };
 
 function SourceRow({ orgName, orgAbbrev, website, description, icon, enabled, onToggle, isLast }: SourceRowProps) {
+  const { t } = useTranslation();
   return (
     <View style={[srcStyles.row, !isLast && srcStyles.rowBorder]}>
       <View style={srcStyles.rowIcon}>
@@ -160,7 +187,7 @@ function SourceRow({ orgName, orgAbbrev, website, description, icon, enabled, on
           <Text style={srcStyles.orgName}>{orgName}</Text>
           <View style={srcStyles.officialBadge}>
             <Feather name="shield" size={9} color="#059669" />
-            <Text style={srcStyles.officialText}>Official</Text>
+            <Text style={srcStyles.officialText}>{t("settings.officialBadge")}</Text>
           </View>
         </View>
         <Text style={srcStyles.abbrev}>{orgAbbrev} · {website}</Text>
@@ -244,12 +271,17 @@ const srcStyles = StyleSheet.create({
 });
 
 export default function SettingsScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { signOut } = useAuth();
   const { members, removeMember, clearAllState, plan, upgradePlan, alertPrefs, setAlertPref, myProfile, setMyProfile } = useFamilyContext();
   const [deleting, setDeleting] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(
+    (i18n.language as LanguageCode) || "en"
+  );
 
   const [editName, setEditName] = useState(myProfile?.name ?? "");
   const [editCity, setEditCity] = useState(myProfile?.region ?? "");
@@ -379,13 +411,33 @@ export default function SettingsScreen() {
     const d = new Date(iso);
     const now = new Date();
     const diffMs = d.getTime() - now.getTime();
-    if (diffMs <= 0) return "Expired";
+    if (diffMs <= 0) return t("settings.expired");
     const diffH = Math.floor(diffMs / 3600000);
     const diffM = Math.floor((diffMs % 3600000) / 60000);
     const timeStr = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     if (diffH > 0) return `${timeStr} (${diffH}h ${diffM}m from now)`;
     return `${timeStr} (${diffM}m from now)`;
   }
+
+  async function handleLanguageSelect(code: LanguageCode) {
+    setShowLanguagePicker(false);
+    if (code === currentLanguage) return;
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, code);
+    await i18n.changeLanguage(code);
+    setCurrentLanguage(code);
+    // Also persist to backend
+    api.updatePreferredLanguage(code).catch(() => {});
+    // RTL requires a restart
+    const needsRTL = code === "ar";
+    const hadRTL = currentLanguage === "ar";
+    if (needsRTL !== hadRTL) {
+      I18nManager.forceRTL(needsRTL);
+      Alert.alert(t("settings.chooseLanguage"), t("settings.restartRequired"));
+    }
+  }
+
+  const currentLangLabel =
+    SUPPORTED_LANGUAGES.find((l) => l.code === currentLanguage)?.label ?? "English";
 
   const detectionCapability = getDetectionCapability();
   const selectedApps = resolveApps(selectedAppIds);
@@ -423,15 +475,15 @@ export default function SettingsScreen() {
       contentInsetAdjustmentBehavior="automatic"
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>Settings</Text>
+      <Text style={styles.title}>{t("settings.title")}</Text>
 
-      <Text style={styles.sectionTitle}>My Profile</Text>
+      <Text style={styles.sectionTitle}>{t("settings.myProfile")}</Text>
       <View style={[styles.section, { padding: 16, gap: 14 }]}>
         <View style={profileStyles.field}>
-          <Text style={profileStyles.label}>Your name</Text>
+          <Text style={profileStyles.label}>{t("settings.yourName")}</Text>
           <TextInput
             style={profileStyles.input}
-            placeholder="e.g. Sara, Juba"
+            placeholder={t("settings.namePlaceholder")}
             placeholderTextColor={BRAND.textMuted}
             value={editName}
             onChangeText={setEditName}
@@ -439,10 +491,18 @@ export default function SettingsScreen() {
           />
         </View>
         <View style={profileStyles.field}>
-          <Text style={profileStyles.label}>Your city</Text>
-          <Text style={profileStyles.hint}>Used to show you relevant safety alerts</Text>
+          <Text style={profileStyles.label}>{t("settings.yourCity")}</Text>
+          <Text style={profileStyles.hint}>{t("settings.cityHint")}</Text>
           <CityPicker value={editCity} onChange={setEditCity} />
         </View>
+        {/* Language selector */}
+        <SettingRow
+          icon="globe"
+          label={t("settings.language")}
+          subtitle={currentLangLabel}
+          onPress={() => setShowLanguagePicker(true)}
+          chevron
+        />
         <Pressable
           style={({ pressed }) => [
             profileStyles.saveBtn,
@@ -455,45 +515,45 @@ export default function SettingsScreen() {
           {profileSaved ? (
             <>
               <Feather name="check" size={16} color={BRAND.white} />
-              <Text style={profileStyles.saveBtnText}>Saved</Text>
+              <Text style={profileStyles.saveBtnText}>{t("common.saved")}</Text>
             </>
           ) : (
             <Text style={profileStyles.saveBtnText}>
-              {profileSaving ? "Saving…" : "Save profile"}
+              {profileSaving ? t("common.saving") : t("settings.saveProfile")}
             </Text>
           )}
         </Pressable>
       </View>
 
-      <Text style={styles.sectionTitle}>Your Plan</Text>
+      <Text style={styles.sectionTitle}>{t("settings.yourPlan")}</Text>
       <PlanCard plan={plan} onUpgrade={handleUpgrade} />
 
-      <Text style={styles.sectionTitle}>Safety Data Sources</Text>
+      <Text style={styles.sectionTitle}>{t("settings.safetyDataSources")}</Text>
       <View style={styles.section}>
         <SourceRow
           icon="zap"
-          orgName="U.S. Geological Survey"
-          orgAbbrev="USGS"
-          website="earthquake.usgs.gov"
-          description="Real-time earthquake alerts worldwide. Data published directly by USGS."
+          orgName={t("sources.usgs.orgName")}
+          orgAbbrev={t("sources.usgs.abbrev")}
+          website={t("sources.usgs.website")}
+          description={t("sources.usgs.description")}
           enabled={alertPrefs.usgs}
           onToggle={(v) => setAlertPref("usgs", v)}
         />
         <SourceRow
           icon="cloud-lightning"
-          orgName="National Weather Service"
-          orgAbbrev="NOAA / NWS"
-          website="weather.gov"
-          description="Severe weather alerts for the United States including storms, floods, and extreme conditions."
+          orgName={t("sources.noaa.orgName")}
+          orgAbbrev={t("sources.noaa.abbrev")}
+          website={t("sources.noaa.website")}
+          description={t("sources.noaa.description")}
           enabled={alertPrefs.noaa}
           onToggle={(v) => setAlertPref("noaa", v)}
         />
         <SourceRow
           icon="globe"
-          orgName="Global Disaster Alert"
-          orgAbbrev="GDACS / EU JRC"
-          website="gdacs.org"
-          description="Worldwide disaster alerts — earthquakes, cyclones, floods, and volcanoes. Covers UAE, Middle East, and all regions not served by NOAA."
+          orgName={t("sources.gdacs.orgName")}
+          orgAbbrev={t("sources.gdacs.abbrev")}
+          website={t("sources.gdacs.website")}
+          description={t("sources.gdacs.description")}
           enabled={alertPrefs.gdacs}
           onToggle={(v) => setAlertPref("gdacs", v)}
           isLast
@@ -502,16 +562,16 @@ export default function SettingsScreen() {
       <View style={styles.sourceDisclaimer}>
         <Feather name="info" size={12} color={BRAND.textMuted} />
         <Text style={styles.sourceDisclaimerText}>
-          Ollia does not modify official alert data. Data is sourced directly from USGS, NOAA, and GDACS (EU Joint Research Centre) and linked to original reports. NOAA covers the US only — enable GDACS for global coverage including UAE and Middle East.
+          {t("sources.disclaimer")}
         </Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Notifications</Text>
+      <Text style={styles.sectionTitle}>{t("settings.notifications")}</Text>
       <View style={styles.section}>
         <SettingRow
           icon="bell"
-          label="Activity alerts"
-          subtitle="Notify when family is active"
+          label={t("settings.activityAlerts")}
+          subtitle={t("settings.activityAlertsSubtitle")}
           value={notifActivity}
           onToggle={(v) => {
             setNotifActivity(v);
@@ -522,8 +582,8 @@ export default function SettingsScreen() {
         <View style={styles.divider} />
         <SettingRow
           icon="alert-triangle"
-          label="Inactivity alerts"
-          subtitle="Notify if someone goes quiet"
+          label={t("settings.inactivityAlerts")}
+          subtitle={t("settings.inactivityAlertsSubtitle")}
           value={notifInactivity}
           onToggle={(v) => {
             setNotifInactivity(v);
@@ -533,17 +593,17 @@ export default function SettingsScreen() {
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Safety Preferences</Text>
+      <Text style={styles.sectionTitle}>{t("settings.safetyPreferences")}</Text>
       {plan === "premium" ? (
         <View style={[styles.section, { padding: 16, gap: 16 }]}>
           {/* Inactivity threshold slider */}
           <View style={{ gap: 6 }}>
             <View style={spStyles.labelRow}>
               <Feather name="clock" size={15} color={BRAND.primary} />
-              <Text style={profileStyles.label}>Inactivity threshold</Text>
+              <Text style={profileStyles.label}>{t("settings.inactivityThreshold")}</Text>
             </View>
             <Text style={ecStyles.hint}>
-              Alert you after this many hours of no activity
+              {t("settings.inactivityThresholdHint")}
             </Text>
             <View style={spStyles.sliderRow}>
               <Pressable
@@ -580,7 +640,7 @@ export default function SettingsScreen() {
                 disabled={thresholdSaving}
               >
                 <Text style={profileStyles.saveBtnText}>
-                  {thresholdSaving ? "Saving…" : "Save threshold"}
+                  {thresholdSaving ? t("common.saving") : t("settings.saveThreshold")}
                 </Text>
               </Pressable>
             )}
@@ -591,10 +651,10 @@ export default function SettingsScreen() {
           <View style={{ gap: 8 }}>
             <View style={spStyles.labelRow}>
               <Feather name="shield" size={15} color={BRAND.primary} />
-              <Text style={profileStyles.label}>Scheduled mode</Text>
+              <Text style={profileStyles.label}>{t("settings.scheduledMode")}</Text>
             </View>
             <Text style={ecStyles.hint}>
-              Going on a hike or trip? Set a deadline — your circle gets alerted if you don't check in by then.
+              {t("settings.scheduledModeHint")}
             </Text>
 
             {scheduledDeadline ? (
@@ -602,7 +662,7 @@ export default function SettingsScreen() {
                 <View style={spStyles.activeScheduleTop}>
                   <Feather name="clock" size={14} color="#F59E0B" />
                   <Text style={spStyles.activeScheduleText}>
-                    Check in by {formatDeadline(scheduledDeadline)}
+                    {formatDeadline(scheduledDeadline)}
                   </Text>
                 </View>
                 <Pressable
@@ -612,7 +672,7 @@ export default function SettingsScreen() {
                 >
                   <Feather name="x" size={14} color={BRAND.statusRed} />
                   <Text style={spStyles.cancelBtnText}>
-                    {schedulingSaving ? "Canceling…" : "Cancel scheduled check-in"}
+                    {schedulingSaving ? t("settings.canceling") : t("settings.cancelSchedule")}
                   </Text>
                 </Pressable>
               </View>
@@ -640,9 +700,9 @@ export default function SettingsScreen() {
           <View style={spStyles.lockedRow}>
             <Feather name="lock" size={14} color={BRAND.textMuted} />
             <View style={{ flex: 1 }}>
-              <Text style={spStyles.lockedTitle}>Safety Preferences</Text>
+              <Text style={spStyles.lockedTitle}>{t("settings.safetyPreferences")}</Text>
               <Text style={spStyles.lockedText}>
-                Custom inactivity thresholds and scheduled check-ins — Premium feature
+                {t("settings.safetyPreferencesLocked")}
               </Text>
             </View>
             <Feather name="chevron-right" size={14} color={BRAND.textMuted} />
@@ -650,14 +710,14 @@ export default function SettingsScreen() {
         </Pressable>
       )}
 
-      <Text style={styles.sectionTitle}>Activity Apps</Text>
+      <Text style={styles.sectionTitle}>{t("settings.activityApps")}</Text>
       {plan === "premium" ? (
         <View style={[styles.section, { padding: 16, gap: 14 }]}>
           {/* Privacy notice */}
           <View style={aaStyles.privacyNotice}>
             <Feather name="eye-off" size={14} color={BRAND.primary} />
             <Text style={aaStyles.privacyText}>
-              These apps are never monitored for content — Ollia only detects that you opened them. App names are stored on your device only and never sent to Ollia's servers.
+              {t("settings.activityAppsPrivacy")}
             </Text>
           </View>
 
@@ -675,7 +735,7 @@ export default function SettingsScreen() {
           {/* Selected apps */}
           {selectedApps.length > 0 && (
             <View style={{ gap: 6 }}>
-              <Text style={profileStyles.label}>Selected apps</Text>
+              <Text style={profileStyles.label}>{t("settings.selectedApps")}</Text>
               <View style={aaStyles.chipContainer}>
                 {selectedApps.map((app) => (
                   <View key={app.id} style={aaStyles.chip}>
@@ -697,7 +757,7 @@ export default function SettingsScreen() {
             <View style={{ gap: 8 }}>
               <TextInput
                 style={profileStyles.input}
-                placeholder="Search apps…"
+                placeholder={t("common.searchApps")}
                 placeholderTextColor={BRAND.textMuted}
                 value={appSearch}
                 onChangeText={setAppSearch}
@@ -732,7 +792,7 @@ export default function SettingsScreen() {
                   setAppSearch("");
                 }}
               >
-                <Text style={aaStyles.doneBtnText}>Done</Text>
+                <Text style={aaStyles.doneBtnText}>{t("common.done")}</Text>
               </Pressable>
             </View>
           ) : (
@@ -741,7 +801,7 @@ export default function SettingsScreen() {
               onPress={() => setShowAppPicker(true)}
             >
               <Feather name="plus" size={16} color={BRAND.primary} />
-              <Text style={aaStyles.addBtnText}>Add apps</Text>
+              <Text style={aaStyles.addBtnText}>{t("settings.addApps")}</Text>
             </Pressable>
           )}
         </View>
@@ -750,9 +810,9 @@ export default function SettingsScreen() {
           <View style={spStyles.lockedRow}>
             <Feather name="lock" size={14} color={BRAND.textMuted} />
             <View style={{ flex: 1 }}>
-              <Text style={spStyles.lockedTitle}>Activity Apps</Text>
+              <Text style={spStyles.lockedTitle}>{t("settings.activityApps")}</Text>
               <Text style={spStyles.lockedText}>
-                Select apps that count as proof of life — Premium feature
+                {t("settings.activityAppsLocked")}
               </Text>
             </View>
             <Feather name="chevron-right" size={14} color={BRAND.textMuted} />
@@ -760,16 +820,16 @@ export default function SettingsScreen() {
         </Pressable>
       )}
 
-      <Text style={styles.sectionTitle}>Emergency Contact</Text>
+      <Text style={styles.sectionTitle}>{t("settings.emergencyContact")}</Text>
       <View style={[styles.section, { padding: 16, gap: 14 }]}>
         <Text style={ecStyles.hint}>
-          If you're unreachable for an extended period, Ollia will alert this person as a last resort.
+          {t("settings.emergencyContactHint")}
         </Text>
         <View style={profileStyles.field}>
-          <Text style={profileStyles.label}>Name</Text>
+          <Text style={profileStyles.label}>{t("settings.name")}</Text>
           <TextInput
             style={profileStyles.input}
-            placeholder="e.g. Mom, Sara"
+            placeholder={t("settings.ecNamePlaceholder")}
             placeholderTextColor={BRAND.textMuted}
             value={ecName}
             onChangeText={setEcName}
@@ -777,10 +837,10 @@ export default function SettingsScreen() {
           />
         </View>
         <View style={profileStyles.field}>
-          <Text style={profileStyles.label}>Phone number</Text>
+          <Text style={profileStyles.label}>{t("settings.phoneNumber")}</Text>
           <TextInput
             style={profileStyles.input}
-            placeholder="+1 555 123 4567"
+            placeholder={t("settings.phonePlaceholder")}
             placeholderTextColor={BRAND.textMuted}
             value={ecPhone}
             onChangeText={setEcPhone}
@@ -800,33 +860,33 @@ export default function SettingsScreen() {
           {ecSaved ? (
             <>
               <Feather name="check" size={16} color={BRAND.white} />
-              <Text style={profileStyles.saveBtnText}>Saved</Text>
+              <Text style={profileStyles.saveBtnText}>{t("common.saved")}</Text>
             </>
           ) : (
             <Text style={profileStyles.saveBtnText}>
-              {ecSaving ? "Saving…" : "Save emergency contact"}
+              {ecSaving ? t("common.saving") : t("settings.saveEmergencyContact")}
             </Text>
           )}
         </Pressable>
       </View>
 
-      <Text style={styles.sectionTitle}>Privacy</Text>
+      <Text style={styles.sectionTitle}>{t("settings.privacy")}</Text>
       <View style={styles.section}>
         <SettingRow
           icon="map-pin"
-          label="Share my region"
-          subtitle="Show city-level location only"
+          label={t("settings.shareMyRegion")}
+          subtitle={t("settings.shareMyRegionSubtitle")}
           value={shareRegion}
           onToggle={setShareRegion}
           testID="share-region-row"
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Family Circle</Text>
+      <Text style={styles.sectionTitle}>{t("settings.familyCircle")}</Text>
       <View style={styles.section}>
         {members.length === 0 ? (
           <View style={styles.emptyMembers}>
-            <Text style={styles.emptyMembersText}>No family members yet</Text>
+            <Text style={styles.emptyMembersText}>{t("settings.noFamilyMembers")}</Text>
           </View>
         ) : (
           [...members]
@@ -845,13 +905,13 @@ export default function SettingsScreen() {
                       </Text>
                       {m.isMe && (
                         <View style={styles.youBadge}>
-                          <Text style={styles.youBadgeText}>You</Text>
+                          <Text style={styles.youBadgeText}>{t("common.you")}</Text>
                         </View>
                       )}
                     </View>
                     <Text style={styles.memberRelation}>
-                      {m.isMe ? "Circle owner" : m.relation}
-                      {m.travelMode && m.travelDestination ? ` · Traveling` : ""}
+                      {m.isMe ? t("settings.circleOwner") : m.relation}
+                      {m.travelMode && m.travelDestination ? ` · ${t("settings.traveling")}` : ""}
                     </Text>
                   </View>
                   {m.isMe ? (
@@ -862,12 +922,12 @@ export default function SettingsScreen() {
                     <Pressable
                       onPress={() => {
                         Alert.alert(
-                          "Remove member",
-                          `Remove ${m.name} from your circle?`,
+                          t("settings.removeMember"),
+                          t("settings.removeMemberMsg", { name: m.name }),
                           [
-                            { text: "Cancel", style: "cancel" },
+                            { text: t("common.cancel"), style: "cancel" },
                             {
-                              text: "Remove",
+                              text: t("common.remove"),
                               style: "destructive",
                               onPress: async () => {
                                 if (Platform.OS !== "web") {
@@ -876,7 +936,7 @@ export default function SettingsScreen() {
                                 try {
                                   await removeMember(m.id);
                                 } catch {
-                                  Alert.alert("Error", "Failed to remove member. Please try again.");
+                                  Alert.alert(t("common.error"), t("settings.failedRemoveMember"));
                                 }
                               },
                             },
@@ -898,10 +958,10 @@ export default function SettingsScreen() {
         style={({ pressed }) => [styles.signOutBtn, pressed && { opacity: 0.7 }]}
         testID="sign-out-btn"
         onPress={() => {
-          Alert.alert("Sign out", "Are you sure you want to sign out?", [
-            { text: "Cancel", style: "cancel" },
+          Alert.alert(t("settings.signOutConfirmTitle"), t("settings.signOutConfirmMsg"), [
+            { text: t("common.cancel"), style: "cancel" },
             {
-              text: "Sign out",
+              text: t("settings.signOut"),
               style: "destructive",
               onPress: async () => {
                 await clearAllState();
@@ -912,7 +972,7 @@ export default function SettingsScreen() {
         }}
       >
         <Feather name="log-out" size={17} color={BRAND.statusRed} />
-        <Text style={styles.signOutText}>Sign out</Text>
+        <Text style={styles.signOutText}>{t("settings.signOut")}</Text>
       </Pressable>
 
       <Pressable
@@ -920,12 +980,12 @@ export default function SettingsScreen() {
         disabled={deleting}
         onPress={() => {
           Alert.alert(
-            "Delete account",
-            "Are you sure? This will permanently delete your account and remove you from all family circles. This cannot be undone.",
+            t("settings.deleteConfirmTitle"),
+            t("settings.deleteConfirmMsg"),
             [
-              { text: "Cancel", style: "cancel" },
+              { text: t("common.cancel"), style: "cancel" },
               {
-                text: "Delete account",
+                text: t("settings.deleteAccount"),
                 style: "destructive",
                 onPress: async () => {
                   setDeleting(true);
@@ -936,7 +996,7 @@ export default function SettingsScreen() {
                     router.replace("/(auth)/sign-in");
                   } catch (e) {
                     console.error("Delete account failed:", e);
-                    Alert.alert("Error", "Failed to delete account. Please try again.");
+                    Alert.alert(t("common.error"), t("settings.failedDeleteAccount"));
                   } finally {
                     setDeleting(false);
                   }
@@ -948,7 +1008,7 @@ export default function SettingsScreen() {
       >
         <Feather name="trash-2" size={17} color="#EF4444" />
         <Text style={styles.deleteAccountText}>
-          {deleting ? "Deleting…" : "Delete account"}
+          {deleting ? t("settings.deleting") : t("settings.deleteAccount")}
         </Text>
       </Pressable>
 
@@ -961,20 +1021,58 @@ export default function SettingsScreen() {
         }}
       />
 
+      {/* Language Picker Modal */}
+      <Modal
+        visible={showLanguagePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLanguagePicker(false)}
+      >
+        <Pressable style={langStyles.backdrop} onPress={() => setShowLanguagePicker(false)} />
+        <View style={langStyles.sheet}>
+          <View style={langStyles.handle} />
+          <Text style={langStyles.title}>{t("settings.chooseLanguage")}</Text>
+          {SUPPORTED_LANGUAGES.map((lang) => (
+            <Pressable
+              key={lang.code}
+              style={({ pressed }) => [
+                langStyles.langRow,
+                pressed && { opacity: 0.7 },
+                lang.code === currentLanguage && langStyles.langRowSelected,
+              ]}
+              onPress={() => handleLanguageSelect(lang.code)}
+            >
+              <Text style={[langStyles.langLabel, lang.code === currentLanguage && langStyles.langLabelSelected]}>
+                {lang.label}
+              </Text>
+              {lang.code === currentLanguage && (
+                <Feather name="check" size={18} color={BRAND.primary} />
+              )}
+            </Pressable>
+          ))}
+          <Pressable
+            style={({ pressed }) => [langStyles.cancelBtn, pressed && { opacity: 0.7 }]}
+            onPress={() => setShowLanguagePicker(false)}
+          >
+            <Text style={langStyles.cancelText}>{t("common.cancel")}</Text>
+          </Pressable>
+        </View>
+      </Modal>
+
       <View style={styles.aboutCard}>
         <View style={styles.aboutLogo}>
           <Text style={styles.aboutLogoText}>Oll</Text>
           <Text style={[styles.aboutLogoText, { color: BRAND.primary }]}>ia</Text>
         </View>
         <Text style={styles.aboutTagline}>
-          A quiet signal that lets your family know you're okay.
+          {t("settings.aboutTagline")}
         </Text>
-        <Text style={styles.aboutVersion}>Version 2.0.0</Text>
+        <Text style={styles.aboutVersion}>{t("common.version", { version: "2.0.0" })}</Text>
         <Pressable onPress={() => Linking.openURL('https://ollia.app/terms')}>
-          <Text>Terms of Service</Text>
+          <Text>{t("settings.termsOfService")}</Text>
         </Pressable>
         <Pressable onPress={() => Linking.openURL('https://ollia.app/privacy')}>
-          <Text>Privacy Policy</Text>
+          <Text>{t("settings.privacyPolicy")}</Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -1567,5 +1665,72 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     color: BRAND.textMuted,
+  },
+});
+
+const langStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  sheet: {
+    backgroundColor: BRAND.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 32,
+    borderTopWidth: 1,
+    borderColor: BRAND.borderLight,
+    gap: 4,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: BRAND.border,
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 17,
+    fontFamily: "Inter_600SemiBold",
+    color: BRAND.text,
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  langRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  langRowSelected: {
+    backgroundColor: `${BRAND.primary}10`,
+  },
+  langLabel: {
+    fontSize: 16,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.text,
+  },
+  langLabelSelected: {
+    fontFamily: "Inter_600SemiBold",
+    color: BRAND.primary,
+  },
+  cancelBtn: {
+    marginTop: 8,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderRadius: 12,
+    backgroundColor: BRAND.backgroundCard,
+    borderWidth: 1,
+    borderColor: BRAND.borderLight,
+  },
+  cancelText: {
+    fontSize: 16,
+    fontFamily: "Inter_500Medium",
+    color: BRAND.textSecondary,
   },
 });

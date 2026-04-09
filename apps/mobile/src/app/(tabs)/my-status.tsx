@@ -1,6 +1,7 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Platform,
   Pressable,
@@ -42,6 +43,8 @@ function HeartbeatTimer({ lastSeen }: { lastSeen: Date }) {
 
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
+  const { t } = useTranslation();
+
   const label =
     elapsed < 60
       ? `${secs}s ago`
@@ -54,7 +57,7 @@ function HeartbeatTimer({ lastSeen }: { lastSeen: Date }) {
 
   return (
     <Text style={[styles.timerText, { color }]}>
-      Last heartbeat: {label}
+      {t("myStatus.lastHeartbeat", { elapsed: label })}
     </Text>
   );
 }
@@ -62,7 +65,8 @@ function HeartbeatTimer({ lastSeen }: { lastSeen: Date }) {
 function InactivityAlert({ name, status }: { name: string; status: string }) {
   const color = status === "inactive" ? "#EF4444" : BRAND.primary;
   const icon = status === "inactive" ? "alert-circle" : "clock";
-  const label = status === "inactive" ? "No signal in 12h+" : "No signal in 3h+";
+  const { t: tStatus } = useTranslation();
+  const label = status === "inactive" ? tStatus("myStatus.noSignal12h") : tStatus("myStatus.noSignal3h");
   return (
     <View style={[styles.alertRow, { borderColor: `${color}30`, backgroundColor: `${color}08` }]}>
       <Feather name={icon as any} size={15} color={color} />
@@ -76,6 +80,7 @@ function InactivityAlert({ name, status }: { name: string; status: string }) {
 
 
 export default function MyStatusScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const {
     myStatus,
@@ -207,8 +212,8 @@ export default function MyStatusScreen() {
         />
       }
     >
-      <Text style={styles.title}>My Status</Text>
-      <Text style={styles.subtitle}>Your family can see this</Text>
+      <Text style={styles.title}>{t("myStatus.title")}</Text>
+      <Text style={styles.subtitle}>{t("myStatus.subtitle")}</Text>
 
       <View style={styles.heroSection}>
         <Pressable onPress={handleHeartbeat}>
@@ -241,7 +246,7 @@ export default function MyStatusScreen() {
         {travelMode && travelDestination ? (
           <View style={styles.travelPill}>
             <Feather name="map-pin" size={12} color={BRAND.primary} />
-            <Text style={styles.travelPillText}>Traveling to {travelDestination}</Text>
+            <Text style={styles.travelPillText}>{t("myStatus.travelingTo", { destination: travelDestination })}</Text>
           </View>
         ) : null}
 
@@ -253,7 +258,7 @@ export default function MyStatusScreen() {
           testID="send-heartbeat-btn"
         >
           <Ionicons name="heart" size={16} color={BRAND.white} />
-          <Text style={styles.heartbeatBtnText}>Send heartbeat now</Text>
+          <Text style={styles.heartbeatBtnText}>{t("myStatus.sendHeartbeat")}</Text>
         </Pressable>
       </View>
 
@@ -261,7 +266,7 @@ export default function MyStatusScreen() {
         <View style={styles.patternCard}>
           <Feather name="trending-up" size={15} color={BRAND.primary} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.patternTitle}>Activity Pattern</Text>
+            <Text style={styles.patternTitle}>{t("myStatus.activityPattern")}</Text>
             <Text style={styles.patternText}>{patterns.insight}</Text>
           </View>
         </View>
@@ -271,8 +276,8 @@ export default function MyStatusScreen() {
             <Feather name="lock" size={14} color={BRAND.textMuted} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.patternTitle}>Activity Patterns</Text>
-            <Text style={styles.patternText}>Unlock with Premium to see your activity trends</Text>
+            <Text style={styles.patternTitle}>{t("myStatus.activityPatterns")}</Text>
+            <Text style={styles.patternText}>{t("myStatus.unlockPatterns")}</Text>
           </View>
           <Feather name="chevron-right" size={14} color={BRAND.textMuted} />
         </Pressable>
@@ -282,12 +287,12 @@ export default function MyStatusScreen() {
         <View style={styles.connectionRow}>
           <View style={styles.connectionLeft}>
             <Feather name="server" size={16} color={isRegistered ? BRAND.statusGreen : BRAND.textMuted} />
-            <Text style={styles.connectionLabel}>Backend sync</Text>
+            <Text style={styles.connectionLabel}>{t("myStatus.backendSync")}</Text>
           </View>
           <View style={[styles.pill, { backgroundColor: isRegistered ? `${BRAND.statusGreen}18` : `${BRAND.textMuted}18` }]}>
             <View style={[styles.pillDot, { backgroundColor: isRegistered ? BRAND.statusGreen : BRAND.textMuted }]} />
             <Text style={[styles.pillText, { color: isRegistered ? BRAND.statusGreen : BRAND.textMuted }]}>
-              {isRegistered ? "Connected" : "Offline"}
+              {isRegistered ? t("myStatus.connected") : t("myStatus.offline")}
             </Text>
           </View>
         </View>
@@ -295,7 +300,7 @@ export default function MyStatusScreen() {
         <View style={styles.connectionRow}>
           <View style={styles.connectionLeft}>
             <Feather name="activity" size={16} color={BRAND.primary} />
-            <Text style={styles.connectionLabel}>Activity detection</Text>
+            <Text style={styles.connectionLabel}>{t("myStatus.activityDetection")}</Text>
           </View>
           <View style={[styles.pill, { backgroundColor: `${BRAND.primary}18` }]}>
             <View style={[styles.pillDot, { backgroundColor: BRAND.primary }]} />
@@ -306,10 +311,10 @@ export default function MyStatusScreen() {
         <View style={styles.connectionRow}>
           <View style={styles.connectionLeft}>
             <Feather name="user" size={16} color={BRAND.textSecondary} />
-            <Text style={styles.connectionLabel}>Profile</Text>
+            <Text style={styles.connectionLabel}>{t("myStatus.profile")}</Text>
           </View>
           <Text style={styles.connectionValue}>
-            {myProfile?.name ?? "Not set"}
+            {myProfile?.name ?? t("myStatus.notSet")}
           </Text>
         </View>
 
@@ -317,7 +322,7 @@ export default function MyStatusScreen() {
           <View style={styles.connectionRow}>
             <View style={styles.connectionLeft}>
               <Feather name="map-pin" size={16} color={BRAND.textSecondary} />
-              <Text style={styles.connectionLabel}>Region</Text>
+              <Text style={styles.connectionLabel}>{t("myStatus.region")}</Text>
             </View>
             <Text style={styles.connectionValue}>{myProfile.region}</Text>
           </View>
@@ -327,11 +332,11 @@ export default function MyStatusScreen() {
           <View style={styles.connectionLeft}>
             <Feather name="navigation" size={16} color={isPremium && travelMode ? BRAND.primary : BRAND.textSecondary} />
             <View>
-              <Text style={styles.connectionLabel}>Travel mode</Text>
+              <Text style={styles.connectionLabel}>{t("myStatus.travelMode")}</Text>
               {isPremium && travelMode && travelDestination ? (
                 <Text style={styles.travelSubtitle}>{travelDestination}</Text>
               ) : !isPremium ? (
-                <Text style={styles.travelSubtitle}>Premium</Text>
+                <Text style={styles.travelSubtitle}>{t("myStatus.premium")}</Text>
               ) : null}
             </View>
           </View>
@@ -361,7 +366,7 @@ export default function MyStatusScreen() {
           onChange={handleCitySelect}
           defaultOpen
           onCancel={handleTravelCancel}
-          placeholder="Search your travel destination…"
+          placeholder={t("myStatus.searchDestination")}
         />
       )}
 
@@ -369,9 +374,9 @@ export default function MyStatusScreen() {
         <Pressable style={styles.smartAlertsLocked} onPress={() => setShowUpgrade(true)}>
           <Feather name="lock" size={14} color={BRAND.textMuted} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.smartAlertsLockedTitle}>Smart Inactivity Alerts</Text>
+            <Text style={styles.smartAlertsLockedTitle}>{t("myStatus.smartAlertsTitle")}</Text>
             <Text style={styles.smartAlertsLockedText}>
-              Get notified when family goes quiet — Premium feature
+              {t("myStatus.smartAlertsLocked")}
             </Text>
           </View>
           <Feather name="chevron-right" size={14} color={BRAND.textMuted} />
@@ -380,10 +385,10 @@ export default function MyStatusScreen() {
         <>
           <View style={styles.sectionHeader}>
             <Feather name="alert-triangle" size={16} color="#F59E0B" />
-            <Text style={styles.sectionTitle}>Needs attention</Text>
+            <Text style={styles.sectionTitle}>{t("myStatus.needsAttention")}</Text>
           </View>
           <Text style={styles.sectionHint}>
-            These family members haven't sent a signal recently
+            {t("myStatus.needsAttentionHint")}
           </Text>
           {atRiskMembers.map((m) => (
             <InactivityAlert key={m.id} name={m.name} status={m.status} />
@@ -392,13 +397,13 @@ export default function MyStatusScreen() {
       ) : null}
 
       <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 12 }]}>
-        Who can see your status
+        {t("myStatus.whoCanSee")}
       </Text>
       {watchers.length === 0 ? (
         <View style={styles.emptyWatchers}>
           <Feather name="users" size={28} color={BRAND.border} />
           <Text style={styles.emptyWatchersText}>
-            Invite family members from the Family Circle tab
+            {t("myStatus.inviteFromFamily")}
           </Text>
         </View>
       ) : (
@@ -410,20 +415,20 @@ export default function MyStatusScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.memberName}>{m.name}</Text>
               <Text style={styles.memberRelation}>
-                {m.relation}{m.travelMode && m.travelDestination ? ` · Traveling to ${m.travelDestination}` : ""}
+                {m.relation}{m.travelMode && m.travelDestination ? ` · ${t("myStatus.travelingTo", { destination: m.travelDestination })}` : ""}
               </Text>
             </View>
             {m.pending ? (
               <View style={[styles.seenBadge, { backgroundColor: "#F3F4F6" }]}>
                 <Feather name="clock" size={12} color={BRAND.textMuted} />
                 <Text style={[styles.seenText, { color: BRAND.textMuted }]}>
-                  Pending
+                  {t("myStatus.pending")}
                 </Text>
               </View>
             ) : (
               <View style={styles.seenBadge}>
                 <Feather name="eye" size={13} color={BRAND.statusGreen} />
-                <Text style={styles.seenText}>Can see</Text>
+                <Text style={styles.seenText}>{t("myStatus.canSee")}</Text>
               </View>
             )}
           </View>
@@ -433,9 +438,9 @@ export default function MyStatusScreen() {
       <View style={styles.privacyCard}>
         <Feather name="shield" size={16} color={BRAND.primary} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.privacyTitle}>Privacy protected</Text>
+          <Text style={styles.privacyTitle}>{t("myStatus.privacyTitle")}</Text>
           <Text style={styles.privacyText}>
-            Your family only sees your activity status — not your location, app usage, or what you're doing.
+            {t("myStatus.privacyText")}
           </Text>
         </View>
       </View>

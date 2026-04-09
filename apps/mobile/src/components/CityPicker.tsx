@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Pressable,
@@ -29,10 +30,12 @@ type Props = {
 export function CityPicker({
   value,
   onChange,
-  placeholder = "Search for your city…",
+  placeholder,
   defaultOpen = false,
   onCancel,
 }: Props) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t("common.searchCity");
   const [open, setOpen] = useState(defaultOpen);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CityResult[]>([]);
@@ -114,7 +117,7 @@ export function CityPicker({
       <Pressable style={styles.trigger} onPress={handleOpen}>
         <Feather name="map-pin" size={16} color={value ? BRAND.primary : BRAND.textMuted} />
         <Text style={[styles.triggerText, !value && styles.triggerPlaceholder]} numberOfLines={1}>
-          {value || "Choose your city…"}
+          {value || t("common.chooseCity")}
         </Text>
         <Feather name="chevron-down" size={15} color={BRAND.textMuted} />
       </Pressable>
@@ -127,7 +130,7 @@ export function CityPicker({
         <Feather name="search" size={15} color={BRAND.textMuted} />
         <TextInput
           style={styles.input}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           placeholderTextColor={BRAND.textMuted}
           value={query}
           onChangeText={setQuery}
@@ -143,7 +146,7 @@ export function CityPicker({
           }}
           style={styles.cancelBtn}
         >
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Text style={styles.cancelText}>{t("common.cancel")}</Text>
         </Pressable>
       </View>
 
@@ -168,7 +171,7 @@ export function CityPicker({
 
       {searched && results.length === 0 && !loading && (
         <View style={styles.emptyRow}>
-          <Text style={styles.emptyText}>No cities found — try a different spelling.</Text>
+          <Text style={styles.emptyText}>{t("common.noCitiesFound")}</Text>
         </View>
       )}
     </View>

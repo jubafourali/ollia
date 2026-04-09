@@ -3,6 +3,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -32,6 +33,7 @@ const INVITE_CODE_KEY = "@ollia_invite_code_v2";
 const PROFILE_KEY = "@ollia_my_profile";
 
 export default function JoinScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     code: string;
@@ -112,11 +114,11 @@ export default function JoinScreen() {
     } catch (e: any) {
       const msg = e?.message ?? "";
       if (msg.includes("404") || msg.includes("not found")) {
-        setError("This invite link is no longer valid.");
+        setError(t("join.errorInvalid"));
       } else if (msg.includes("PLAN_LIMIT") || msg.includes("Member limit")) {
-        setError("This circle is full. Ask the owner to upgrade their plan.");
+        setError(t("join.errorFull"));
       } else {
-        setError("Something went wrong. Please try again.");
+        setError(t("join.errorGeneric"));
       }
       console.error("Join error:", e);
     } finally {
@@ -136,20 +138,15 @@ export default function JoinScreen() {
           <View style={styles.successIconBg}>
             <Ionicons name="checkmark-circle" size={56} color={BRAND.statusGreen} />
           </View>
-          <Text style={styles.successTitle}>You're in!</Text>
+          <Text style={styles.successTitle}>{t("join.successTitle")}</Text>
           <Text style={styles.successSub}>
-            You've joined{" "}
-            <Text style={{ fontFamily: "Inter_700Bold", color: BRAND.text }}>
-              {ownerName}
-            </Text>
-            's circle.{"\n"}
-            They'll see a quiet signal whenever you're active.
+            {t("join.successSub", { ownerName })}
           </Text>
 
           <View style={styles.privacyCard}>
             <Feather name="shield" size={16} color={BRAND.primary} />
             <Text style={styles.privacyText}>
-              Only your activity status is shared — never your exact location or what you're doing.
+              {t("join.successPrivacy")}
             </Text>
           </View>
 
@@ -160,7 +157,7 @@ export default function JoinScreen() {
             ]}
             onPress={() => router.replace("/")}
           >
-            <Text style={styles.openBtnText}>Open Ollia</Text>
+            <Text style={styles.openBtnText}>{t("join.openOllia")}</Text>
             <Feather name="arrow-right" size={18} color={BRAND.white} />
           </Pressable>
         </Animated.View>
@@ -202,16 +199,16 @@ export default function JoinScreen() {
               <Feather name="link-2" size={14} color={BRAND.primary} />
             </View>
           </View>
-          <Text style={styles.inviteTitle}>{ownerName} invited you</Text>
+          <Text style={styles.inviteTitle}>{t("join.invited", { ownerName })}</Text>
           <Text style={styles.inviteSub}>
-            Join their Ollia family circle to share a quiet signal that you're safe — no check-ins needed.
+            {t("join.joinSub")}
           </Text>
         </Animated.View>
 
-        <Text style={styles.formLabel}>Your name</Text>
+        <Text style={styles.formLabel}>{t("join.yourName")}</Text>
         <TextInput
           style={styles.input}
-          placeholder="What should they call you?"
+          placeholder={t("join.yourNamePlaceholder")}
           placeholderTextColor={BRAND.textMuted}
           value={name}
           onChangeText={setName}
@@ -221,8 +218,8 @@ export default function JoinScreen() {
         />
 
         <Text style={[styles.formLabel, { marginTop: 16 }]}>
-          Your city{" "}
-          <Text style={styles.optional}>(optional)</Text>
+          {t("join.yourCity")}{" "}
+          <Text style={styles.optional}>{t("join.optional")}</Text>
         </Text>
         <CityPicker value={region} onChange={setRegion} />
 
@@ -235,7 +232,7 @@ export default function JoinScreen() {
           <View style={styles.privacyRow}>
             <Feather name="shield" size={13} color={BRAND.textMuted} />
             <Text style={styles.privacySmall}>
-              Only your activity status is shared. Never your location.
+              {t("join.privacyNote")}
             </Text>
           </View>
         )}
@@ -251,7 +248,7 @@ export default function JoinScreen() {
         >
           <Ionicons name="heart" size={20} color={BRAND.white} />
           <Text style={styles.joinBtnText}>
-            {loading ? "Joining…" : `Join ${ownerName}'s circle`}
+            {loading ? t("join.joining") : t("join.joinBtn", { ownerName })}
           </Text>
         </Pressable>
       </ScrollView>

@@ -4,6 +4,7 @@ import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -24,6 +25,7 @@ type Step = "email" | "otp";
 type AuthMode = "sign-in" | "sign-up";
 
 export default function SignInScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
@@ -63,10 +65,10 @@ export default function SignInScreen() {
           setMode("sign-up");
           setStep("otp");
         } catch (e2: any) {
-          setError(e2?.errors?.[0]?.longMessage ?? "Something went wrong. Try again.");
+          setError(e2?.errors?.[0]?.longMessage ?? t("onboarding.errorGeneric"));
         }
       } else {
-        setError(e?.errors?.[0]?.longMessage ?? "Something went wrong. Try again.");
+        setError(e?.errors?.[0]?.longMessage ?? t("onboarding.errorGeneric"));
       }
     } finally {
       setLoading(false);
@@ -95,7 +97,7 @@ export default function SignInScreen() {
         }
       }
     } catch (e: any) {
-      setError(e?.errors?.[0]?.longMessage ?? "Incorrect code. Try again.");
+      setError(e?.errors?.[0]?.longMessage ?? t("onboarding.errorCode"));
     } finally {
       setLoading(false);
     }
@@ -112,7 +114,7 @@ export default function SignInScreen() {
         router.replace("/(tabs)");
       }
     } catch (e: any) {
-      setError(e?.errors?.[0]?.longMessage ?? "Sign-in failed. Try again.");
+      setError(e?.errors?.[0]?.longMessage ?? t("onboarding.errorSignInFailed"));
     } finally {
       setLoading(false);
     }
@@ -135,21 +137,21 @@ export default function SignInScreen() {
           <Text style={styles.logoText}>
             Oll<Text style={{ color: BRAND.primary }}>ia</Text>
           </Text>
-          <Text style={styles.logoTagline}>A quiet signal that your family is safe</Text>
+          <Text style={styles.logoTagline}>{t("onboarding.logoTagline")}</Text>
         </View>
 
         <View style={styles.card}>
           {step === "email" ? (
             <>
-              <Text style={styles.heading}>Welcome</Text>
+              <Text style={styles.heading}>{t("onboarding.welcome")}</Text>
               <Text style={styles.subheading}>
-                Sign in or create an account to keep your family connected.
+                {t("onboarding.signInSub")}
               </Text>
 
-              <Text style={styles.label}>Your email</Text>
+              <Text style={styles.label}>{t("onboarding.yourEmail")}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="you@example.com"
+                placeholder={t("onboarding.emailPlaceholder")}
                 placeholderTextColor={BRAND.textMuted}
                 value={email}
                 onChangeText={setEmail}
@@ -176,7 +178,7 @@ export default function SignInScreen() {
                   <ActivityIndicator color={BRAND.white} size="small" />
                 ) : (
                   <>
-                    <Text style={styles.primaryBtnText}>Continue with email</Text>
+                    <Text style={styles.primaryBtnText}>{t("onboarding.continueEmail")}</Text>
                     <Feather name="arrow-right" size={18} color={BRAND.white} />
                   </>
                 )}
@@ -184,7 +186,7 @@ export default function SignInScreen() {
 
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or</Text>
+                <Text style={styles.dividerText}>{t("onboarding.or")}</Text>
                 <View style={styles.dividerLine} />
               </View>
 
@@ -194,7 +196,7 @@ export default function SignInScreen() {
                 disabled={loading}
               >
                 <Feather name="globe" size={18} color={BRAND.text} />
-                <Text style={styles.oauthBtnText}>Continue with Google</Text>
+                <Text style={styles.oauthBtnText}>{t("onboarding.continueGoogle")}</Text>
               </Pressable>
 
               {Platform.OS === "ios" && (
@@ -209,7 +211,7 @@ export default function SignInScreen() {
                 >
                   <Feather name="smartphone" size={18} color={BRAND.white} />
                   <Text style={[styles.oauthBtnText, { color: BRAND.white }]}>
-                    Continue with Apple
+                    {t("onboarding.continueApple")}
                   </Text>
                 </Pressable>
               )}
@@ -225,18 +227,18 @@ export default function SignInScreen() {
                 }}
               >
                 <Feather name="arrow-left" size={18} color={BRAND.primary} />
-                <Text style={styles.backText}>Back</Text>
+                <Text style={styles.backText}>{t("onboarding.back")}</Text>
               </Pressable>
 
-              <Text style={styles.heading}>Check your email</Text>
+              <Text style={styles.heading}>{t("onboarding.checkEmail")}</Text>
               <Text style={styles.subheading}>
-                We sent a 6-digit code to{" "}
+                {t("onboarding.codeSentTo")}{" "}
                 <Text style={{ fontFamily: "Inter_600SemiBold", color: BRAND.text }}>
                   {email}
                 </Text>
               </Text>
 
-              <Text style={styles.label}>Verification code</Text>
+              <Text style={styles.label}>{t("onboarding.verificationCode")}</Text>
               <TextInput
                 style={[styles.input, styles.otpInput]}
                 placeholder="000000"
@@ -264,7 +266,7 @@ export default function SignInScreen() {
                 {loading ? (
                   <ActivityIndicator color={BRAND.white} size="small" />
                 ) : (
-                  <Text style={styles.primaryBtnText}>Verify code</Text>
+                  <Text style={styles.primaryBtnText}>{t("onboarding.verifyCode")}</Text>
                 )}
               </Pressable>
 
@@ -276,15 +278,14 @@ export default function SignInScreen() {
                   setStep("email");
                 }}
               >
-                <Text style={styles.resendText}>Didn't receive it? Try again</Text>
+                <Text style={styles.resendText}>{t("onboarding.didntReceive")}</Text>
               </Pressable>
             </>
           )}
         </View>
 
         <Text style={styles.legal}>
-          By continuing, you agree to Ollia's Terms of Service and Privacy Policy.
-          Your location is never shared without your explicit permission.
+          {t("onboarding.legal")}
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>

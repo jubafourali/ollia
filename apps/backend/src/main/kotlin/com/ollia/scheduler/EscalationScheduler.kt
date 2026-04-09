@@ -23,7 +23,47 @@ import java.time.temporal.ChronoUnit
  *
  * Any incoming activity signal (heartbeat / check-in / background) resets
  * escalation_level → 0 immediately (handled in the activity endpoint).
+ *
+ * Push notification bodies are sent in the user's preferred language.
  */
+
+/** Localised push notification strings for the escalation chain. */
+private object PushMessages {
+    data class Messages(val l1Body: String, val l2Body: String, val l3Body: String, val l2Title: String, val l3Title: String)
+
+    private val translations: Map<String, Messages> = mapOf(
+        "en" to Messages(
+            l1Body = "Are you okay? Tap to let your family know.",
+            l2Body = "%s hasn't been active for a while. You may want to check in.",
+            l3Body = "%s has been unreachable for an extended period. Please check on them.",
+            l2Title = "Ollia",
+            l3Title = "Ollia — Urgent"
+        ),
+        "fr" to Messages(
+            l1Body = "Vous allez bien ? Appuyez pour le faire savoir à votre famille.",
+            l2Body = "%s n'a pas été actif(ve) depuis un moment. Vous devriez peut-être lui écrire.",
+            l3Body = "%s est injoignable depuis une période prolongée. Veuillez vérifier.",
+            l2Title = "Ollia",
+            l3Title = "Ollia — Urgent"
+        ),
+        "ar" to Messages(
+            l1Body = "هل أنت بخير؟ اضغط لإعلام عائلتك.",
+            l2Body = "لم يكن %s نشطاً منذ فترة. ربما تريد التواصل معه.",
+            l3Body = "كان %s غير متاح لفترة طويلة. يرجى التحقق منه.",
+            l2Title = "أوليا",
+            l3Title = "أوليا — عاجل"
+        ),
+        "bs" to Messages(
+            l1Body = "Jeste li dobro? Tapnite da obavijestite svoju porodicu.",
+            l2Body = "%s nije bio/bila aktivan/na neko vrijeme. Možda biste trebali provjeriti.",
+            l3Body = "%s je nedostupan/na duži period. Molimo provjerite.",
+            l2Title = "Ollia",
+            l3Title = "Ollia — Hitno"
+        )
+    )
+
+    fun forLang(lang: String): Messages = translations[lang] ?: translations["en"]!!
+}
 @Component
 class EscalationScheduler(
     private val userRepository: UserRepository,
@@ -87,10 +127,11 @@ class EscalationScheduler(
             if (user.lastSeenAt == null || user.lastSeenAt!!.isAfter(thresholdInstant)) continue
 
             val token = pushTokenRepository.findByUserId(user.id!!) ?: continue
+            val msgs = PushMessages.forLang(user.preferredLanguage)
             pushNotificationService.sendPushNotification(
                 expoPushToken = token.token,
                 title = "Ollia",
-                body = "Are you okay? Tap to let your family know."
+                body = msgs.l1Body
             )
             user.escalationLevel = 1
             user.escalationChangedAt = now
@@ -162,10 +203,12 @@ class EscalationScheduler(
 
             for (peer in peerUsers) {
                 val token = tokenMap[peer.id] ?: continue
+                // Send in the *recipient's* preferred language
+                val msgs = PushMessages.forLang(peer.preferredLanguage)
                 pushNotificationService.sendPushNotification(
                     expoPushToken = token.token,
-                    title = "Ollia",
-                    body = "${inactiveUser.name} hasn't been active for a while. You may want to check in."
+                    title = msgs.l2Title,
+                    body = msgs.l2Body.format(inactiveUser.name)
                 )
             }
         }
@@ -197,10 +240,12 @@ class EscalationScheduler(
             } ?: continue
 
             val token = pushTokenRepository.findByUserId(emergencyUser.id!!) ?: continue
+            // Send in the emergency contact's preferred language
+            val msgs = PushMessages.forLang(emergencyUser.preferredLanguage)
             pushNotificationService.sendPushNotification(
                 expoPushToken = token.token,
-                title = "Ollia — Urgent",
-                body = "${user.name} has been unreachable for an extended period. Please check on them."
+                title = msgs.l3Title,
+                body = msgs.l3Body.format(user.name)
             )
             return
         }

@@ -16,6 +16,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 import BRAND from "@/constants/colors";
 import type { CheckInRequest } from "@/context/FamilyContext";
@@ -26,6 +27,7 @@ type Props = {
 };
 
 export function CheckInModal({ request, onRespond }: Props) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(300);
   const opacity = useSharedValue(0);
@@ -75,11 +77,8 @@ export function CheckInModal({ request, onRespond }: Props) {
               </View>
             </View>
 
-            <Text style={styles.title}>Are you okay?</Text>
-            <Text style={styles.subtitle}>
-              Your family noticed you haven't been active for a while.{"\n"}
-              Just let them know you're alright.
-            </Text>
+            <Text style={styles.title}>{t("checkin.title")}</Text>
+            <Text style={styles.subtitle}>{t("checkin.subtitle")}</Text>
 
             <Pressable
               style={({ pressed }) => [
@@ -96,7 +95,7 @@ export function CheckInModal({ request, onRespond }: Props) {
               }}
             >
               <Ionicons name="checkmark-circle" size={22} color={BRAND.white} />
-              <Text style={styles.fineBtnText}>I'm fine</Text>
+              <Text style={styles.fineBtnText}>{t("checkin.fine")}</Text>
             </Pressable>
 
             <Pressable
@@ -114,7 +113,7 @@ export function CheckInModal({ request, onRespond }: Props) {
               }}
             >
               <Feather name="alert-triangle" size={20} color={BRAND.statusRed} />
-              <Text style={styles.helpBtnText}>I need help</Text>
+              <Text style={styles.helpBtnText}>{t("checkin.help")}</Text>
             </Pressable>
           </Animated.View>
         </View>

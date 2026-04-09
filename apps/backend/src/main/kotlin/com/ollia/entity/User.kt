@@ -56,5 +56,8 @@ class User(
 
     var scheduledCheckInDeadline: Instant? = null,
 
+    @Column(nullable = false)
+    var preferredLanguage: String = "en",
+
     val createdAt: Instant = Instant.now()
 )

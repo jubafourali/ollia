@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Modal,
@@ -14,14 +15,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BRAND from "@/constants/colors";
 
-const UNLOCK_FEATURES = [
-  { icon: "users", text: "Unlimited family members" },
-  { icon: "navigation", text: "Travel mode — alert your circle when traveling" },
-  { icon: "bell", text: "Smart inactivity alerts & push notifications" },
-  { icon: "trending-up", text: "Activity patterns & check-in history" },
-  { icon: "map-pin", text: "City-filtered safety alerts" },
-  { icon: "shield", text: "Severity control & region alerts" },
-];
 
 type Props = {
   visible: boolean;
@@ -31,9 +24,23 @@ type Props = {
 };
 
 export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [selecting, setSelecting] = React.useState<"monthly" | "annual" | null>(null);
   const [showComingSoon, setShowComingSoon] = React.useState(false);
+
+  const unlockFeatures = [
+    { icon: "users", text: t("upgrade.features.unlimitedMembers") },
+    { icon: "activity", text: t("upgrade.features.passiveDetection") },
+    { icon: "alert-triangle", text: t("upgrade.features.smartEscalation") },
+    { icon: "clock", text: t("upgrade.features.customInactivity") },
+    { icon: "calendar", text: t("upgrade.features.scheduledMode") },
+    { icon: "smartphone", text: t("upgrade.features.activityApps") },
+    { icon: "navigation", text: t("upgrade.features.travelMode") },
+    { icon: "map-pin", text: t("upgrade.features.cityAlerts") },
+    { icon: "shield", text: t("upgrade.features.severityControl") },
+    { icon: "trending-up", text: t("upgrade.features.activityPatterns") },
+  ];
 
   // Checkout logic preserved — will be re-enabled when Stripe is ready
   const _handleSelect = async (plan: "monthly" | "annual") => {
@@ -74,9 +81,9 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
             <View style={styles.starBadge}>
               <Feather name="heart" size={16} color="#F59E0B" />
             </View>
-            <Text style={styles.title}>Coming very soon</Text>
+            <Text style={styles.title}>{t("upgrade.comingSoonTitle")}</Text>
             <Text style={styles.comingSoonBody}>
-              Premium is coming very soon. We'll notify you the moment it's ready.
+              {t("upgrade.comingSoonBody")}
             </Text>
             {/*<Pressable
               style={({ pressed }) => [
@@ -100,15 +107,15 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
               <View style={styles.starBadge}>
                 <Feather name="star" size={16} color="#F59E0B" />
               </View>
-              <Text style={styles.title}>Unlock Premium</Text>
+              <Text style={styles.title}>{t("upgrade.title")}</Text>
               <Text style={styles.tagline}>
-                Keep your family close, wherever they are.
+                {t("upgrade.tagline")}
               </Text>
             </View>
 
             {/* Feature list */}
             <View style={styles.features}>
-              {UNLOCK_FEATURES.map((f) => (
+              {unlockFeatures.map((f) => (
                 <View key={f.text} style={styles.featureRow}>
                   <View style={styles.featureIcon}>
                     <Feather name={f.icon as any} size={14} color="#F59E0B" />
@@ -136,12 +143,12 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
                 ) : (
                   <>
                     <View style={styles.ctaBtnLeft}>
-                      <Text style={styles.ctaBtnTitle}>Annual</Text>
-                      <Text style={styles.ctaBtnSub}>Save ~33%</Text>
+                      <Text style={styles.ctaBtnTitle}>{t("upgrade.annual")}</Text>
+                      <Text style={styles.ctaBtnSub}>{t("upgrade.savePercent")}</Text>
                     </View>
                     <View style={styles.ctaBtnRight}>
-                      <Text style={styles.ctaBtnPrice}>$79.99</Text>
-                      <Text style={styles.ctaBtnPriceSub}>/year</Text>
+                      <Text style={styles.ctaBtnPrice}>{t("upgrade.annualPrice")}</Text>
+                      <Text style={styles.ctaBtnPriceSub}>{t("upgrade.annualPriceSub")}</Text>
                     </View>
                   </>
                 )}
@@ -162,20 +169,20 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
                   <ActivityIndicator color={BRAND.primary} size="small" />
                 ) : (
                   <>
-                    <Text style={styles.ctaBtnMonthlyText}>Monthly</Text>
-                    <Text style={styles.ctaBtnMonthlyPrice}>$9.99 / month</Text>
+                    <Text style={styles.ctaBtnMonthlyText}>{t("upgrade.monthly")}</Text>
+                    <Text style={styles.ctaBtnMonthlyPrice}>{t("upgrade.monthlyPrice")}</Text>
                   </>
                 )}
               </Pressable>
             </View>
 
             <Text style={styles.legalNote}>
-              Cancel anytime from your account settings. No hidden fees.
+              {t("upgrade.legalNote")}
             </Text>
 
             {!isLoading && (
               <Pressable onPress={onClose} style={styles.dismissBtn}>
-                <Text style={styles.dismissText}>Not now</Text>
+                <Text style={styles.dismissText}>{t("upgrade.notNow")}</Text>
               </Pressable>
             )}
           </>

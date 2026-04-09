@@ -216,4 +216,11 @@ export const api = {
   cancelScheduledCheckIn(): Promise<{ inactivityThresholdHours: number; scheduledCheckInDeadline: null }> {
     return req("/users/me/scheduled-checkin", { method: "DELETE" });
   },
+
+  updatePreferredLanguage(preferredLanguage: string): Promise<void> {
+    return req("/users/me/language", {
+      method: "PATCH",
+      body: JSON.stringify({ preferredLanguage }),
+    });
+  },
 };

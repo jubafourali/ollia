@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Platform,
   Pressable,
@@ -26,6 +27,7 @@ type Props = {
 };
 
 export function MemberCard({ member, onPress }: Props) {
+  const { t } = useTranslation();
   const scale = useSharedValue(1);
   const statusColor = getStatusColor(member.status);
   const statusLabel = getStatusLabel(member.status);
@@ -76,7 +78,7 @@ export function MemberCard({ member, onPress }: Props) {
             </Text>
             {isMe ? (
               <View style={styles.youBadge}>
-                <Text style={styles.youBadgeText}>You</Text>
+                <Text style={styles.youBadgeText}>{t("common.you")}</Text>
               </View>
             ) : (
               <Text style={styles.relation}>{member.relation}</Text>
@@ -87,14 +89,14 @@ export function MemberCard({ member, onPress }: Props) {
               <View style={[styles.statusPill, { backgroundColor: "#F3F4F6" }]}>
                 <Feather name="clock" size={11} color={BRAND.textMuted} />
                 <Text style={[styles.statusText, { color: BRAND.textMuted }]}>
-                  Invite sent · waiting
+                  {t("myStatus.pending")}
                 </Text>
               </View>
             ) : (
               <View style={[styles.statusPill, { backgroundColor: `${statusColor}20` }]}>
                 <View style={[styles.statusDotSmall, { backgroundColor: statusColor }]} />
                 <Text style={[styles.statusText, { color: statusColor }]}>
-                  {isMe ? `Your status · ${statusLabel}` : statusLabel}
+                  {statusLabel}
                 </Text>
               </View>
             )}

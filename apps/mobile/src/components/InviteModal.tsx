@@ -2,6 +2,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Linking from "expo-linking";
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Modal,
   Platform,
@@ -32,7 +33,7 @@ type Props = {
   onNameSet?: (name: string) => void;
 };
 
-const RELATIONS = [
+const RELATION_KEYS = [
   "Mother",
   "Father",
   "Sister",
@@ -41,7 +42,7 @@ const RELATIONS = [
   "Child",
   "Friend",
   "Other",
-];
+] as const;
 
 export function InviteModal({
   visible,
@@ -51,6 +52,7 @@ export function InviteModal({
   onInviteSent,
   onNameSet,
 }: Props) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [relation, setRelation] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
@@ -139,7 +141,7 @@ export function InviteModal({
           <Pressable onPress={onClose} style={styles.closeBtn}>
             <Feather name="x" size={22} color={BRAND.text} />
           </Pressable>
-          <Text style={styles.headerTitle}>Invite to circle</Text>
+          <Text style={styles.headerTitle}>{t("invite.title")}</Text>
           <View style={{ width: 30 }} />
         </View>
 
@@ -152,25 +154,21 @@ export function InviteModal({
             <View style={styles.inviteIconBg}>
               <Feather name="link-2" size={28} color={BRAND.primary} />
             </View>
-            <Text style={styles.inviteHeroTitle}>Send them a smart link</Text>
+            <Text style={styles.inviteHeroTitle}>{t("invite.smartLink")}</Text>
             <Text style={styles.inviteHeroSub}>
-              When they tap it, they'll be brought directly into{" "}
-              <Text style={{ fontFamily: "Inter_600SemiBold", color: BRAND.text }}>
-                {myProfile?.name ?? "your"}'s
-              </Text>{" "}
-              circle on Ollia.
+              {t("invite.smartLinkSub", { name: myProfile?.name ?? "your" })}
             </Text>
           </View>
 
           {needsName && (
             <View style={styles.namePrompt}>
-              <Text style={styles.namePromptLabel}>What's your name?</Text>
+              <Text style={styles.namePromptLabel}>{t("invite.namePrompt")}</Text>
               <Text style={styles.namePromptHint}>
-                So your invite feels personal, not like a random link.
+                {t("invite.namePromptHint")}
               </Text>
               <TextInput
                 style={styles.nameInput}
-                placeholder="e.g. Sara, Juba"
+                placeholder={t("settings.namePlaceholder")}
                 placeholderTextColor={BRAND.textMuted}
                 value={editingName}
                 onChangeText={setEditingName}
@@ -187,15 +185,15 @@ export function InviteModal({
                   }}
                 >
                   <Feather name="check" size={16} color={BRAND.white} />
-                  <Text style={styles.nameConfirmText}>That's me</Text>
+                  <Text style={styles.nameConfirmText}>{t("invite.thatsMe")}</Text>
                 </Pressable>
               )}
             </View>
           )}
 
-          <Text style={styles.sectionLabel}>Their relation to you</Text>
+          <Text style={styles.sectionLabel}>{t("invite.relationLabel")}</Text>
           <View style={styles.chips}>
-            {RELATIONS.map((r) => (
+            {RELATION_KEYS.map((r) => (
               <Pressable
                 key={r}
                 style={[styles.chip, relation === r && styles.chipSelected]}
@@ -207,7 +205,7 @@ export function InviteModal({
                     relation === r && styles.chipTextSelected,
                   ]}
                 >
-                  {r}
+                  {t(`invite.relations.${r}`)}
                 </Text>
               </Pressable>
             ))}
@@ -229,13 +227,12 @@ export function InviteModal({
             testID="share-link-btn"
           >
             <Feather name="share-2" size={18} color={BRAND.white} />
-            <Text style={styles.primaryBtnText}>Share invite link</Text>
+            <Text style={styles.primaryBtnText}>{t("invite.shareLink")}</Text>
           </Pressable>
           <View style={styles.privacyNote}>
             <Feather name="shield" size={13} color={BRAND.textMuted} />
             <Text style={styles.privacyText}>
-              Only people with this link can join your circle. You can remove
-              them anytime.
+              {t("invite.privacyNote")}
             </Text>
           </View>
         </ScrollView>

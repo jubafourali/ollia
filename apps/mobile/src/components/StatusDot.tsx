@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 
 import BRAND from "@/constants/colors";
+import i18n from "@/i18n";
 
 export type ActivityStatus = "active" | "recent" | "away" | "inactive";
 
@@ -45,15 +46,15 @@ export function getStatusColor(status: ActivityStatus): string {
 export function getStatusLabel(status: ActivityStatus): string {
   switch (status) {
     case "active":
-      return "Active";
+      return i18n.t("status.active");
     case "recent":
-      return "Recently active";
+      return i18n.t("status.recent");
     case "away":
-      return "Away";
+      return i18n.t("status.away");
     case "inactive":
-      return "No activity";
+      return i18n.t("status.inactive");
     default:
-      return "Unknown";
+      return i18n.t("status.inactive");
   }
 }
 

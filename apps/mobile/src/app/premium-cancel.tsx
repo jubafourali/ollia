@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Pressable,
   StyleSheet,
@@ -19,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BRAND from "@/constants/colors";
 
 export default function PremiumCancelScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const iconScale = useSharedValue(0);
@@ -46,9 +48,9 @@ export default function PremiumCancelScreen() {
         </Reanimated.View>
 
         <Reanimated.View style={[styles.textBlock, contentStyle]}>
-          <Text style={styles.title}>No worries</Text>
+          <Text style={styles.title}>{t("premiumCancel.title")}</Text>
           <Text style={styles.subtitle}>
-            Ollia is still here for you and your family. You can upgrade any time from Settings.
+            {t("premiumCancel.subtitle")}
           </Text>
         </Reanimated.View>
       </View>
@@ -58,7 +60,7 @@ export default function PremiumCancelScreen() {
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.85 }]}
           onPress={() => router.replace("/(tabs)")}
         >
-          <Text style={styles.backBtnText}>Back to Ollia</Text>
+          <Text style={styles.backBtnText}>{t("premiumCancel.backBtn")}</Text>
         </Pressable>
       </Reanimated.View>
     </View>

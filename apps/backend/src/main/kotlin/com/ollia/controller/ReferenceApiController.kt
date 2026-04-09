@@ -423,6 +423,16 @@ class ReferenceApiController(
         )
     }
 
+    // ─── PATCH /api/users/me/language ─── update preferred language
+    @PatchMapping("/users/me/language")
+    fun updatePreferredLanguage(@RequestBody request: UpdateLanguageRequest): Map<String, String> {
+        val user = currentUserService.getCurrentUser()
+        val supported = listOf("en", "fr", "ar", "bs")
+        user.preferredLanguage = if (request.preferredLanguage in supported) request.preferredLanguage else "en"
+        userRepository.save(user)
+        return mapOf("preferredLanguage" to user.preferredLanguage)
+    }
+
     // ─── DELETE /api/users/me ─── delete account and all associated data
     // Response: 204 No Content
     @DeleteMapping("/users/me")

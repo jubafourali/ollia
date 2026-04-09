@@ -10,11 +10,14 @@ import * as SecureStore from "expo-secure-store";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useRef, useState } from "react";
-import { Platform } from "react-native";
+import { I18nManager, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import * as Localization from "expo-localization";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { FamilyProvider } from "@/context/FamilyContext";
+import i18n, { mapLocaleToSupported, LANGUAGE_STORAGE_KEY } from "@/i18n";
 
 // Import to register background tasks at module scope (TaskManager.defineTask)
 import "@/services/backgroundActivity";
@@ -110,22 +113,29 @@ function RootLayoutNav() {
 }
 
 /**
- * SplashGate — keeps the native splash visible until Clerk auth is loaded.
+ * SplashGate — keeps the native splash visible until Clerk auth and i18n are loaded.
  * Must be inside ClerkProvider so it can read useAuth().
  */
-function SplashGate({ fontsReady, children }: { fontsReady: boolean; children: React.ReactNode }) {
+function SplashGate({
+  fontsReady,
+  i18nReady,
+  children,
+}: {
+  fontsReady: boolean;
+  i18nReady: boolean;
+  children: React.ReactNode;
+}) {
   const { isLoaded } = useAuth();
   const splashHidden = useRef(false);
 
   useEffect(() => {
-    if (fontsReady && isLoaded && !splashHidden.current) {
+    if (fontsReady && isLoaded && i18nReady && !splashHidden.current) {
       splashHidden.current = true;
       SplashScreen.hideAsync();
     }
-  }, [fontsReady, isLoaded]);
+  }, [fontsReady, isLoaded, i18nReady]);
 
-  // Don't render anything until both fonts and auth are ready
-  if (!fontsReady || !isLoaded) return null;
+  if (!fontsReady || !isLoaded || !i18nReady) return null;
 
   return <>{children}</>;
 }
@@ -138,13 +148,42 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+  const [i18nReady, setI18nReady] = useState(false);
+
   const fontsReady = fontsLoaded || !!fontError;
+
+  useEffect(() => {
+    async function initLanguage() {
+      try {
+        const stored = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
+        let lang: string;
+        if (stored) {
+          lang = stored;
+        } else {
+          const deviceLocale = Localization.getLocales()[0]?.languageCode ?? "en";
+          lang = mapLocaleToSupported(deviceLocale);
+        }
+        await i18n.changeLanguage(lang);
+        // Apply RTL for Arabic
+        const shouldBeRTL = lang === "ar";
+        if (I18nManager.isRTL !== shouldBeRTL) {
+          I18nManager.forceRTL(shouldBeRTL);
+        }
+      } catch {
+        // Fallback to English on any error
+        await i18n.changeLanguage("en");
+      } finally {
+        setI18nReady(true);
+      }
+    }
+    initLanguage();
+  }, []);
 
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <SafeAreaProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <SplashGate fontsReady={fontsReady}>
+          <SplashGate fontsReady={fontsReady} i18nReady={i18nReady}>
             <FamilyProvider>
               <RootLayoutNav />
             </FamilyProvider>

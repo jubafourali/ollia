@@ -2,6 +2,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Platform,
@@ -20,6 +21,7 @@ import { useFamilyContext } from "@/context/FamilyContext";
 import { formatLastSeen, formatTimeAgo } from "@/utils/time";
 
 export default function MemberDetailScreen() {
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { members, removeMember } = useFamilyContext();
@@ -29,9 +31,9 @@ export default function MemberDetailScreen() {
   if (!member) {
     return (
       <View style={styles.notFound}>
-        <Text style={styles.notFoundText}>Member not found</Text>
+        <Text style={styles.notFoundText}>{t("member.notFound")}</Text>
         <Pressable onPress={() => router.back()}>
-          <Text style={styles.backLink}>Go back</Text>
+          <Text style={styles.backLink}>{t("member.goBack")}</Text>
         </Pressable>
       </View>
     );
@@ -53,12 +55,12 @@ export default function MemberDetailScreen() {
         <Pressable
           onPress={() => {
             Alert.alert(
-              "Remove member",
-              `Remove ${member.name} from your circle?`,
+              t("member.removeMember"),
+              t("member.removeMemberMsg", { name: member.name }),
               [
-                { text: "Cancel", style: "cancel" },
+                { text: t("common.cancel"), style: "cancel" },
                 {
-                  text: "Remove",
+                  text: t("common.remove"),
                   style: "destructive",
                   onPress: async () => {
                     if (Platform.OS !== "web") {
@@ -68,7 +70,7 @@ export default function MemberDetailScreen() {
                       await removeMember(member.id);
                       router.back();
                     } catch {
-                      Alert.alert("Error", "Failed to remove member. Please try again.");
+                      Alert.alert(t("common.error"), t("member.failedRemove"));
                     }
                   },
                 },
@@ -108,12 +110,12 @@ export default function MemberDetailScreen() {
         <View style={styles.infoGrid}>
           <View style={styles.infoBox}>
             <Feather name="clock" size={18} color={BRAND.primary} />
-            <Text style={styles.infoBoxLabel}>Last active</Text>
+            <Text style={styles.infoBoxLabel}>{t("member.lastActive")}</Text>
             <Text style={styles.infoBoxValue}>{formatTimeAgo(member.lastSeen)}</Text>
           </View>
           <View style={styles.infoBox}>
             <Feather name="map-pin" size={18} color={BRAND.primary} />
-            <Text style={styles.infoBoxLabel}>Region</Text>
+            <Text style={styles.infoBoxLabel}>{t("member.region")}</Text>
             <Text style={styles.infoBoxValue}>{member.region}</Text>
           </View>
         </View>
@@ -126,7 +128,7 @@ export default function MemberDetailScreen() {
         <View style={styles.privacyNote}>
           <Feather name="lock" size={14} color={BRAND.textMuted} />
           <Text style={styles.privacyText}>
-            Ollia only shows activity signals — never location, messages or personal data.
+            {t("member.privacyNote")}
           </Text>
         </View>
       </ScrollView>
