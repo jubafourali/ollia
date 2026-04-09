@@ -190,4 +190,30 @@ export const api = {
   getNotificationPrefs(): Promise<{ notifyActivity: boolean; notifyInactivity: boolean }> {
     return req("/users/me/preferences");
   },
+
+  getEmergencyContact(): Promise<{ name: string | null; phone: string | null }> {
+    return req("/users/me/emergency-contact");
+  },
+
+  updateEmergencyContact(contact: { name: string | null; phone: string | null }): Promise<{ name: string | null; phone: string | null }> {
+    return req("/users/me/emergency-contact", {
+      method: "PATCH",
+      body: JSON.stringify(contact),
+    });
+  },
+
+  getSafetyPreferences(): Promise<{ inactivityThresholdHours: number; scheduledCheckInDeadline: string | null }> {
+    return req("/users/me/safety-preferences");
+  },
+
+  updateSafetyPreferences(prefs: { inactivityThresholdHours?: number; scheduledCheckInDeadline?: string }): Promise<{ inactivityThresholdHours: number; scheduledCheckInDeadline: string | null }> {
+    return req("/users/me/safety-preferences", {
+      method: "PATCH",
+      body: JSON.stringify(prefs),
+    });
+  },
+
+  cancelScheduledCheckIn(): Promise<{ inactivityThresholdHours: number; scheduledCheckInDeadline: null }> {
+    return req("/users/me/scheduled-checkin", { method: "DELETE" });
+  },
 };

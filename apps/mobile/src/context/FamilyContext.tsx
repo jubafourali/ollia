@@ -9,8 +9,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, Linking } from "react-native";
 import { api, ApiCircleMember, ApiSafetyEvent, ApiPattern, setAuthTokenGetter } from "@/utils/api";
+import {
+  registerBackgroundActivity,
+  unregisterBackgroundActivity,
+  storeBackgroundToken,
+  DETECTION_LABEL,
+} from "@/services/backgroundActivity";
 
 export type ActivityStatus = "active" | "recent" | "away" | "inactive";
 
@@ -173,16 +179,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   const myStatus: ActivityStatus = getStatusFromLastSeen(myLastSeen);
 
-  function formatInterval(ms: number): string {
-    const mins = Math.round(ms / 60000);
-    if (mins < 60) return `Every ${mins} min`;
-    const hours = Math.floor(mins / 60);
-    const remMins = mins % 60;
-    return remMins === 0
-        ? `Every ${hours} hr`
-        : `Every ${hours} hr ${remMins} min`;
-  }
-  const heartbeatIntervalLabel = formatInterval(HEARTBEAT_INTERVAL_MS);
+  const heartbeatIntervalLabel = DETECTION_LABEL;
 
   const stopAllIntervals = useCallback(() => {
     if (heartbeatRef.current) { clearInterval(heartbeatRef.current); heartbeatRef.current = null; }
@@ -193,6 +190,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   /** Wipe all local state and AsyncStorage — call on sign out or user switch */
   const clearAllState = useCallback(async () => {
     stopAllIntervals();
+    // Tear down background tasks
+    unregisterBackgroundActivity().catch(() => {});
     // Clear AsyncStorage
     await AsyncStorage.multiRemove(ALL_STORAGE_KEYS);
     // Reset all in-memory state
@@ -329,6 +328,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         sendHeartbeatToServer(deviceIdRef.current);
         refreshCircle();
         syncSubscription();
+        // Refresh cached auth token for background tasks
+        getToken().then((t: string | null) => storeBackgroundToken(t)).catch(() => {});
       }
     });
     return () => {
@@ -336,6 +337,21 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       stopAllIntervals();
     };
   }, [sendHeartbeatToServer, refreshCircle, syncSubscription]);
+
+  // Listen for ollia://heartbeat deep links (e.g. from iOS Shortcuts)
+  useEffect(() => {
+    function handleUrl({ url }: { url: string }) {
+      if (url === "ollia://heartbeat" || url.startsWith("ollia://heartbeat")) {
+        sendHeartbeatToServer(deviceIdRef.current);
+      }
+    }
+    const sub = Linking.addEventListener("url", handleUrl);
+    // Also check the initial URL (cold start from deep link)
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl({ url });
+    });
+    return () => sub.remove();
+  }, [sendHeartbeatToServer]);
 
   const setupCircle = useCallback(
     async (devId: string) => {
@@ -434,6 +450,12 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         startRefresh();
         refreshPatterns(uid);
       }
+
+      // Register background activity detection (background fetch + location triggers)
+      registerBackgroundActivity(uid).catch(() => {});
+      // Cache the current auth token for background tasks
+      getToken().then((t: string | null) => storeBackgroundToken(t)).catch(() => {});
+
       setIsLoading(false);
 
       // Sync subscription status from server (authoritative source for plan)

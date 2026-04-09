@@ -139,5 +139,29 @@ data class PreferencesResponse(
     val notifyInactivity: Boolean
 )
 
+// GET/PATCH /api/users/me/emergency-contact — response
+data class EmergencyContactResponse(
+    val name: String?,
+    val phone: String?
+)
+
+// PATCH /api/users/me/emergency-contact — request
+data class UpdateEmergencyContactRequest(
+    val name: String?,
+    val phone: String?
+)
+
+// GET /api/users/me/safety-preferences — response
+data class SafetyPreferencesResponse(
+    val inactivityThresholdHours: Int,
+    val scheduledCheckInDeadline: String?
+)
+
+// PATCH /api/users/me/safety-preferences — request
+data class UpdateSafetyPreferencesRequest(
+    val inactivityThresholdHours: Int? = null,
+    val scheduledCheckInDeadline: String? = null
+)
+
 // Legacy DTOs kept for scheduler/push
 data class PushTokenRequest(val token: String, val platform: String = "expo")

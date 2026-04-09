@@ -97,6 +97,15 @@ class ReferenceApiController(
             ActivitySignal(userId = user.id!!, signalType = request.signalType)
         )
         user.lastSeenAt = Instant.now()
+        // Reset escalation chain on any activity signal
+        if (user.escalationLevel > 0) {
+            user.escalationLevel = 0
+            user.escalationChangedAt = null
+        }
+        // Clear scheduled check-in deadline (user checked in)
+        if (user.scheduledCheckInDeadline != null) {
+            user.scheduledCheckInDeadline = null
+        }
         userRepository.save(user)
         return ActivityResponse(
             recorded = true,
@@ -345,6 +354,72 @@ class ReferenceApiController(
         return PreferencesResponse(
             notifyActivity = user.notifyActivity,
             notifyInactivity = user.notifyInactivity
+        )
+    }
+
+    // ─── GET /api/users/me/safety-preferences ─── get safety preferences (Premium)
+    @GetMapping("/users/me/safety-preferences")
+    fun getSafetyPreferences(): SafetyPreferencesResponse {
+        val user = currentUserService.getCurrentUser()
+        return SafetyPreferencesResponse(
+            inactivityThresholdHours = user.inactivityThresholdHours,
+            scheduledCheckInDeadline = user.scheduledCheckInDeadline?.toString()
+        )
+    }
+
+    // ─── PATCH /api/users/me/safety-preferences ─── update safety preferences (Premium)
+    @PatchMapping("/users/me/safety-preferences")
+    fun updateSafetyPreferences(@RequestBody request: UpdateSafetyPreferencesRequest): SafetyPreferencesResponse {
+        val user = currentUserService.getCurrentUser()
+        if (user.plan != "premium") {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Safety preferences require a Premium subscription")
+        }
+        if (request.inactivityThresholdHours != null) {
+            val clamped = request.inactivityThresholdHours.coerceIn(1, 24)
+            user.inactivityThresholdHours = clamped
+        }
+        if (request.scheduledCheckInDeadline != null) {
+            user.scheduledCheckInDeadline = Instant.parse(request.scheduledCheckInDeadline)
+        }
+        userRepository.save(user)
+        return SafetyPreferencesResponse(
+            inactivityThresholdHours = user.inactivityThresholdHours,
+            scheduledCheckInDeadline = user.scheduledCheckInDeadline?.toString()
+        )
+    }
+
+    // ─── DELETE /api/users/me/scheduled-checkin ─── cancel scheduled check-in
+    @DeleteMapping("/users/me/scheduled-checkin")
+    fun cancelScheduledCheckIn(): SafetyPreferencesResponse {
+        val user = currentUserService.getCurrentUser()
+        user.scheduledCheckInDeadline = null
+        userRepository.save(user)
+        return SafetyPreferencesResponse(
+            inactivityThresholdHours = user.inactivityThresholdHours,
+            scheduledCheckInDeadline = null
+        )
+    }
+
+    // ─── GET /api/users/me/emergency-contact ─── get emergency contact
+    @GetMapping("/users/me/emergency-contact")
+    fun getEmergencyContact(): EmergencyContactResponse {
+        val user = currentUserService.getCurrentUser()
+        return EmergencyContactResponse(
+            name = user.emergencyContactName,
+            phone = user.emergencyContactPhone
+        )
+    }
+
+    // ─── PATCH /api/users/me/emergency-contact ─── set emergency contact
+    @PatchMapping("/users/me/emergency-contact")
+    fun updateEmergencyContact(@RequestBody request: UpdateEmergencyContactRequest): EmergencyContactResponse {
+        val user = currentUserService.getCurrentUser()
+        user.emergencyContactName = request.name
+        user.emergencyContactPhone = request.phone
+        userRepository.save(user)
+        return EmergencyContactResponse(
+            name = user.emergencyContactName,
+            phone = user.emergencyContactPhone
         )
     }
 

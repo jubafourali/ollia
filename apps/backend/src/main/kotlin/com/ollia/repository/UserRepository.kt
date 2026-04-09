@@ -13,6 +13,9 @@ interface UserRepository : JpaRepository<User, UUID> {
     fun findByClerkId(clerkId: String): User?
     fun findByStripeCustomerId(stripeCustomerId: String): User?
     fun findAllByLastSeenAtBefore(threshold: Instant): List<User>
+    fun findAllByEscalationLevelAndLastSeenAtBefore(escalationLevel: Int, threshold: Instant): List<User>
+    fun findAllByEscalationLevelAndEscalationChangedAtBefore(escalationLevel: Int, threshold: Instant): List<User>
+    fun findAllByScheduledCheckInDeadlineBeforeAndEscalationLevel(deadline: Instant, escalationLevel: Int): List<User>
 
     @Modifying
     @Transactional

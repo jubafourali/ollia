@@ -16,6 +16,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { FamilyProvider } from "@/context/FamilyContext";
 
+// Import to register background tasks at module scope (TaskManager.defineTask)
+import "@/services/backgroundActivity";
+
 SplashScreen.preventAutoHideAsync();
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";

@@ -42,5 +42,19 @@ class User(
     @Column(nullable = false)
     var notifyInactivity: Boolean = true,
 
+    @Column(nullable = false)
+    var inactivityThresholdHours: Int = 3,
+
+    @Column(nullable = false)
+    var escalationLevel: Int = 0,
+
+    var escalationChangedAt: Instant? = null,
+
+    var emergencyContactName: String? = null,
+
+    var emergencyContactPhone: String? = null,
+
+    var scheduledCheckInDeadline: Instant? = null,
+
     val createdAt: Instant = Instant.now()
 )
