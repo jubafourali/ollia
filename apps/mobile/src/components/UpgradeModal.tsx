@@ -43,7 +43,7 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
   ];
 
   // Checkout logic preserved — will be re-enabled when Stripe is ready
-  const _handleSelect = async (plan: "monthly" | "annual") => {
+  const handleSelect = async (plan: "monthly" | "annual") => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -55,7 +55,7 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
     }
   };
 
-  const handleSelect = (_plan: "monthly" | "annual") => {
+  const _handleSelect = (_plan: "monthly" | "annual") => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }

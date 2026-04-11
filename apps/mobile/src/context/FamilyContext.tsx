@@ -9,7 +9,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, AppStateStatus, Linking } from "react-native";
+import { AppState, AppStateStatus, Linking, Platform } from "react-native";
 import { api, ApiCircleMember, ApiSafetyEvent, ApiPattern, setAuthTokenGetter } from "@/utils/api";
 import {
   registerBackgroundActivity,
@@ -17,6 +17,8 @@ import {
   storeBackgroundToken,
   DETECTION_LABEL,
 } from "@/services/backgroundActivity";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 
 export type ActivityStatus = "active" | "recent" | "away" | "inactive";
 
@@ -187,9 +189,25 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     if (safetyRef.current) { clearInterval(safetyRef.current); safetyRef.current = null; }
   }, []);
 
+  const registerPushNotifications = useCallback(async () => {
+    if (Platform.OS === "web") return;
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== "granted") return;
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+      if (!projectId) return;
+      const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+      await api.registerPushToken(token);
+    } catch {
+      // Non-fatal — push notifications are best-effort
+    }
+  }, []);
+
   /** Wipe all local state and AsyncStorage — call on sign out or user switch */
   const clearAllState = useCallback(async () => {
     stopAllIntervals();
+    // Remove push token from backend before clearing auth
+    api.deregisterPushToken().catch(() => {});
     // Tear down background tasks
     unregisterBackgroundActivity().catch(() => {});
     // Clear AsyncStorage
@@ -330,13 +348,15 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         syncSubscription();
         // Refresh cached auth token for background tasks
         getToken().then((t: string | null) => storeBackgroundToken(t)).catch(() => {});
+        // Re-register push token in case it changed
+        registerPushNotifications();
       }
     });
     return () => {
       sub.remove();
       stopAllIntervals();
     };
-  }, [sendHeartbeatToServer, refreshCircle, syncSubscription]);
+  }, [sendHeartbeatToServer, refreshCircle, syncSubscription, registerPushNotifications]);
 
   // Listen for ollia://heartbeat deep links (e.g. from iOS Shortcuts)
   useEffect(() => {
@@ -455,6 +475,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       registerBackgroundActivity(uid).catch(() => {});
       // Cache the current auth token for background tasks
       getToken().then((t: string | null) => storeBackgroundToken(t)).catch(() => {});
+      // Register push notification token with backend
+      registerPushNotifications();
 
       setIsLoading(false);
 
@@ -480,7 +502,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       console.error("Bootstrap error:", e);
       setIsLoading(false);
     }
-  }, [setupCircle, startHeartbeat, startRefresh, startSafetyRefresh, refreshPatterns, syncSubscription]);
+  }, [setupCircle, startHeartbeat, startRefresh, startSafetyRefresh, refreshPatterns, syncSubscription, registerPushNotifications]);
 
   useEffect(() => {
     if (!authLoaded) return;

@@ -223,4 +223,15 @@ export const api = {
       body: JSON.stringify({ preferredLanguage }),
     });
   },
+
+  registerPushToken(token: string, platform = "expo"): Promise<{ success: boolean }> {
+    return req("/push-tokens", {
+      method: "POST",
+      body: JSON.stringify({ token, platform }),
+    });
+  },
+
+  deregisterPushToken(): Promise<{ success: boolean }> {
+    return req("/push-tokens", { method: "DELETE" });
+  },
 };
