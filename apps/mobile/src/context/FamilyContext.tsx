@@ -193,13 +193,18 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     if (Platform.OS === "web") return;
     try {
       const { status } = await Notifications.requestPermissionsAsync();
+      console.log("Push permission status:", status);
       if (status !== "granted") return;
       const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+      console.log("Project ID:", projectId);
+      console.log("Expo config:", JSON.stringify(Constants.expoConfig?.extra));
       if (!projectId) return;
       const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+      console.log("Push token:", token);
       await api.registerPushToken(token);
-    } catch {
-      // Non-fatal — push notifications are best-effort
+      console.log("Token registered successfully");
+    } catch (e) {
+      console.log("Push registration error:", e);
     }
   }, []);
 

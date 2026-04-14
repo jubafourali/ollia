@@ -4,6 +4,7 @@ import com.ollia.dto.*
 import com.ollia.entity.ActivitySignal
 import com.ollia.entity.FamilyCircle
 import com.ollia.entity.FamilyMember
+import com.ollia.entity.PushToken
 import com.ollia.repository.*
 import com.ollia.service.ActivityPatternService
 import com.ollia.service.CurrentUserService
@@ -441,6 +442,28 @@ class ReferenceApiController(
         val user = currentUserService.getCurrentUser()
         userRepository.delete(user)
         clerkService.deleteUserAsync(user.clerkId)
+        return mapOf("success" to true)
+    }
+
+    // ─── POST /api/push-tokens ─── upsert push notification token
+    // Request: { token: string, platform?: string }
+    // Response: { success: true }
+    @PostMapping("/push-tokens")
+    @Transactional
+    fun registerPushToken(@RequestBody request: PushTokenRequest): Map<String, Boolean> {
+        val user = currentUserService.getCurrentUser()
+        pushTokenRepository.deleteAllByUserId(user.id!!)
+        pushTokenRepository.save(PushToken(userId = user.id!!, token = request.token, platform = request.platform))
+        return mapOf("success" to true)
+    }
+
+    // ─── DELETE /api/push-tokens ─── remove push notification token on sign out
+    // Response: { success: true }
+    @DeleteMapping("/push-tokens")
+    @Transactional
+    fun deregisterPushToken(): Map<String, Boolean> {
+        val user = currentUserService.getCurrentUser()
+        pushTokenRepository.deleteAllByUserId(user.id!!)
         return mapOf("success" to true)
     }
 }
