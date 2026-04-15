@@ -680,22 +680,34 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     ? travelDestination
     : (myProfile?.region ?? "");
 
-  const userCountry = activeLocation.includes(",")
-    ? activeLocation.split(",").pop()?.trim().toLowerCase() ?? ""
-    : activeLocation.trim().toLowerCase();
+  const toCountry = (location: string): string =>
+    location.includes(",")
+      ? location.split(",").pop()?.trim().toLowerCase() ?? ""
+      : location.trim().toLowerCase();
+
+  const userCountry = toCountry(activeLocation);
+
+  // Build a set of all relevant countries: current user + every circle member that has a region
+  const relevantCountries = new Set<string>(userCountry ? [userCountry] : []);
+  for (const m of members) {
+    if (m.region) {
+      const c = toCountry(m.region);
+      if (c) relevantCountries.add(c);
+    }
+  }
+
+  const isUsRelated = [...relevantCountries].some(
+    (c) => c === "us" || c === "usa" || c.includes("united states"),
+  );
 
   // City-filtered alerts are a Premium feature — free users always see global alerts
-  const filteredSafetyEvents = (plan === "premium" && userCountry)
+  const filteredSafetyEvents = (plan === "premium" && relevantCountries.size > 0)
     ? prefFilteredEvents.filter((e) => {
-        const haystack = `${e.region ?? ""} ${e.title ?? ""}`.toLowerCase();
         if (e.source === "NOAA") {
-          return (
-            userCountry.includes("united states") ||
-            userCountry === "usa" ||
-            userCountry === "us"
-          );
+          return isUsRelated;
         }
-        return haystack.includes(userCountry);
+        const haystack = `${e.region ?? ""} ${e.title ?? ""}`.toLowerCase();
+        return [...relevantCountries].some((c) => haystack.includes(c));
       })
     : prefFilteredEvents;
 
