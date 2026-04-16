@@ -34,12 +34,10 @@ import { api } from "@/utils/api";
 import i18n, { SUPPORTED_LANGUAGES, LANGUAGE_STORAGE_KEY, type LanguageCode } from "@/i18n";
 import {
   APP_CATALOG,
-  getDetectionCapability,
   getSelectedApps,
   addSelectedApp,
   removeSelectedApp,
   resolveApps,
-  type AppEntry,
 } from "@/services/activityApps";
 import {
   requestLocationPermission,
@@ -136,8 +134,8 @@ function PlanCard({ plan, onUpgrade }: { plan: string; onUpgrade: () => void }) 
         <View style={styles.planFeatures}>
           {premiumFeatures.map((f) => (
             <View key={f} style={styles.planFeatureRow}>
-              <Feather name="check" size={13} color="#7C3AED" />
-              <Text style={[styles.planFeatureText, { color: "#7C3AED" }]}>{f}</Text>
+              <Feather name="check" size={13} color="#92400E" />
+              <Text style={[styles.planFeatureText, { color: "#92400E" }]}>{f}</Text>
             </View>
           ))}
         </View>
@@ -311,6 +309,7 @@ export default function SettingsScreen() {
   const [selectedAppIds, setSelectedAppIds] = useState<string[]>([]);
   const [appSearch, setAppSearch] = useState("");
   const [showAppPicker, setShowAppPicker] = useState(false);
+  const [setupGuideApp, setSetupGuideApp] = useState<string | null>(null);
 
   // Permission statuses
   const [notifPermGranted, setNotifPermGranted] = useState(true);
@@ -486,7 +485,6 @@ export default function SettingsScreen() {
   const currentLangLabel =
     SUPPORTED_LANGUAGES.find((l) => l.code === currentLanguage)?.label ?? "English";
 
-  const detectionCapability = getDetectionCapability();
   const selectedApps = resolveApps(selectedAppIds);
   const filteredCatalog = appSearch.trim()
     ? APP_CATALOG.filter(
@@ -517,9 +515,8 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { paddingTop: topInset }]}
-      contentContainerStyle={[styles.content, Platform.OS === "web" && { paddingBottom: 34 }]}
-      contentInsetAdjustmentBehavior="automatic"
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: topInset }, Platform.OS === "web" && { paddingBottom: 34 }]}
       showsVerticalScrollIndicator={false}
     >
       <Text style={styles.title}>{t("settings.title")}</Text>
@@ -658,7 +655,7 @@ export default function SettingsScreen() {
           </View>
           <View style={[permStyles.badge, { backgroundColor: notifPermGranted ? `${BRAND.statusGreen}18` : `#F59E0B18` }]}>
             <Text style={[permStyles.badgeText, { color: notifPermGranted ? BRAND.statusGreen : "#F59E0B" }]}>
-              {notifPermGranted ? "On" : "Off"}
+              {notifPermGranted ? "On" : "Off — tap to enable"}
             </Text>
           </View>
         </Pressable>
@@ -691,7 +688,7 @@ export default function SettingsScreen() {
                 : bgRefreshStatus === "off" ? "#F59E0B"
                 : BRAND.textMuted,
             }]}>
-              {bgRefreshStatus === "on" ? "On" : bgRefreshStatus === "off" ? "Off" : "Limited"}
+              {bgRefreshStatus === "on" ? "On" : bgRefreshStatus === "off" ? "Off — tap to enable" : "Needs Low Power Mode off"}
             </Text>
           </View>
         </Pressable>
@@ -715,12 +712,12 @@ export default function SettingsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.rowLabel}>Background Location</Text>
             <Text style={styles.rowSubtitle}>
-              Used only as a trigger to update your status when you move. Your location is never stored or shared.
+              Used only as a trigger, never stored or shared. Set to Always in iOS Settings for best results.
             </Text>
           </View>
           <View style={[permStyles.badge, { backgroundColor: bgLocationGranted ? `${BRAND.statusGreen}18` : `#F59E0B18` }]}>
             <Text style={[permStyles.badgeText, { color: bgLocationGranted ? BRAND.statusGreen : "#F59E0B" }]}>
-              {bgLocationGranted ? "On" : "Off"}
+              {bgLocationGranted ? "On" : "Off — tap to enable"}
             </Text>
           </View>
         </Pressable>
@@ -854,24 +851,18 @@ export default function SettingsScreen() {
             </Text>
           </View>
 
-          {/* iOS limitation notice */}
-          {!detectionCapability.available && (
-            <View style={aaStyles.limitationNotice}>
-              <Feather name="info" size={14} color="#92400E" />
-              <View style={{ flex: 1 }}>
-                <Text style={aaStyles.limitationText}>{detectionCapability.reason}</Text>
-                <Text style={aaStyles.tipText}>{detectionCapability.tip}</Text>
-              </View>
-            </View>
-          )}
+          {/* One-line explanation */}
+          <Text style={aaStyles.explanationText}>
+            Opening one of these apps will quietly let your family know you're okay.
+          </Text>
 
           {/* Selected apps */}
           {selectedApps.length > 0 && (
             <View style={{ gap: 6 }}>
               <Text style={profileStyles.label}>{t("settings.selectedApps")}</Text>
-              <View style={aaStyles.chipContainer}>
-                {selectedApps.map((app) => (
-                  <View key={app.id} style={aaStyles.chip}>
+              {selectedApps.map((app) => (
+                <View key={app.id} style={aaStyles.appChipRow}>
+                  <View style={aaStyles.chip}>
                     <Text style={aaStyles.chipText}>{app.name}</Text>
                     <Pressable
                       onPress={() => handleRemoveApp(app.id)}
@@ -880,8 +871,17 @@ export default function SettingsScreen() {
                       <Feather name="x" size={13} color={BRAND.textSecondary} />
                     </Pressable>
                   </View>
-                ))}
-              </View>
+                  <Pressable
+                    style={({ pressed }) => [aaStyles.setupBtn, pressed && { opacity: 0.7 }]}
+                    onPress={() => {
+                      setSetupGuideApp(app.name);
+                    }}
+                  >
+                    <Feather name="zap" size={13} color={BRAND.primary} />
+                    <Text style={aaStyles.setupBtnText}>Set it up for me</Text>
+                  </Pressable>
+                </View>
+              ))}
             </View>
           )}
 
@@ -1192,6 +1192,73 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
+      {/* Shortcuts Setup Guide Modal */}
+      <Modal
+        visible={setupGuideApp !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSetupGuideApp(null)}
+      >
+        <Pressable style={guideStyles.backdrop} onPress={() => setSetupGuideApp(null)} />
+        <View style={guideStyles.card}>
+          <View style={guideStyles.iconRow}>
+            <View style={guideStyles.iconCircle}>
+              <Feather name="smartphone" size={22} color={BRAND.primary} />
+            </View>
+          </View>
+          <Text style={guideStyles.title}>Set up Shortcuts</Text>
+          <Text style={guideStyles.subtitle}>
+            You're almost there! Follow these quick steps in the Shortcuts app:
+          </Text>
+          <View style={guideStyles.steps}>
+            <View style={guideStyles.step}>
+              <View style={guideStyles.stepNumber}>
+                <Text style={guideStyles.stepNumberText}>1</Text>
+              </View>
+              <Text style={guideStyles.stepText}>
+                Tap the <Text style={guideStyles.bold}>+</Text> button to create a new automation
+              </Text>
+            </View>
+            <View style={guideStyles.step}>
+              <View style={guideStyles.stepNumber}>
+                <Text style={guideStyles.stepNumberText}>2</Text>
+              </View>
+              <Text style={guideStyles.stepText}>
+                Choose <Text style={guideStyles.bold}>App</Text> → select{" "}
+                <Text style={guideStyles.bold}>{setupGuideApp}</Text> →{" "}
+                <Text style={guideStyles.bold}>Is Opened</Text>
+              </Text>
+            </View>
+            <View style={guideStyles.step}>
+              <View style={guideStyles.stepNumber}>
+                <Text style={guideStyles.stepNumberText}>3</Text>
+              </View>
+              <Text style={guideStyles.stepText}>
+                Add action: <Text style={guideStyles.bold}>Open URL</Text> → type{" "}
+                <Text style={guideStyles.bold}>ollia://heartbeat</Text>
+              </Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Pressable
+                style={({ pressed }) => [guideStyles.openBtn, pressed && { opacity: 0.85 }]}
+                onPress={() => {
+                  Linking.openURL("shortcuts://");
+                  setSetupGuideApp(null);
+                }}
+            >
+              <Text style={guideStyles.openBtnText}>Open Shortcuts</Text>
+            </Pressable>
+            <Pressable
+                style={({ pressed }) => [guideStyles.gotItBtn, pressed && { opacity: 0.85 }]}
+                onPress={() => setSetupGuideApp(null)}
+            >
+              <Text style={guideStyles.gotItText}>Got it</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.aboutCard}>
         <View style={styles.aboutLogo}>
           <Text style={styles.aboutLogoText}>Oll</Text>
@@ -1276,33 +1343,33 @@ const aaStyles = StyleSheet.create({
     lineHeight: 17,
     flex: 1,
   },
-  limitationNotice: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    backgroundColor: "#FEF3C7",
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#FCD34D60",
-  },
-  limitationText: {
-    fontSize: 12,
+  explanationText: {
+    fontSize: 13,
     fontFamily: "Inter_400Regular",
-    color: "#92400E",
-    lineHeight: 17,
+    color: BRAND.textSecondary,
+    lineHeight: 18,
   },
-  tipText: {
+  appChipRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  setupBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: `${BRAND.primary}10`,
+    borderWidth: 1,
+    borderColor: `${BRAND.primary}25`,
+  },
+  setupBtnText: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
-    color: "#92400E",
-    lineHeight: 17,
-    marginTop: 6,
-  },
-  chipContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+    color: BRAND.primary,
   },
   chip: {
     flexDirection: "row",
@@ -1609,8 +1676,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   planCardPremium: {
-    borderColor: "#7C3AED40",
-    backgroundColor: "#7C3AED06",
+    borderColor: "#92400E40",
+    backgroundColor: "#92400E06",
   },
   planCardHeader: {
     flexDirection: "row",
@@ -1876,6 +1943,119 @@ const langStyles = StyleSheet.create({
   cancelText: {
     fontSize: 16,
     fontFamily: "Inter_500Medium",
+    color: BRAND.textSecondary,
+  },
+});
+
+const guideStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  card: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: BRAND.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 36,
+    borderTopWidth: 1,
+    borderColor: BRAND.borderLight,
+  },
+  iconRow: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: `${BRAND.primary}12`,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: `${BRAND.primary}30`,
+  },
+  title: {
+    fontSize: 18,
+    fontFamily: "Inter_600SemiBold",
+    color: BRAND.text,
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.textSecondary,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  steps: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  step: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  stepNumber: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: `${BRAND.primary}12`,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: `${BRAND.primary}30`,
+    marginTop: 1,
+  },
+  stepNumberText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    color: BRAND.primary,
+  },
+  stepText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.text,
+    lineHeight: 20,
+    flex: 1,
+  },
+  bold: {
+    fontFamily: "Inter_600SemiBold",
+  },
+  openBtn: {
+    flex: 1,
+    backgroundColor: BRAND.primary,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  openBtnText: {
+    fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
+    color: BRAND.white,
+  },
+  gotItBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: BRAND.borderLight,
+    backgroundColor: BRAND.backgroundCard,
+  },
+  gotItText: {
+    fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
     color: BRAND.textSecondary,
   },
 });
