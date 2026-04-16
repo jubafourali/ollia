@@ -453,7 +453,7 @@ class ReferenceApiController(
     fun registerPushToken(@RequestBody request: PushTokenRequest): Map<String, Boolean> {
         val user = currentUserService.getCurrentUser()
         pushTokenRepository.deleteAllByUserId(user.id!!)
-        pushTokenRepository.save(PushToken(userId = user.id!!, token = request.token, platform = request.platform))
+        pushTokenRepository.upsertToken(userId = user.id, token = request.token, platform = request.platform)
         return mapOf("success" to true)
     }
 
