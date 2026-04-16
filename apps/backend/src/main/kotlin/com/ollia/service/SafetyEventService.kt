@@ -101,7 +101,12 @@ class SafetyEventService(
             safetyEventRepository.deleteBySource("NOAA")
 
             val url = "https://api.weather.gov/alerts/active?severity=Extreme,Severe"
-            val response = webClient.get().uri(url)
+            WebClient.builder().build()
+            val response = WebClient.builder()
+                .codecs { it.defaultCodecs().maxInMemorySize(10 * 1024 * 1024) }
+                .build()
+                .get()
+                .uri(url)
                 .header("User-Agent", "OlliaApp/1.0 (safety@ollia.app)")
                 .header("Accept", "application/geo+json")
                 .retrieve()
