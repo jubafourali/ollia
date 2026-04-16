@@ -15,8 +15,10 @@ import {
   registerBackgroundActivity,
   unregisterBackgroundActivity,
   storeBackgroundToken,
+  hasBackgroundLocationPermission,
   DETECTION_LABEL,
 } from "@/services/backgroundActivity";
+import * as BackgroundFetch from "expo-background-fetch";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 
@@ -83,6 +85,8 @@ type FamilyContextType = {
   syncSubscription: () => Promise<void>;
   refreshSafetyEvents: () => Promise<void>;
   setAlertPref: (source: keyof AlertPrefs, enabled: boolean) => Promise<void>;
+  bgRefreshDisabled: boolean;
+  locationPermissionMissing: boolean;
 };
 
 const FamilyContext = createContext<FamilyContextType | null>(null);
@@ -95,6 +99,7 @@ const PLAN_KEY = "@ollia_plan";
 const TRAVEL_KEY = "@ollia_travel";
 const ALERT_PREFS_KEY = "@ollia_alert_prefs";
 const PENDING_INVITE_KEY = "@ollia_pending_invite";
+const LOCATION_PROMPT_KEY = "@ollia_location_prompt_dismissed";
 
 /** All @ollia_* storage keys — cleared on sign out to prevent cross-user data leaks */
 const ALL_STORAGE_KEYS = [
@@ -106,6 +111,7 @@ const ALL_STORAGE_KEYS = [
   TRAVEL_KEY,
   ALERT_PREFS_KEY,
   PENDING_INVITE_KEY,
+  LOCATION_PROMPT_KEY,
 ];
 
 export type AlertPrefs = {
@@ -169,6 +175,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [patterns, setPatterns] = useState<ApiPattern | null>(null);
   const [alertPrefs, setAlertPrefsState] = useState<AlertPrefs>({ usgs: true, noaa: true, gdacs: true });
   const [isLoading, setIsLoading] = useState(true);
+  const [bgRefreshDisabled, setBgRefreshDisabled] = useState(false);
+  const [locationPermissionMissing, setLocationPermissionMissing] = useState(false);
 
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const refreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -355,6 +363,18 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         getToken().then((t: string | null) => storeBackgroundToken(t)).catch(() => {});
         // Re-register push token in case it changed
         registerPushNotifications();
+        // Check background refresh status & location permission
+        if (Platform.OS !== "web") {
+          BackgroundFetch.getStatusAsync().then((s) => {
+            setBgRefreshDisabled(
+              s === BackgroundFetch.BackgroundFetchStatus.Restricted ||
+              s === BackgroundFetch.BackgroundFetchStatus.Denied
+            );
+          }).catch(() => {});
+          hasBackgroundLocationPermission().then((granted) => {
+            setLocationPermissionMissing(!granted);
+          }).catch(() => {});
+        }
       }
     });
     return () => {
@@ -484,6 +504,20 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       registerPushNotifications();
 
       setIsLoading(false);
+
+      // Check background refresh & location permission status
+      if (Platform.OS !== "web") {
+        BackgroundFetch.getStatusAsync().then((s) => {
+          setBgRefreshDisabled(
+            s === BackgroundFetch.BackgroundFetchStatus.Restricted ||
+            s === BackgroundFetch.BackgroundFetchStatus.Denied
+          );
+        }).catch(() => {});
+
+        hasBackgroundLocationPermission().then((granted) => {
+          setLocationPermissionMissing(!granted);
+        }).catch(() => {});
+      }
 
       // Sync subscription status from server (authoritative source for plan)
       try {
@@ -747,6 +781,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         syncSubscription,
         refreshSafetyEvents,
         setAlertPref,
+        bgRefreshDisabled,
+        locationPermissionMissing,
       }}
     >
       {children}

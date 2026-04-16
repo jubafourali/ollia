@@ -163,11 +163,13 @@ export default function FamilyScreen() {
     refreshCircle,
     refreshSafetyEvents,
     upgradePlan,
+    bgRefreshDisabled,
   } = useFamilyContext();
   const [showInvite, setShowInvite] = useState(false);
   const [eventsExpanded, setEventsExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [bgBannerDismissed, setBgBannerDismissed] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -225,6 +227,27 @@ export default function FamilyScreen() {
           <Feather name="user-plus" size={20} color={BRAND.primary} />
         </Pressable>
       </View>
+
+      {bgRefreshDisabled && !bgBannerDismissed && (
+        <View style={styles.bgRefreshBanner}>
+          <Feather name="refresh-cw" size={14} color={BRAND.primary} />
+          <Text style={styles.bgRefreshText}>
+            Enable Background Refresh in Settings so your family sees you're active
+          </Text>
+          <Pressable
+            style={styles.bgRefreshSettingsBtn}
+            onPress={() => Linking.openURL("app-settings:")}
+          >
+            <Text style={styles.bgRefreshSettingsBtnText}>Open Settings</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setBgBannerDismissed(true)}
+            hitSlop={8}
+          >
+            <Feather name="x" size={16} color={BRAND.textMuted} />
+          </Pressable>
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={[
@@ -672,5 +695,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_500Medium",
     color: BRAND.primary,
+  },
+  bgRefreshBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 4,
+    backgroundColor: BRAND.statusYellowLight,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: `${BRAND.statusYellow}40`,
+  },
+  bgRefreshText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: BRAND.textSecondary,
+    lineHeight: 17,
+  },
+  bgRefreshSettingsBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: BRAND.primary,
+    borderRadius: 8,
+  },
+  bgRefreshSettingsBtnText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    color: BRAND.white,
   },
 });

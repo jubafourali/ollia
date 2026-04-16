@@ -145,8 +145,7 @@ async function startLocationTrigger(): Promise<void> {
     const { status } = await Location.getBackgroundPermissionsAsync();
     if (status !== Location.PermissionStatus.GRANTED) return;
 
-    const registered =
-      await TaskManager.isTaskRegisteredAsync(BG_LOCATION_TASK);
+    const registered = await TaskManager.isTaskRegisteredAsync(BG_LOCATION_TASK);
     if (registered) return;
 
     await Location.startLocationUpdatesAsync(BG_LOCATION_TASK, {
@@ -181,6 +180,38 @@ export async function unregisterBackgroundActivity(): Promise<void> {
 
   await AsyncStorage.removeItem(BG_USER_KEY).catch(() => {});
   await storeBackgroundToken(null);
+}
+
+/**
+ * Request foreground then background location permission.
+ * Returns true if background location is now granted.
+ */
+export async function requestLocationPermission(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+
+  // Step 1: foreground permission
+  const fg = await Location.requestForegroundPermissionsAsync();
+  if (fg.status !== Location.PermissionStatus.GRANTED) return false;
+
+  // Step 2: background permission (requires foreground first on iOS)
+  const bg = await Location.requestBackgroundPermissionsAsync();
+  if (bg.status !== Location.PermissionStatus.GRANTED) return false;
+
+  // Kick off the location trigger now that we have permission
+  if (Platform.OS === "ios") {
+    await startLocationTrigger();
+  }
+
+  return true;
+}
+
+/**
+ * Check whether background location permission is currently granted.
+ */
+export async function hasBackgroundLocationPermission(): Promise<boolean> {
+  if (Platform.OS === "web") return true; // not relevant on web
+  const { status } = await Location.getBackgroundPermissionsAsync();
+  return status === Location.PermissionStatus.GRANTED;
 }
 
 /** Label describing the current detection method for the UI. */

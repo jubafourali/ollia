@@ -3,6 +3,8 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  AppState,
+  AppStateStatus,
   Platform,
   Pressable,
   RefreshControl,
@@ -22,12 +24,17 @@ import Reanimated, {
   withTiming,
 } from "react-native-reanimated";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
 import { getStatusColor, getStatusLabel } from "@/components/StatusDot";
+import { requestLocationPermission, hasBackgroundLocationPermission } from "@/services/backgroundActivity";
 import { formatLastSeen } from "@/utils/time";
 import { CityPicker } from "@/components/CityPicker";
 import { UpgradeModal } from "@/components/UpgradeModal";
+
+const LOCATION_PROMPT_KEY = "@ollia_location_prompt_dismissed";
 
 function HeartbeatTimer({ lastSeen }: { lastSeen: Date }) {
   const [elapsed, setElapsed] = useState(0);
@@ -97,6 +104,7 @@ export default function MyStatusScreen() {
     patterns,
     plan,
     upgradePlan,
+    locationPermissionMissing,
   } = useFamilyContext();
   const statusColor = getStatusColor(myStatus);
   const statusLabel = getStatusLabel(myStatus);
@@ -104,6 +112,15 @@ export default function MyStatusScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showTravelInput, setShowTravelInput] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [locationPromptVisible, setLocationPromptVisible] = useState(false);
+
+  // Show location prompt only if permission missing and user hasn't permanently dismissed
+  useEffect(() => {
+    if (!locationPermissionMissing) return;
+    AsyncStorage.getItem(LOCATION_PROMPT_KEY).then((val) => {
+      if (!val) setLocationPromptVisible(true);
+    });
+  }, [locationPermissionMissing]);
 
   const isPremium = plan === "premium";
 
@@ -261,6 +278,46 @@ export default function MyStatusScreen() {
           <Text style={styles.heartbeatBtnText}>{t("myStatus.sendHeartbeat")}</Text>
         </Pressable>
       </View>
+
+      {locationPromptVisible && (
+        <View style={styles.locationPermissionCard}>
+          <Feather name="map-pin" size={16} color={BRAND.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.locationPermissionText}>
+              Allow background location so Ollia can quietly update your status as you move. No location is ever stored.
+            </Text>
+            <View style={styles.locationPermissionActions}>
+              <Pressable
+                style={styles.locationPermissionEnableBtn}
+                onPress={async () => {
+                  await requestLocationPermission();
+                  // The iOS permission dialog puts the app in "inactive" state.
+                  // Wait for the user to finish with the dialog by listening for
+                  // the app returning to "active", then re-check permission.
+                  const sub = AppState.addEventListener("change", async (next: AppStateStatus) => {
+                    if (next === "active") {
+                      sub.remove();
+                      const ok = await hasBackgroundLocationPermission();
+                      if (ok) setLocationPromptVisible(false);
+                    }
+                  });
+                }}
+              >
+                <Text style={styles.locationPermissionEnableBtnText}>Enable</Text>
+              </Pressable>
+              <Pressable
+                style={styles.locationPermissionDismissBtn}
+                onPress={async () => {
+                  setLocationPromptVisible(false);
+                  await AsyncStorage.setItem(LOCATION_PROMPT_KEY, "1");
+                }}
+              >
+                <Text style={styles.locationPermissionDismissBtnText}>Not now</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
 
       {isPremium && patterns?.hasPattern && patterns.insight ? (
         <View style={styles.patternCard}>
@@ -810,5 +867,50 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     color: BRAND.textSecondary,
     lineHeight: 19,
+  },
+  locationPermissionCard: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "flex-start",
+    backgroundColor: BRAND.statusYellowLight,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: `${BRAND.statusYellow}40`,
+    marginBottom: 16,
+  },
+  locationPermissionText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.textSecondary,
+    lineHeight: 19,
+    marginBottom: 10,
+  },
+  locationPermissionActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  locationPermissionEnableBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: BRAND.primary,
+    borderRadius: 10,
+  },
+  locationPermissionEnableBtnText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    color: BRAND.white,
+  },
+  locationPermissionDismissBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: BRAND.border,
+  },
+  locationPermissionDismissBtnText: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    color: BRAND.textMuted,
   },
 });
