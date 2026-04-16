@@ -11,7 +11,7 @@ interface PushTokenRepository : JpaRepository<PushToken, UUID> {
     fun findByUserId(userId: UUID): PushToken?
     fun findAllByUserIdIn(userIds: List<UUID>): List<PushToken>
     fun deleteAllByUserId(userId: UUID)
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = false)
     @Query(
         value = """
             INSERT INTO push_tokens (id, user_id, token, platform, created_at)
