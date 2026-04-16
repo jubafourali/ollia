@@ -99,7 +99,6 @@ const PLAN_KEY = "@ollia_plan";
 const TRAVEL_KEY = "@ollia_travel";
 const ALERT_PREFS_KEY = "@ollia_alert_prefs";
 const PENDING_INVITE_KEY = "@ollia_pending_invite";
-const LOCATION_PROMPT_KEY = "@ollia_location_prompt_dismissed";
 
 /** All @ollia_* storage keys — cleared on sign out to prevent cross-user data leaks */
 const ALL_STORAGE_KEYS = [
@@ -111,7 +110,6 @@ const ALL_STORAGE_KEYS = [
   TRAVEL_KEY,
   ALERT_PREFS_KEY,
   PENDING_INVITE_KEY,
-  LOCATION_PROMPT_KEY,
 ];
 
 export type AlertPrefs = {

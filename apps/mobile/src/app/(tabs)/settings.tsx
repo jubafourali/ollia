@@ -5,6 +5,8 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  AppState,
+  AppStateStatus,
   I18nManager,
   Modal,
   Platform,
@@ -21,6 +23,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import * as Notifications from "expo-notifications";
+import * as BackgroundFetch from "expo-background-fetch";
+
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
 import { CityPicker } from "@/components/CityPicker";
@@ -36,6 +41,10 @@ import {
   resolveApps,
   type AppEntry,
 } from "@/services/activityApps";
+import {
+  requestLocationPermission,
+  hasBackgroundLocationPermission,
+} from "@/services/backgroundActivity";
 
 type SettingRowProps = {
   icon: string;
@@ -303,6 +312,11 @@ export default function SettingsScreen() {
   const [appSearch, setAppSearch] = useState("");
   const [showAppPicker, setShowAppPicker] = useState(false);
 
+  // Permission statuses
+  const [notifPermGranted, setNotifPermGranted] = useState(true);
+  const [bgRefreshStatus, setBgRefreshStatusLocal] = useState<"on" | "off" | "limited">("on");
+  const [bgLocationGranted, setBgLocationGranted] = useState(true);
+
   // Safety preferences (Premium)
   const [thresholdHours, setThresholdHours] = useState(3);
   const [thresholdOriginal, setThresholdOriginal] = useState(3);
@@ -337,6 +351,39 @@ export default function SettingsScreen() {
       })
       .catch(() => {});
     getSelectedApps().then(setSelectedAppIds).catch(() => {});
+  }, []);
+
+  // Check permission statuses on mount and foreground resume
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+
+    async function checkPermissions() {
+      try {
+        const { status } = await Notifications.getPermissionsAsync();
+        setNotifPermGranted(status === "granted");
+      } catch {}
+      try {
+        const s = await BackgroundFetch.getStatusAsync();
+        if (s === BackgroundFetch.BackgroundFetchStatus.Available) {
+          setBgRefreshStatusLocal("on");
+        } else if (s === BackgroundFetch.BackgroundFetchStatus.Restricted) {
+          setBgRefreshStatusLocal("limited");
+        } else {
+          setBgRefreshStatusLocal("off");
+        }
+      } catch {}
+      try {
+        const granted = await hasBackgroundLocationPermission();
+        setBgLocationGranted(granted);
+      } catch {}
+    }
+
+    checkPermissions();
+
+    const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
+      if (next === "active") checkPermissions();
+    });
+    return () => sub.remove();
   }, []);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -591,6 +638,92 @@ export default function SettingsScreen() {
           }}
           testID="inactivity-alerts-row"
         />
+      </View>
+
+      <Text style={styles.sectionTitle}>Permissions</Text>
+      <View style={styles.section}>
+        {/* Notifications */}
+        <Pressable
+          style={({ pressed }) => [styles.row, pressed && !notifPermGranted && { opacity: 0.7 }]}
+          onPress={!notifPermGranted ? () => Linking.openURL("app-settings:") : undefined}
+        >
+          <View style={[styles.rowIcon, { backgroundColor: `${BRAND.primary}15` }]}>
+            <Feather name="bell" size={18} color={BRAND.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Notifications</Text>
+            <Text style={styles.rowSubtitle}>
+              Lets your family know when you haven't been active. Never used for marketing.
+            </Text>
+          </View>
+          <View style={[permStyles.badge, { backgroundColor: notifPermGranted ? `${BRAND.statusGreen}18` : `#F59E0B18` }]}>
+            <Text style={[permStyles.badgeText, { color: notifPermGranted ? BRAND.statusGreen : "#F59E0B" }]}>
+              {notifPermGranted ? "On" : "Off"}
+            </Text>
+          </View>
+        </Pressable>
+
+        <View style={styles.divider} />
+
+        {/* Background App Refresh */}
+        <Pressable
+          style={({ pressed }) => [styles.row, pressed && bgRefreshStatus === "off" && { opacity: 0.7 }]}
+          onPress={bgRefreshStatus === "off" ? () => Linking.openURL("app-settings:") : undefined}
+        >
+          <View style={[styles.rowIcon, { backgroundColor: `${BRAND.primary}15` }]}>
+            <Feather name="refresh-cw" size={18} color={BRAND.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Background App Refresh</Text>
+            <Text style={styles.rowSubtitle}>
+              {bgRefreshStatus === "limited"
+                ? "Quietly sends a signal while the app is closed so your status stays current. Disabled by iOS when Low Power Mode is on."
+                : "Quietly sends a signal while the app is closed so your status stays current."}
+            </Text>
+          </View>
+          <View style={[permStyles.badge, {
+            backgroundColor: bgRefreshStatus === "on" ? `${BRAND.statusGreen}18`
+              : bgRefreshStatus === "off" ? `#F59E0B18`
+              : `${BRAND.textMuted}18`,
+          }]}>
+            <Text style={[permStyles.badgeText, {
+              color: bgRefreshStatus === "on" ? BRAND.statusGreen
+                : bgRefreshStatus === "off" ? "#F59E0B"
+                : BRAND.textMuted,
+            }]}>
+              {bgRefreshStatus === "on" ? "On" : bgRefreshStatus === "off" ? "Off" : "Limited"}
+            </Text>
+          </View>
+        </Pressable>
+
+        <View style={styles.divider} />
+
+        {/* Background Location */}
+        <Pressable
+          style={({ pressed }) => [styles.row, pressed && !bgLocationGranted && { opacity: 0.7 }]}
+          onPress={!bgLocationGranted ? async () => {
+            const granted = await requestLocationPermission();
+            if (granted) { setBgLocationGranted(true); return; }
+            const ok = await hasBackgroundLocationPermission();
+            if (ok) { setBgLocationGranted(true); return; }
+            Linking.openURL("app-settings:");
+          } : undefined}
+        >
+          <View style={[styles.rowIcon, { backgroundColor: `${BRAND.primary}15` }]}>
+            <Feather name="map-pin" size={18} color={BRAND.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Background Location</Text>
+            <Text style={styles.rowSubtitle}>
+              Used only as a trigger to update your status when you move. Your location is never stored or shared.
+            </Text>
+          </View>
+          <View style={[permStyles.badge, { backgroundColor: bgLocationGranted ? `${BRAND.statusGreen}18` : `#F59E0B18` }]}>
+            <Text style={[permStyles.badgeText, { color: bgLocationGranted ? BRAND.statusGreen : "#F59E0B" }]}>
+              {bgLocationGranted ? "On" : "Off"}
+            </Text>
+          </View>
+        </Pressable>
       </View>
 
       <Text style={styles.sectionTitle}>{t("settings.safetyPreferences")}</Text>
@@ -1374,6 +1507,18 @@ const ecStyles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     color: BRAND.textSecondary,
     lineHeight: 18,
+  },
+});
+
+const permStyles = StyleSheet.create({
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
   },
 });
 

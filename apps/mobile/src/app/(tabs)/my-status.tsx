@@ -3,8 +3,6 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  AppState,
-  AppStateStatus,
   Platform,
   Pressable,
   RefreshControl,
@@ -14,6 +12,7 @@ import {
   Text,
   View,
 } from "react-native";
+import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, {
   useSharedValue,
@@ -24,8 +23,6 @@ import Reanimated, {
   withTiming,
 } from "react-native-reanimated";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
 import { getStatusColor, getStatusLabel } from "@/components/StatusDot";
@@ -33,8 +30,6 @@ import { requestLocationPermission, hasBackgroundLocationPermission } from "@/se
 import { formatLastSeen } from "@/utils/time";
 import { CityPicker } from "@/components/CityPicker";
 import { UpgradeModal } from "@/components/UpgradeModal";
-
-const LOCATION_PROMPT_KEY = "@ollia_location_prompt_dismissed";
 
 function HeartbeatTimer({ lastSeen }: { lastSeen: Date }) {
   const [elapsed, setElapsed] = useState(0);
@@ -114,12 +109,13 @@ export default function MyStatusScreen() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [locationPromptVisible, setLocationPromptVisible] = useState(false);
 
-  // Show location prompt only if permission missing and user hasn't permanently dismissed
+  // Show location prompt when permission is missing; hide when granted
   useEffect(() => {
-    if (!locationPermissionMissing) return;
-    AsyncStorage.getItem(LOCATION_PROMPT_KEY).then((val) => {
-      if (!val) setLocationPromptVisible(true);
-    });
+    if (!locationPermissionMissing) {
+      setLocationPromptVisible(false);
+      return;
+    }
+    setLocationPromptVisible(true);
   }, [locationPermissionMissing]);
 
   const isPremium = plan === "premium";
@@ -290,26 +286,28 @@ export default function MyStatusScreen() {
               <Pressable
                 style={styles.locationPermissionEnableBtn}
                 onPress={async () => {
-                  await requestLocationPermission();
-                  // The iOS permission dialog puts the app in "inactive" state.
-                  // Wait for the user to finish with the dialog by listening for
-                  // the app returning to "active", then re-check permission.
-                  const sub = AppState.addEventListener("change", async (next: AppStateStatus) => {
-                    if (next === "active") {
-                      sub.remove();
-                      const ok = await hasBackgroundLocationPermission();
-                      if (ok) setLocationPromptVisible(false);
-                    }
-                  });
+                  const granted = await requestLocationPermission();
+                  if (granted) {
+                    setLocationPromptVisible(false);
+                    return;
+                  }
+                  const ok = await hasBackgroundLocationPermission();
+                  if (ok) {
+                    setLocationPromptVisible(false);
+                    return;
+                  }
+                  // Permanently denied — send to Settings.
+                  // FamilyContext's foreground listener will update
+                  // locationPermissionMissing when the user returns.
+                  Linking.openURL("app-settings:");
                 }}
               >
                 <Text style={styles.locationPermissionEnableBtnText}>Enable</Text>
               </Pressable>
               <Pressable
                 style={styles.locationPermissionDismissBtn}
-                onPress={async () => {
+                onPress={() => {
                   setLocationPromptVisible(false);
-                  await AsyncStorage.setItem(LOCATION_PROMPT_KEY, "1");
                 }}
               >
                 <Text style={styles.locationPermissionDismissBtnText}>Not now</Text>
