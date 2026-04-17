@@ -224,6 +224,10 @@ export const api = {
     });
   },
 
+  getShortcutToken(): Promise<{ token: string }> {
+    return req("/users/me/shortcut-token");
+  },
+
   registerPushToken(token: string, platform = "expo"): Promise<{ success: boolean }> {
     return req("/push-tokens", {
       method: "POST",

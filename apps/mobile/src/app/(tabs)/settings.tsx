@@ -310,6 +310,8 @@ export default function SettingsScreen() {
   const [appSearch, setAppSearch] = useState("");
   const [showAppPicker, setShowAppPicker] = useState(false);
   const [setupGuideApp, setSetupGuideApp] = useState<string | null>(null);
+  const [shortcutToken, setShortcutToken] = useState<string | null>(null);
+  const [shortcutTokenLoading, setShortcutTokenLoading] = useState(false);
 
   // Permission statuses
   const [notifPermGranted, setNotifPermGranted] = useState(true);
@@ -874,7 +876,15 @@ export default function SettingsScreen() {
                   <Pressable
                     style={({ pressed }) => [aaStyles.setupBtn, pressed && { opacity: 0.7 }]}
                     onPress={() => {
+                      Linking.openURL("shortcuts://");
                       setSetupGuideApp(app.name);
+                      if (!shortcutToken) {
+                        setShortcutTokenLoading(true);
+                        api.getShortcutToken()
+                          .then((res) => setShortcutToken(res.token))
+                          .catch(() => {})
+                          .finally(() => setShortcutTokenLoading(false));
+                      }
                     }}
                   >
                     <Feather name="zap" size={13} color={BRAND.primary} />
@@ -1216,7 +1226,7 @@ export default function SettingsScreen() {
                 <Text style={guideStyles.stepNumberText}>1</Text>
               </View>
               <Text style={guideStyles.stepText}>
-                Tap the <Text style={guideStyles.bold}>+</Text> button to create a new automation
+                Open <Text style={guideStyles.bold}>Shortcuts</Text> → tap <Text style={guideStyles.bold}>Automation</Text> at the bottom → tap <Text style={guideStyles.bold}>+</Text> top right
               </Text>
             </View>
             <View style={guideStyles.step}>
@@ -1224,18 +1234,50 @@ export default function SettingsScreen() {
                 <Text style={guideStyles.stepNumberText}>2</Text>
               </View>
               <Text style={guideStyles.stepText}>
-                Choose <Text style={guideStyles.bold}>App</Text> → select{" "}
-                <Text style={guideStyles.bold}>{setupGuideApp}</Text> →{" "}
-                <Text style={guideStyles.bold}>Is Opened</Text>
+                Scroll down → tap <Text style={guideStyles.bold}>App</Text> → tap <Text style={guideStyles.bold}>Choose</Text> → select <Text style={guideStyles.bold}>{setupGuideApp}</Text> → tap <Text style={guideStyles.bold}>Done</Text> → make sure <Text style={guideStyles.bold}>Is Opened</Text> is selected → tap <Text style={guideStyles.bold}>Next</Text>
               </Text>
             </View>
             <View style={guideStyles.step}>
               <View style={guideStyles.stepNumber}>
                 <Text style={guideStyles.stepNumberText}>3</Text>
               </View>
+              <View style={{ flex: 1, gap: 8 }}>
+                <Text style={guideStyles.stepText}>
+                  Tap <Text style={guideStyles.bold}>New Blank Automation</Text> → search <Text style={guideStyles.bold}>Get contents of URL</Text> → tap it → paste your personal URL:
+                </Text>
+                {shortcutTokenLoading ? (
+                  <Text style={guideStyles.urlPlaceholder}>Loading your URL...</Text>
+                ) : shortcutToken ? (
+                  <Pressable
+                    style={({ pressed }) => [guideStyles.urlBox, pressed && { opacity: 0.7 }]}
+                    onPress={async () => {
+                      const url = `https://ollia-production.up.railway.app/api/activity/shortcut?token=${shortcutToken}`;
+                      try {
+                        const Clipboard = await import("expo-clipboard");
+                        await Clipboard.default.setStringAsync(url);
+                      } catch {
+                        try { await navigator.clipboard.writeText(url); } catch {}
+                      }
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      Alert.alert("Copied!", "Your personal URL has been copied to the clipboard.");
+                    }}
+                  >
+                    <Text style={guideStyles.urlText} numberOfLines={2}>
+                      https://ollia-production.up.railway.app/api/activity/shortcut?token={shortcutToken}
+                    </Text>
+                    <Feather name="copy" size={14} color={BRAND.primary} />
+                  </Pressable>
+                ) : (
+                  <Text style={guideStyles.urlPlaceholder}>Could not load your URL. Close and try again.</Text>
+                )}
+              </View>
+            </View>
+            <View style={guideStyles.step}>
+              <View style={guideStyles.stepNumber}>
+                <Text style={guideStyles.stepNumberText}>4</Text>
+              </View>
               <Text style={guideStyles.stepText}>
-                Add action: <Text style={guideStyles.bold}>Open URL</Text> → type{" "}
-                <Text style={guideStyles.bold}>ollia://heartbeat</Text>
+                Turn off <Text style={guideStyles.bold}>Notify when run</Text> → tap <Text style={guideStyles.bold}>Done</Text> to save
               </Text>
             </View>
           </View>
@@ -2031,6 +2073,29 @@ const guideStyles = StyleSheet.create({
   },
   bold: {
     fontFamily: "Inter_600SemiBold",
+  },
+  urlBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: `${BRAND.primary}08`,
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: `${BRAND.primary}20`,
+  },
+  urlText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: BRAND.primary,
+    flex: 1,
+    lineHeight: 17,
+  },
+  urlPlaceholder: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.textMuted,
+    fontStyle: "italic",
   },
   openBtn: {
     flex: 1,
