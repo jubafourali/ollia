@@ -166,5 +166,8 @@ data class UpdateSafetyPreferencesRequest(
 // PATCH /api/users/me/language — request
 data class UpdateLanguageRequest(val preferredLanguage: String)
 
+// GET /api/users/me/shortcut-token — response
+data class ShortcutTokenResponse(val token: String)
+
 // Legacy DTOs kept for scheduler/push
 data class PushTokenRequest(val token: String, val platform: String = "expo")

@@ -59,5 +59,8 @@ class User(
     @Column(nullable = false)
     var preferredLanguage: String = "en",
 
+    @Column(unique = true)
+    var shortcutToken: UUID? = null,
+
     val createdAt: Instant = Instant.now()
 )

@@ -114,6 +114,39 @@ class ReferenceApiController(
         )
     }
 
+    // ─── GET /api/activity/shortcut?token={token} ─── shortcut heartbeat (no auth)
+    // Response: { ok: true }
+    @GetMapping("/activity/shortcut")
+    fun shortcutHeartbeat(@RequestParam token: String): Map<String, Boolean> {
+        val user = userRepository.findByShortcutToken(UUID.fromString(token))
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid shortcut token")
+        activitySignalRepository.save(
+            ActivitySignal(userId = user.id!!, signalType = "shortcut")
+        )
+        user.lastSeenAt = Instant.now()
+        if (user.escalationLevel > 0) {
+            user.escalationLevel = 0
+            user.escalationChangedAt = null
+        }
+        if (user.scheduledCheckInDeadline != null) {
+            user.scheduledCheckInDeadline = null
+        }
+        userRepository.save(user)
+        return mapOf("ok" to true)
+    }
+
+    // ─── GET /api/users/me/shortcut-token ─── get or generate shortcut token
+    // Response: { token: string }
+    @GetMapping("/users/me/shortcut-token")
+    fun getShortcutToken(): ShortcutTokenResponse {
+        val user = currentUserService.getCurrentUser()
+        if (user.shortcutToken == null) {
+            user.shortcutToken = UUID.randomUUID()
+            userRepository.save(user)
+        }
+        return ShortcutTokenResponse(token = user.shortcutToken.toString())
+    }
+
     // ─── POST /api/circles ─── create circle
     // Request: { ownerId: string }
     // Response: CircleDetail

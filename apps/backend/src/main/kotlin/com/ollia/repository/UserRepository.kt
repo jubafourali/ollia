@@ -11,6 +11,7 @@ import java.util.UUID
 
 interface UserRepository : JpaRepository<User, UUID> {
     fun findByClerkId(clerkId: String): User?
+    fun findByShortcutToken(shortcutToken: UUID): User?
     fun findByStripeCustomerId(stripeCustomerId: String): User?
     fun findAllByLastSeenAtBefore(threshold: Instant): List<User>
     fun findAllByEscalationLevelAndLastSeenAtBefore(escalationLevel: Int, threshold: Instant): List<User>

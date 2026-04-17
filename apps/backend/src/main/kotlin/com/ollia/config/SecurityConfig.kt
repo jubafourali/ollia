@@ -19,6 +19,7 @@ class SecurityConfig {
             .authorizeHttpRequests {
                 it.requestMatchers("/actuator/health").permitAll()
                 it.requestMatchers("/api/subscriptions/webhook").permitAll()
+                it.requestMatchers("/api/activity/shortcut").permitAll()
                 it.anyRequest().authenticated()
             }
             .oauth2ResourceServer { it.jwt {} }
