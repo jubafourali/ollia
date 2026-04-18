@@ -10,7 +10,7 @@ import * as SecureStore from "expo-secure-store";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useRef, useState } from "react";
-import { I18nManager, Platform } from "react-native";
+import {I18nManager, Platform, View} from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Localization from "expo-localization";
@@ -76,7 +76,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   // Don't render children until Clerk has loaded and first routing decision is made.
   // This prevents the brief flash of the wrong screen.
-  if (!isLoaded || !authReady) return null;
+  if (!isLoaded || !authReady) return <View style={{ flex: 1, backgroundColor: "#F0E2C4" }} />;
 
   return <>{children}</>;
 }

@@ -328,29 +328,29 @@ export default function MyStatusScreen() {
       ) : null}
 
       <View style={styles.connectionCard}>
-        <View style={styles.connectionRow}>
-          <View style={styles.connectionLeft}>
-            <Feather name="server" size={16} color={isRegistered ? BRAND.statusGreen : BRAND.textMuted} />
-            <Text style={styles.connectionLabel}>{t("myStatus.backendSync")}</Text>
-          </View>
-          <View style={[styles.pill, { backgroundColor: isRegistered ? `${BRAND.statusGreen}18` : `${BRAND.textMuted}18` }]}>
-            <View style={[styles.pillDot, { backgroundColor: isRegistered ? BRAND.statusGreen : BRAND.textMuted }]} />
-            <Text style={[styles.pillText, { color: isRegistered ? BRAND.statusGreen : BRAND.textMuted }]}>
-              {isRegistered ? t("myStatus.connected") : t("myStatus.offline")}
-            </Text>
-          </View>
-        </View>
+        {/*<View style={styles.connectionRow}>*/}
+        {/*  <View style={styles.connectionLeft}>*/}
+        {/*    <Feather name="server" size={16} color={isRegistered ? BRAND.statusGreen : BRAND.textMuted} />*/}
+        {/*    <Text style={styles.connectionLabel}>{t("myStatus.backendSync")}</Text>*/}
+        {/*  </View>*/}
+        {/*  <View style={[styles.pill, { backgroundColor: isRegistered ? `${BRAND.statusGreen}18` : `${BRAND.textMuted}18` }]}>*/}
+        {/*    <View style={[styles.pillDot, { backgroundColor: isRegistered ? BRAND.statusGreen : BRAND.textMuted }]} />*/}
+        {/*    <Text style={[styles.pillText, { color: isRegistered ? BRAND.statusGreen : BRAND.textMuted }]}>*/}
+        {/*      {isRegistered ? t("myStatus.connected") : t("myStatus.offline")}*/}
+        {/*    </Text>*/}
+        {/*  </View>*/}
+        {/*</View>*/}
 
-        <View style={styles.connectionRow}>
-          <View style={styles.connectionLeft}>
-            <Feather name="activity" size={16} color={BRAND.primary} />
-            <Text style={styles.connectionLabel}>{t("myStatus.activityDetection")}</Text>
-          </View>
-          <View style={[styles.pill, { backgroundColor: `${BRAND.primary}18` }]}>
-            <View style={[styles.pillDot, { backgroundColor: BRAND.primary }]} />
-            <Text style={[styles.pillText, { color: BRAND.primary }]}>{heartbeatIntervalLabel}</Text>
-          </View>
-        </View>
+        {/*<View style={styles.connectionRow}>*/}
+        {/*  <View style={styles.connectionLeft}>*/}
+        {/*    <Feather name="activity" size={16} color={BRAND.primary} />*/}
+        {/*    <Text style={styles.connectionLabel}>{t("myStatus.activityDetection")}</Text>*/}
+        {/*  </View>*/}
+        {/*  <View style={[styles.pill, { backgroundColor: `${BRAND.primary}18` }]}>*/}
+        {/*    <View style={[styles.pillDot, { backgroundColor: BRAND.primary }]} />*/}
+        {/*    <Text style={[styles.pillText, { color: BRAND.primary }]}>{heartbeatIntervalLabel}</Text>*/}
+        {/*  </View>*/}
+        {/*</View>*/}
 
         <View style={styles.connectionRow}>
           <View style={styles.connectionLeft}>

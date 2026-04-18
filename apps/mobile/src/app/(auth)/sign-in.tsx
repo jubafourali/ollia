@@ -1,4 +1,4 @@
-import { useSignIn, useSignUp, useSSO } from "@clerk/clerk-expo";
+import {useAuth, useSignIn, useSignUp, useSSO} from "@clerk/clerk-expo";
 import { Feather } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
@@ -28,6 +28,7 @@ export default function SignInScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { isSignedIn, isLoaded: authLoaded } = useAuth();
   const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
   const { startSSOFlow } = useSSO();
@@ -40,6 +41,12 @@ export default function SignInScreen() {
   const [error, setError] = useState("");
 
   const isLoaded = signInLoaded && signUpLoaded;
+
+  React.useEffect(() => {
+    if (authLoaded && isSignedIn) {
+      router.replace("/(tabs)");
+    }
+  }, [authLoaded, isSignedIn]);
 
   async function handleEmailContinue() {
     if (!email.trim() || !isLoaded) return;
