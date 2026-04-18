@@ -62,5 +62,24 @@ class User(
     @Column(unique = true)
     var shortcutToken: UUID? = null,
 
+    var lastCheckInAt: Instant? = null,
+
+    var lastPassiveSignalAt: Instant? = null,
+
+    var nudgeSentAt: Instant? = null,
+
+    var secondNudgeSentAt: Instant? = null,
+
+    @Column(nullable = false)
+    var familyNotified: Boolean = false,
+
+    @Column(nullable = false)
+    var familyNotifiedStrong: Boolean = false,
+
+    @Column(nullable = false)
+    var urgentOvernightAlerts: Boolean = false,
+
+    var timezone: String? = null,
+
     val createdAt: Instant = Instant.now()
 )

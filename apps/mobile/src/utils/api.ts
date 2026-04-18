@@ -55,15 +55,13 @@ export type ApiActivityResponse = {
   timestamp: string;
 };
 
-export type ApiMemberStatus = "active" | "recent" | "away" | "inactive";
-
 export type ApiCircleMember = {
   id: string;
   userId: string;
   name: string;
   region?: string;
   relation: string;
-  status: ApiMemberStatus;
+  lastCheckInAt?: string | null;
   lastSeen?: string;
   joinedAt?: string;
   travelMode?: boolean;
@@ -105,8 +103,14 @@ export type ApiPattern = {
   insight?: string | null;
 };
 
+export type ApiSafetyPreferences = {
+  inactivityThresholdHours: number;
+  scheduledCheckInDeadline: string | null;
+  urgentOvernightAlerts: boolean;
+};
+
 export const api = {
-  upsertUser(payload: { id: string; name: string; region?: string }): Promise<ApiUser> {
+  upsertUser(payload: { id: string; name: string; region?: string; timezone?: string }): Promise<ApiUser> {
     return req("/users", { method: "POST", body: JSON.stringify(payload) });
   },
 
@@ -202,18 +206,22 @@ export const api = {
     });
   },
 
-  getSafetyPreferences(): Promise<{ inactivityThresholdHours: number; scheduledCheckInDeadline: string | null }> {
+  getSafetyPreferences(): Promise<ApiSafetyPreferences> {
     return req("/users/me/safety-preferences");
   },
 
-  updateSafetyPreferences(prefs: { inactivityThresholdHours?: number; scheduledCheckInDeadline?: string }): Promise<{ inactivityThresholdHours: number; scheduledCheckInDeadline: string | null }> {
+  updateSafetyPreferences(prefs: {
+    inactivityThresholdHours?: number;
+    scheduledCheckInDeadline?: string;
+    urgentOvernightAlerts?: boolean;
+  }): Promise<ApiSafetyPreferences> {
     return req("/users/me/safety-preferences", {
       method: "PATCH",
       body: JSON.stringify(prefs),
     });
   },
 
-  cancelScheduledCheckIn(): Promise<{ inactivityThresholdHours: number; scheduledCheckInDeadline: null }> {
+  cancelScheduledCheckIn(): Promise<ApiSafetyPreferences> {
     return req("/users/me/scheduled-checkin", { method: "DELETE" });
   },
 

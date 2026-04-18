@@ -32,8 +32,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BRAND from "@/constants/colors";
 import { api, ApiCircleMember, setAuthTokenGetter } from "@/utils/api";
 import { useFamilyContext } from "@/context/FamilyContext";
-import { getStatusColor, getStatusLabel } from "@/components/StatusDot";
-import { formatTimeAgo } from "@/utils/time";
+import { getCheckInLabel } from "@/utils/checkInLabel";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -744,12 +743,7 @@ export default function InviteOnboardingScreen() {
   // =================== SCREEN 5: FIRST VALUE ===================
   function renderFirstValue() {
     const member = inviterMember;
-    const status = member?.status ?? "active";
-    const statusColor = getStatusColor(status);
-    const statusLabel = getStatusLabel(status);
-    const lastSeen = member?.lastSeen
-      ? formatTimeAgo(new Date(member.lastSeen))
-      : t("common.justNow");
+    const checkIn = getCheckInLabel(member?.lastCheckInAt ? new Date(member.lastCheckInAt) : null);
     const city = member?.region ?? "";
 
     return (
@@ -786,22 +780,19 @@ export default function InviteOnboardingScreen() {
               <View
                 style={[
                   styles.statusBadge,
-                  { backgroundColor: `${statusColor}20` },
+                  { backgroundColor: `${checkIn.color}20` },
                 ]}
               >
-                <View
-                  style={[
-                    styles.statusBadgeDot,
-                    { backgroundColor: statusColor },
-                  ]}
+                <Feather
+                  name={checkIn.tone === "fresh" ? "check-circle" : "alert-circle"}
+                  size={12}
+                  color={checkIn.color}
                 />
-                <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-                  {statusLabel}
+                <Text style={[styles.statusBadgeText, { color: checkIn.color }]}>
+                  {checkIn.text}
                 </Text>
               </View>
             </View>
-
-            <Text style={styles.statusCardTime}>{lastSeen}</Text>
           </View>
 
           <View style={styles.privacyReminder}>

@@ -112,9 +112,8 @@ class EscalationScheduler(
     // ── Level 0 → 1: Notify the inactive user ──────────────────────
 
     private fun escalateToLevel1() {
-        // We need users at level 0 whose lastSeenAt is older than their threshold.
-        // Since thresholds vary per user we fetch all level-0 users with any
-        // lastSeenAt and filter in memory (the index keeps this fast).
+        // Fetch a generous candidate set (any user whose last activity is older than
+        // the sanity floor) and filter by the authoritative signal in memory.
         val candidates = userRepository.findAllByEscalationLevelAndLastSeenAtBefore(
             escalationLevel = 0,
             threshold = Instant.now().minus(1, ChronoUnit.HOURS) // minimum sanity floor
@@ -124,7 +123,9 @@ class EscalationScheduler(
         for (user in candidates) {
             if (!user.notifyInactivity) continue
             val thresholdInstant = now.minus(user.inactivityThresholdHours.toLong(), ChronoUnit.HOURS)
-            if (user.lastSeenAt == null || user.lastSeenAt!!.isAfter(thresholdInstant)) continue
+            // Prefer last_check_in_at (human signal); fall back to last_seen_at when null.
+            val reference = user.lastCheckInAt ?: user.lastSeenAt ?: continue
+            if (reference.isAfter(thresholdInstant)) continue
 
             val token = pushTokenRepository.findByUserId(user.id!!) ?: continue
             val msgs = PushMessages.forLang(user.preferredLanguage)

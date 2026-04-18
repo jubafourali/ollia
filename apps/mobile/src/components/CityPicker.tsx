@@ -11,17 +11,20 @@ import {
 } from "react-native";
 
 import BRAND from "@/constants/colors";
+import { timezoneForCountryCode } from "@/utils/timezone";
 
 type CityResult = {
   id: string;
   city: string;
   country: string;
+  countryCode: string | null;
   displayName: string;
+  timezone: string;
 };
 
 type Props = {
   value: string;
-  onChange: (displayName: string) => void;
+  onChange: (displayName: string, timezone?: string) => void;
   placeholder?: string;
   defaultOpen?: boolean;
   onCancel?: () => void;
@@ -69,6 +72,7 @@ export function CityPicker({
             county?: string;
             state?: string;
             country?: string;
+            country_code?: string;
           };
         }>;
         const seen = new Set<string>();
@@ -83,7 +87,15 @@ export function CityPicker({
           const key = `${city.toLowerCase()},${country.toLowerCase()}`;
           if (seen.has(key)) continue;
           seen.add(key);
-          mapped.push({ id: r.place_id, city, country, displayName: `${city}, ${country}` });
+          const countryCode = addr.country_code?.toLowerCase() ?? null;
+          mapped.push({
+            id: r.place_id,
+            city,
+            country,
+            countryCode,
+            displayName: `${city}, ${country}`,
+            timezone: timezoneForCountryCode(countryCode),
+          });
         }
         setResults(mapped.slice(0, 6));
         setSearched(true);
@@ -98,7 +110,7 @@ export function CityPicker({
   }, [query, open]);
 
   function handleSelect(r: CityResult) {
-    onChange(r.displayName);
+    onChange(r.displayName, r.timezone);
     setOpen(false);
     setQuery("");
     setResults([]);

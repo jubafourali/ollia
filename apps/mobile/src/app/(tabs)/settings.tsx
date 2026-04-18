@@ -18,6 +18,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import * as Clipboard from 'expo-clipboard';
 import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -292,6 +293,7 @@ export default function SettingsScreen() {
 
   const [editName, setEditName] = useState(myProfile?.name ?? "");
   const [editCity, setEditCity] = useState(myProfile?.region ?? "");
+  const [editTimezone, setEditTimezone] = useState<string | undefined>(myProfile?.timezone);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -324,10 +326,13 @@ export default function SettingsScreen() {
   const [thresholdSaving, setThresholdSaving] = useState(false);
   const [scheduledDeadline, setScheduledDeadline] = useState<string | null>(null);
   const [schedulingSaving, setSchedulingSaving] = useState(false);
+  const [urgentOvernightAlerts, setUrgentOvernightAlerts] = useState(false);
+  const [urgentSaving, setUrgentSaving] = useState(false);
 
   useEffect(() => {
     setEditName(myProfile?.name ?? "");
     setEditCity(myProfile?.region ?? "");
+    setEditTimezone(myProfile?.timezone);
   }, [myProfile]);
 
   useEffect(() => {
@@ -349,6 +354,7 @@ export default function SettingsScreen() {
         setThresholdHours(prefs.inactivityThresholdHours);
         setThresholdOriginal(prefs.inactivityThresholdHours);
         setScheduledDeadline(prefs.scheduledCheckInDeadline);
+        setUrgentOvernightAlerts(prefs.urgentOvernightAlerts);
       })
       .catch(() => {});
     getSelectedApps().then(setSelectedAppIds).catch(() => {});
@@ -391,7 +397,8 @@ export default function SettingsScreen() {
 
   const profileDirty =
     editName.trim() !== (myProfile?.name ?? "") ||
-    editCity.trim() !== (myProfile?.region ?? "");
+    editCity.trim() !== (myProfile?.region ?? "") ||
+    editTimezone !== myProfile?.timezone;
 
   async function handleSaveProfile() {
     if (!editName.trim() || profileSaving) return;
@@ -400,11 +407,29 @@ export default function SettingsScreen() {
     }
     setProfileSaving(true);
     try {
-      await setMyProfile({ name: editName.trim(), region: editCity.trim() });
+      await setMyProfile({
+        name: editName.trim(),
+        region: editCity.trim(),
+        timezone: editTimezone,
+      });
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 2000);
     } catch {}
     setProfileSaving(false);
+  }
+
+  async function handleToggleUrgentOvernight(value: boolean) {
+    if (urgentSaving) return;
+    setUrgentSaving(true);
+    setUrgentOvernightAlerts(value);
+    try {
+      const saved = await api.updateSafetyPreferences({ urgentOvernightAlerts: value });
+      setUrgentOvernightAlerts(saved.urgentOvernightAlerts);
+    } catch {
+      // revert on failure
+      setUrgentOvernightAlerts(!value);
+    }
+    setUrgentSaving(false);
   }
 
   const ecDirty =
@@ -539,7 +564,13 @@ export default function SettingsScreen() {
         <View style={profileStyles.field}>
           <Text style={profileStyles.label}>{t("settings.yourCity")}</Text>
           <Text style={profileStyles.hint}>{t("settings.cityHint")}</Text>
-          <CityPicker value={editCity} onChange={setEditCity} />
+          <CityPicker
+            value={editCity}
+            onChange={(displayName, tz) => {
+              setEditCity(displayName);
+              if (tz) setEditTimezone(tz);
+            }}
+          />
         </View>
         {/* Language selector */}
         <SettingRow
@@ -825,6 +856,24 @@ export default function SettingsScreen() {
                 ))}
               </View>
             )}
+          </View>
+
+          <View style={spStyles.divider} />
+          <View style={spStyles.toggleRow}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <View style={spStyles.labelRow}>
+                <Feather name="moon" size={15} color={BRAND.primary} />
+                <Text style={profileStyles.label}>{t("settings.urgentOvernight")}</Text>
+              </View>
+              <Text style={ecStyles.hint}>{t("settings.urgentOvernightHint")}</Text>
+            </View>
+            <Switch
+              value={urgentOvernightAlerts}
+              onValueChange={handleToggleUrgentOvernight}
+              disabled={urgentSaving}
+              trackColor={{ false: BRAND.border, true: `${BRAND.primary}80` }}
+              thumbColor={urgentOvernightAlerts ? BRAND.primary : BRAND.backgroundCard}
+            />
           </View>
         </View>
       ) : (
@@ -1253,8 +1302,7 @@ export default function SettingsScreen() {
                     onPress={async () => {
                       const url = `https://ollia-production.up.railway.app/api/activity/shortcut?token=${shortcutToken}`;
                       try {
-                        const Clipboard = await import("expo-clipboard");
-                        await Clipboard.default.setStringAsync(url);
+                        await Clipboard.setStringAsync(url);
                       } catch {
                         try { await navigator.clipboard.writeText(url); } catch {}
                       }
@@ -1536,6 +1584,11 @@ const spStyles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: BRAND.borderLight,
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   activeSchedule: {
     backgroundColor: "#F59E0B10",

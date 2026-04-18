@@ -18,8 +18,7 @@ import Animated, {
 import BRAND from "@/constants/colors";
 import type { FamilyMember } from "@/context/FamilyContext";
 import { MemberAvatar } from "./MemberAvatar";
-import { getStatusColor, getStatusLabel } from "./StatusDot";
-import { formatTimeAgo } from "@/utils/time";
+import { getCheckInLabel } from "@/utils/checkInLabel";
 
 type Props = {
   member: FamilyMember;
@@ -29,9 +28,8 @@ type Props = {
 export function MemberCard({ member, onPress }: Props) {
   const { t } = useTranslation();
   const scale = useSharedValue(1);
-  const statusColor = getStatusColor(member.status);
-  const statusLabel = getStatusLabel(member.status);
   const isMe = member.isMe;
+  const checkIn = getCheckInLabel(member.lastCheckInAt);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -48,8 +46,6 @@ export function MemberCard({ member, onPress }: Props) {
     onPress();
   };
 
-  const timeAgo = formatTimeAgo(member.lastSeen);
-  const isActive = member.status === "active";
   const isPending = member.pending;
 
   return (
@@ -65,9 +61,7 @@ export function MemberCard({ member, onPress }: Props) {
           <MemberAvatar
             name={member.name}
             avatar={member.avatar}
-            status={member.status}
             size={52}
-            showRing={isActive}
           />
         </View>
 
@@ -84,26 +78,30 @@ export function MemberCard({ member, onPress }: Props) {
               <Text style={styles.relation}>{member.relation}</Text>
             )}
           </View>
-          <View style={styles.statusRow}>
+          <View style={styles.checkInRow}>
             {isPending ? (
-              <View style={[styles.statusPill, { backgroundColor: "#F3F4F6" }]}>
-                <Feather name="clock" size={11} color={BRAND.textMuted} />
-                <Text style={[styles.statusText, { color: BRAND.textMuted }]}>
+              <>
+                <Feather name="clock" size={12} color={BRAND.textMuted} />
+                <Text style={[styles.checkInText, { color: BRAND.textMuted }]}>
                   {t("myStatus.pending")}
                 </Text>
-              </View>
+              </>
             ) : (
-              <View style={[styles.statusPill, { backgroundColor: `${statusColor}20` }]}>
-                <View style={[styles.statusDotSmall, { backgroundColor: statusColor }]} />
-                <Text style={[styles.statusText, { color: statusColor }]}>
-                  {statusLabel}
+              <>
+                <Feather
+                  name={checkIn.tone === "fresh" ? "check-circle" : "alert-circle"}
+                  size={12}
+                  color={checkIn.color}
+                />
+                <Text style={[styles.checkInText, { color: checkIn.color }]}>
+                  {checkIn.text}
                 </Text>
-              </View>
+              </>
             )}
           </View>
-          {!isPending && (
-            <Text style={styles.time}>{timeAgo} · {member.region}</Text>
-          )}
+          {!isPending && member.region ? (
+            <Text style={styles.time}>{member.region}</Text>
+          ) : null}
         </View>
 
         <Feather name="chevron-right" size={18} color={isMe ? BRAND.primary : BRAND.textMuted} />
@@ -169,24 +167,12 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     color: BRAND.textMuted,
   },
-  statusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  statusPill: {
+  checkInRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
   },
-  statusDotSmall: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText: {
+  checkInText: {
     fontSize: 12,
     fontFamily: "Inter_500Medium",
   },

@@ -32,6 +32,7 @@ export type FamilyMember = {
   avatar: string;
   status: ActivityStatus;
   lastSeen: Date;
+  lastCheckInAt: Date | null;
   region: string;
   isMe?: boolean;
   pending?: boolean;
@@ -51,6 +52,7 @@ export type CheckInRequest = {
 export type MyProfile = {
   name: string;
   region: string;
+  timezone?: string;
 };
 
 type FamilyContextType = {
@@ -71,7 +73,7 @@ type FamilyContextType = {
   safetyEvents: ApiSafetyEvent[];
   patterns: ApiPattern | null;
   alertPrefs: AlertPrefs;
-  addMember: (member: Omit<FamilyMember, "id" | "status" | "lastSeen">) => void;
+  addMember: (member: Omit<FamilyMember, "id" | "status" | "lastSeen" | "lastCheckInAt">) => void;
   removeMember: (id: string) => Promise<void>;
   clearAllState: () => Promise<void>;
   respondToCheckIn: (requestId: string, response: "fine" | "help") => void;
@@ -140,14 +142,19 @@ function getStatusFromLastSeen(lastSeen: Date | null): ActivityStatus {
 }
 
 function apiMemberToLocal(m: ApiCircleMember, meId: string): FamilyMember {
+  const lastSeen = m.lastSeen ? new Date(m.lastSeen) : new Date(0);
+  const lastCheckInAt = m.lastCheckInAt ? new Date(m.lastCheckInAt) : null;
+  // Internal fallback only — the UI reads lastCheckInAt directly.
+  const statusReference = lastCheckInAt ?? (m.lastSeen ? lastSeen : null);
   return {
     id: m.id,
     userId: m.userId,
     name: m.name,
     relation: m.relation,
     avatar: m.name[0]?.toUpperCase() ?? "?",
-    status: (m.status as ActivityStatus) ?? "inactive",
-    lastSeen: m.lastSeen ? new Date(m.lastSeen) : new Date(0),
+    status: getStatusFromLastSeen(statusReference),
+    lastSeen,
+    lastCheckInAt,
     region: m.region ?? "",
     isMe: m.userId === meId,
     pending: false,
@@ -294,19 +301,17 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         .map((m) => apiMemberToLocal(m, devId));
       setMembers(remoteMembers);
 
-      const inactive = remoteMembers.filter(
-        (m) => m.status === "inactive" || m.status === "away"
+      // Prompt the current user to reach out to peers whose last human check-in
+      // is over 18h old. Based on lastCheckInAt so passive signals don't hide it.
+      const staleThresholdMs = 1000 * 60 * 60 * 18;
+      const stale = remoteMembers.filter(
+        (m) => m.lastCheckInAt && Date.now() - m.lastCheckInAt.getTime() > staleThresholdMs
       );
-      if (inactive.length > 0) {
+      if (stale.length > 0) {
         setCheckInRequests((prev) => {
           const existingIds = new Set(prev.map((c) => c.memberId));
-          const newRequests = inactive
-            .filter(
-              (m) =>
-                !existingIds.has(m.id) &&
-                m.lastSeen &&
-                Date.now() - m.lastSeen.getTime() > 1000 * 60 * 60 * 6
-            )
+          const newRequests = stale
+            .filter((m) => !existingIds.has(m.id))
             .map((m) => ({
               id: `ci_${m.id}_${Date.now()}`,
               memberId: m.id,
@@ -468,7 +473,12 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         const profile = JSON.parse(profileStr) as MyProfile;
         setMyProfileState(profile);
         try {
-          await api.upsertUser({ id: uid, name: profile.name, region: profile.region });
+          await api.upsertUser({
+            id: uid,
+            name: profile.name,
+            region: profile.region,
+            timezone: profile.timezone,
+          });
           setIsRegistered(true);
         } catch (e) {
           console.warn("upsertUser failed:", e);
@@ -477,7 +487,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         try {
           const user = await api.getMe();
           if (user?.name) {
-            const profile = { name: user.name, region: user.region ?? "" };
+            const profile: MyProfile = { name: user.name, region: user.region ?? "" };
             setMyProfileState(profile);
             await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
             setIsRegistered(true);
@@ -567,12 +577,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   }, [userId, authLoaded]);
 
   const addMember = useCallback(
-    (member: Omit<FamilyMember, "id" | "status" | "lastSeen">) => {
+    (member: Omit<FamilyMember, "id" | "status" | "lastSeen" | "lastCheckInAt">) => {
       const newMember: FamilyMember = {
         ...member,
         id: generateId(8),
         status: "inactive",
         lastSeen: new Date(0),
+        lastCheckInAt: null,
       };
       setMembers((prev) => [...prev, newMember]);
     },
@@ -626,7 +637,12 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       if (!devId) return;
 
       try {
-        await api.upsertUser({ id: devId, name: profile.name, region: profile.region });
+        await api.upsertUser({
+          id: devId,
+          name: profile.name,
+          region: profile.region,
+          timezone: profile.timezone,
+        });
         setIsRegistered(true);
       } catch (e) {
         console.warn("upsertUser failed:", e);

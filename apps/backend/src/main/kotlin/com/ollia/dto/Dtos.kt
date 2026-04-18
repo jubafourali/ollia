@@ -8,7 +8,8 @@ import java.time.Instant
 data class UpsertUserRequest(
     val id: String,
     val name: String,
-    val region: String? = null
+    val region: String? = null,
+    val timezone: String? = null
 )
 
 // POST /api/users — response, PATCH /api/users/{userId}/travel — response
@@ -55,7 +56,7 @@ data class CircleMemberResponse(
     val name: String,
     val region: String? = null,
     val relation: String,
-    val status: String,
+    val lastCheckInAt: String? = null,
     val lastSeen: String? = null,
     val joinedAt: String? = null,
     val travelMode: Boolean? = null,
@@ -154,13 +155,15 @@ data class UpdateEmergencyContactRequest(
 // GET /api/users/me/safety-preferences — response
 data class SafetyPreferencesResponse(
     val inactivityThresholdHours: Int,
-    val scheduledCheckInDeadline: String?
+    val scheduledCheckInDeadline: String?,
+    val urgentOvernightAlerts: Boolean
 )
 
 // PATCH /api/users/me/safety-preferences — request
 data class UpdateSafetyPreferencesRequest(
     val inactivityThresholdHours: Int? = null,
-    val scheduledCheckInDeadline: String? = null
+    val scheduledCheckInDeadline: String? = null,
+    val urgentOvernightAlerts: Boolean? = null
 )
 
 // PATCH /api/users/me/language — request

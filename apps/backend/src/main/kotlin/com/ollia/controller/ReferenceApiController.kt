@@ -9,7 +9,6 @@ import com.ollia.repository.*
 import com.ollia.service.ActivityPatternService
 import com.ollia.service.CurrentUserService
 import com.ollia.service.SafetyEventService
-import com.ollia.service.StatusService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.transaction.annotation.Transactional
@@ -33,7 +32,6 @@ class ReferenceApiController(
     private val familyMemberRepository: FamilyMemberRepository,
     private val familyInviteRepository: FamilyInviteRepository,
     private val pushTokenRepository: PushTokenRepository,
-    private val statusService: StatusService,
     private val safetyEventService: SafetyEventService,
     private val activityPatternService: ActivityPatternService,
     private val clerkService: com.ollia.service.ClerkService
@@ -41,6 +39,7 @@ class ReferenceApiController(
 
     companion object {
         const val FREE_PLAN_MEMBER_LIMIT = 3
+        val HUMAN_SIGNAL_TYPES = setOf("heartbeat", "check_in_response", "shortcut")
     }
 
     // ─── POST /api/users ─── upsert user
@@ -57,10 +56,16 @@ class ReferenceApiController(
             email = "$clerkId@ollia.app"
         )
         val user = userRepository.findByClerkId(clerkId)!!
+        var dirty = false
         if (request.region != null) {
             user.region = request.region
-            userRepository.save(user)
+            dirty = true
         }
+        if (request.timezone != null) {
+            user.timezone = request.timezone
+            dirty = true
+        }
+        if (dirty) userRepository.save(user)
         return ApiUserResponse(
             id = clerkId,
             name = user.name,
@@ -88,29 +93,43 @@ class ReferenceApiController(
         )
     }
 
-    // ─── POST /api/activity ─── send heartbeat
+    // ─── POST /api/activity ─── send activity signal
     // Request: { userId: string, signalType: string }
     // Response: { recorded: boolean, timestamp: string }
+    //
+    // Signals split into two classes:
+    //   human   (heartbeat, check_in_response, shortcut) → update lastCheckInAt + lastSeenAt,
+    //                                                       reset escalation/nudge state
+    //   passive (background, location, foreground)       → update lastPassiveSignalAt + lastSeenAt only.
+    //                                                       foreground is treated as passive because iOS
+    //                                                       can restore apps without any user interaction.
     @PostMapping("/activity")
     fun sendActivity(@RequestBody request: ActivityRequest): ActivityResponse {
         val user = currentUserService.getCurrentUser()
         activitySignalRepository.save(
             ActivitySignal(userId = user.id!!, signalType = request.signalType)
         )
-        user.lastSeenAt = Instant.now()
-        // Reset escalation chain on any activity signal
-        if (user.escalationLevel > 0) {
-            user.escalationLevel = 0
-            user.escalationChangedAt = null
+        val now = Instant.now()
+        user.lastSeenAt = now
+
+        val isHuman = request.signalType in HUMAN_SIGNAL_TYPES
+        if (isHuman) {
+            user.lastCheckInAt = now
+            if (user.escalationLevel > 0) {
+                user.escalationLevel = 0
+                user.escalationChangedAt = null
+            }
+            if (user.scheduledCheckInDeadline != null) {
+                user.scheduledCheckInDeadline = null
+            }
+        } else {
+            user.lastPassiveSignalAt = now
         }
-        // Clear scheduled check-in deadline (user checked in)
-        if (user.scheduledCheckInDeadline != null) {
-            user.scheduledCheckInDeadline = null
-        }
+
         userRepository.save(user)
         return ActivityResponse(
             recorded = true,
-            timestamp = Instant.now().toString()
+            timestamp = now.toString()
         )
     }
 
@@ -123,7 +142,9 @@ class ReferenceApiController(
         activitySignalRepository.save(
             ActivitySignal(userId = user.id!!, signalType = "shortcut")
         )
-        user.lastSeenAt = Instant.now()
+        val now = Instant.now()
+        user.lastSeenAt = now
+        user.lastCheckInAt = now
         if (user.escalationLevel > 0) {
             user.escalationLevel = 0
             user.escalationChangedAt = null
@@ -189,7 +210,7 @@ class ReferenceApiController(
                 name = memberUser.name,
                 region = memberUser.region,
                 relation = member.relation,
-                status = statusService.computeStatus(memberUser.lastSeenAt),
+                lastCheckInAt = memberUser.lastCheckInAt?.toString(),
                 lastSeen = memberUser.lastSeenAt?.toString(),
                 joinedAt = null,
                 travelMode = memberUser.travelMode,
@@ -397,7 +418,8 @@ class ReferenceApiController(
         val user = currentUserService.getCurrentUser()
         return SafetyPreferencesResponse(
             inactivityThresholdHours = user.inactivityThresholdHours,
-            scheduledCheckInDeadline = user.scheduledCheckInDeadline?.toString()
+            scheduledCheckInDeadline = user.scheduledCheckInDeadline?.toString(),
+            urgentOvernightAlerts = user.urgentOvernightAlerts
         )
     }
 
@@ -415,10 +437,14 @@ class ReferenceApiController(
         if (request.scheduledCheckInDeadline != null) {
             user.scheduledCheckInDeadline = Instant.parse(request.scheduledCheckInDeadline)
         }
+        if (request.urgentOvernightAlerts != null) {
+            user.urgentOvernightAlerts = request.urgentOvernightAlerts
+        }
         userRepository.save(user)
         return SafetyPreferencesResponse(
             inactivityThresholdHours = user.inactivityThresholdHours,
-            scheduledCheckInDeadline = user.scheduledCheckInDeadline?.toString()
+            scheduledCheckInDeadline = user.scheduledCheckInDeadline?.toString(),
+            urgentOvernightAlerts = user.urgentOvernightAlerts
         )
     }
 
@@ -430,7 +456,8 @@ class ReferenceApiController(
         userRepository.save(user)
         return SafetyPreferencesResponse(
             inactivityThresholdHours = user.inactivityThresholdHours,
-            scheduledCheckInDeadline = null
+            scheduledCheckInDeadline = null,
+            urgentOvernightAlerts = user.urgentOvernightAlerts
         )
     }
 

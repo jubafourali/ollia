@@ -25,11 +25,10 @@ import Reanimated, {
 
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
-import { getStatusColor, getStatusLabel } from "@/components/StatusDot";
 import { requestLocationPermission, hasBackgroundLocationPermission } from "@/services/backgroundActivity";
-import { formatLastSeen } from "@/utils/time";
 import { CityPicker } from "@/components/CityPicker";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { getCheckInLabel } from "@/utils/checkInLabel";
 
 function HeartbeatTimer({ lastSeen }: { lastSeen: Date }) {
   const [elapsed, setElapsed] = useState(0);
@@ -64,28 +63,10 @@ function HeartbeatTimer({ lastSeen }: { lastSeen: Date }) {
   );
 }
 
-function InactivityAlert({ name, status }: { name: string; status: string }) {
-  const color = status === "inactive" ? "#EF4444" : BRAND.primary;
-  const icon = status === "inactive" ? "alert-circle" : "clock";
-  const { t: tStatus } = useTranslation();
-  const label = status === "inactive" ? tStatus("myStatus.noSignal12h") : tStatus("myStatus.noSignal3h");
-  return (
-    <View style={[styles.alertRow, { borderColor: `${color}30`, backgroundColor: `${color}08` }]}>
-      <Feather name={icon as any} size={15} color={color} />
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.alertName, { color: BRAND.text }]}>{name}</Text>
-        <Text style={[styles.alertLabel, { color }]}>{label}</Text>
-      </View>
-    </View>
-  );
-}
-
-
 export default function MyStatusScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const {
-    myStatus,
     heartbeatIntervalLabel,
     myLastSeen,
     sendHeartbeat,
@@ -101,9 +82,13 @@ export default function MyStatusScreen() {
     upgradePlan,
     locationPermissionMissing,
   } = useFamilyContext();
-  const statusColor = getStatusColor(myStatus);
-  const statusLabel = getStatusLabel(myStatus);
-  const isActive = myStatus === "active";
+  // Local heartbeat sends are human check-ins, so myLastSeen doubles as
+  // the local "lastCheckInAt" for the current user. The server-side value is
+  // authoritative, but myLastSeen updates immediately on tap.
+  const myLastCheckIn = myLastSeen.getTime() > 0 ? myLastSeen : null;
+  const checkIn = getCheckInLabel(myLastCheckIn);
+  const statusColor = checkIn.color;
+  const isActive = checkIn.tone === "fresh";
   const [refreshing, setRefreshing] = useState(false);
   const [showTravelInput, setShowTravelInput] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -197,7 +182,7 @@ export default function MyStatusScreen() {
     }
   };
 
-  const handleCitySelect = async (displayName: string) => {
+  const handleCitySelect = async (displayName: string, _timezone?: string) => {
     setShowTravelInput(false);
     await setTravelMode(true, displayName);
   };
@@ -207,9 +192,6 @@ export default function MyStatusScreen() {
     await setTravelMode(false);
   };
 
-  const atRiskMembers = members.filter(
-    (m) => !m.isMe && !m.pending && (m.status === "inactive" || m.status === "away")
-  );
   const watchers = members.filter((m) => !m.isMe);
 
   return (
@@ -249,11 +231,18 @@ export default function MyStatusScreen() {
           </View>
         </Pressable>
 
-        <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
-          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-            {statusLabel}
-          </Text>
+        <View style={styles.familySeesBlock}>
+          <Text style={styles.familySeesLabel}>{t("checkIn.familySees")}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
+            <Feather
+              name={checkIn.tone === "fresh" ? "check-circle" : "alert-circle"}
+              size={14}
+              color={statusColor}
+            />
+            <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+              {checkIn.text}
+            </Text>
+          </View>
         </View>
 
         {travelMode && travelDestination ? (
@@ -436,19 +425,6 @@ export default function MyStatusScreen() {
           </View>
           <Feather name="chevron-right" size={14} color={BRAND.textMuted} />
         </Pressable>
-      ) : atRiskMembers.length > 0 ? (
-        <>
-          <View style={styles.sectionHeader}>
-            <Feather name="alert-triangle" size={16} color="#F59E0B" />
-            <Text style={styles.sectionTitle}>{t("myStatus.needsAttention")}</Text>
-          </View>
-          <Text style={styles.sectionHint}>
-            {t("myStatus.needsAttentionHint")}
-          </Text>
-          {atRiskMembers.map((m) => (
-            <InactivityAlert key={m.id} name={m.name} status={m.status} />
-          ))}
-        </>
       ) : null}
 
       <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 12 }]}>
@@ -562,6 +538,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  familySeesBlock: {
+    alignItems: "center",
+    gap: 6,
+  },
+  familySeesLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: BRAND.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -569,11 +556,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 999,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
   statusBadgeText: {
     fontSize: 14,

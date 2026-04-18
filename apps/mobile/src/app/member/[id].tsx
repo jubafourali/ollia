@@ -16,9 +16,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BRAND from "@/constants/colors";
 import { MemberAvatar } from "@/components/MemberAvatar";
-import { getStatusColor, getStatusLabel } from "@/components/StatusDot";
 import { useFamilyContext } from "@/context/FamilyContext";
-import { formatLastSeen, formatTimeAgo } from "@/utils/time";
+import { getCheckInLabel } from "@/utils/checkInLabel";
 
 export default function MemberDetailScreen() {
   const { t } = useTranslation();
@@ -39,8 +38,7 @@ export default function MemberDetailScreen() {
     );
   }
 
-  const statusColor = getStatusColor(member.status);
-  const statusLabel = getStatusLabel(member.status);
+  const checkIn = getCheckInLabel(member.lastCheckInAt);
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
   return (
@@ -92,37 +90,36 @@ export default function MemberDetailScreen() {
           <MemberAvatar
             name={member.name}
             avatar={member.avatar}
-            status={member.status}
             size={88}
-            showRing
           />
           <Text style={styles.name}>{member.name}</Text>
           <Text style={styles.relation}>{member.relation}</Text>
 
-          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}20` }]}>
-            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-              {statusLabel}
+          <View style={[styles.statusBadge, { backgroundColor: `${checkIn.color}20` }]}>
+            <Feather
+              name={checkIn.tone === "fresh" ? "check-circle" : "alert-circle"}
+              size={14}
+              color={checkIn.color}
+            />
+            <Text style={[styles.statusBadgeText, { color: checkIn.color }]}>
+              {checkIn.text}
             </Text>
           </View>
         </View>
 
-        <View style={styles.infoGrid}>
-          <View style={styles.infoBox}>
-            <Feather name="clock" size={18} color={BRAND.primary} />
-            <Text style={styles.infoBoxLabel}>{t("member.lastActive")}</Text>
-            <Text style={styles.infoBoxValue}>{formatTimeAgo(member.lastSeen)}</Text>
+        {member.region ? (
+          <View style={styles.infoGrid}>
+            <View style={[styles.infoBox, { flex: 1 }]}>
+              <Feather name="map-pin" size={18} color={BRAND.primary} />
+              <Text style={styles.infoBoxLabel}>{t("member.region")}</Text>
+              <Text style={styles.infoBoxValue}>{member.region}</Text>
+            </View>
           </View>
-          <View style={styles.infoBox}>
-            <Feather name="map-pin" size={18} color={BRAND.primary} />
-            <Text style={styles.infoBoxLabel}>{t("member.region")}</Text>
-            <Text style={styles.infoBoxValue}>{member.region}</Text>
-          </View>
-        </View>
+        ) : null}
 
         <View style={styles.statusCard}>
-          <Ionicons name="heart-circle-outline" size={22} color={statusColor} />
-          <Text style={styles.statusDetail}>{formatLastSeen(member.lastSeen)}</Text>
+          <Ionicons name="heart-circle-outline" size={22} color={checkIn.color} />
+          <Text style={styles.statusDetail}>{checkIn.text}</Text>
         </View>
 
         <View style={styles.privacyNote}>
@@ -190,11 +187,6 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 999,
     marginTop: 4,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
   statusBadgeText: {
     fontSize: 14,

@@ -32,6 +32,14 @@
     "away": "Away",
     "inactive": "No activity"
   },
+  "checkIn": {
+    "today": "Checked in today at {{time}}",
+    "yesterday": "Checked in yesterday at {{time}}",
+    "daysAgo_one": "Last check-in {{count}} day ago",
+    "daysAgo_other": "Last check-in {{count}} days ago",
+    "never": "Never checked in",
+    "familySees": "Your family sees:"
+  },
   "tabs": {
     "family": "Family",
     "myStatus": "My Status",
@@ -40,6 +48,7 @@
   "family": {
     "title": "Family Circle",
     "activeNow": "{{count}} of {{total}} active now",
+    "checkedInToday": "{{count}} of {{total}} checked in today",
     "watching": "Ollia is quietly watching over everyone",
     "travelBanner_one": "{{names}} is currently traveling",
     "travelBanner_other": "{{names}} are currently traveling",
@@ -113,6 +122,8 @@
     "safetyPreferences": "Safety Preferences",
     "inactivityThreshold": "Inactivity threshold",
     "inactivityThresholdHint": "Alert you after this many hours of no activity",
+    "urgentOvernight": "Urgent overnight alerts",
+    "urgentOvernightHint": "Ollia is quiet at night (11pm–8am). Turn this on only if you want nudges to come through even then.",
     "saveThreshold": "Save threshold",
     "scheduledMode": "Scheduled mode",
     "scheduledModeHint": "Going on a hike or trip? Set a deadline — your circle gets alerted if you don't check in by then.",

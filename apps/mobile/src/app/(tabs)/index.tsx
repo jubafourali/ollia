@@ -188,7 +188,15 @@ export default function FamilyScreen() {
     if (b.isMe) return 1;
     return 0;
   });
-  const activeCount = members.filter((m) => m.status === "active").length;
+  const checkedInTodayCount = members.filter((m) => {
+    if (!m.lastCheckInAt) return false;
+    const now = new Date();
+    return (
+      m.lastCheckInAt.getFullYear() === now.getFullYear() &&
+      m.lastCheckInAt.getMonth() === now.getMonth() &&
+      m.lastCheckInAt.getDate() === now.getDate()
+    );
+  }).length;
   const topInset = Platform.OS === "web" ? 67 : insets.top;
 
   const significantEvents = safetyEvents.filter(
@@ -212,7 +220,7 @@ export default function FamilyScreen() {
         <View>
           <Text style={styles.greeting}>{t("family.title")}</Text>
           <Text style={styles.subtitle}>
-            {t("family.activeNow", { count: activeCount, total: members.length })}
+            {t("family.checkedInToday", { count: checkedInTodayCount, total: members.length })}
           </Text>
         </View>
         <Pressable
@@ -414,6 +422,7 @@ export default function FamilyScreen() {
         myProfile={myProfile}
         onInviteSent={(name, relation) => {
           addMember({
+            userId: "",
             name,
             relation,
             avatar: name[0]?.toUpperCase() ?? "?",
@@ -421,7 +430,7 @@ export default function FamilyScreen() {
             pending: true,
           });
         }}
-        onNameSet={(name) => setMyProfile({ name, region: myProfile?.region ?? "" })}
+        onNameSet={(name) => setMyProfile({ name, region: myProfile?.region ?? "", timezone: myProfile?.timezone })}
       />
     </View>
   );
