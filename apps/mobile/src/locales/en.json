@@ -65,7 +65,8 @@
     "footerNote": "Official data from USGS, NOAA & GDACS. {{context}} Tap any alert to view the original report.",
     "emptyTitle": "Your circle is empty",
     "emptyText": "Invite family members so they can receive a quiet signal that you're safe.",
-    "inviteSomeone": "Invite someone"
+    "inviteSomeone": "Invite someone",
+    "invited": "Invited"
   },
   "myStatus": {
     "title": "My Status",
@@ -244,6 +245,7 @@
     "relationLabel": "Their relation to you",
     "shareLink": "Share invite link",
     "privacyNote": "Only people with this link can join your circle. You can remove them anytime.",
+    "shareSheetTitle": "Join my Ollia circle",
     "relations": {
       "Mother": "Mother",
       "Father": "Father",
@@ -252,7 +254,8 @@
       "Partner": "Partner",
       "Child": "Child",
       "Friend": "Friend",
-      "Other": "Other"
+      "Other": "Other",
+      "Family": "Family"
     }
   },
   "join": {
@@ -329,13 +332,36 @@
     "disclaimer": "Ollia does not modify official alert data. Data is sourced directly from USGS, NOAA, and GDACS (EU Joint Research Centre) and linked to original reports. NOAA covers the US only — enable GDACS for global coverage including UAE and Middle East."
   },
   "notifications": {
-    "l1Title": "Ollia",
-    "l1Body": "Are you okay? Tap to let your family know.",
-    "l2Title": "Ollia",
-    "l2Body": "{{name}} hasn't been active for a while. You may want to check in.",
-    "l3Title": "Ollia — Urgent",
-    "l3Body": "{{name}} has been unreachable for an extended period. Please check on them.",
+    "nudgeTitle": "Ollia",
+    "nudgeBody": "A little check-in goes a long way 💛",
+    "nudge2Title": "Ollia",
+    "nudge2Body": "Still thinking of you. One tap is all it takes.",
+    "familySoftTitle": "Ollia",
+    "familySoftBody": "{{name}} hasn't checked in today. You may want to reach out.",
+    "familyStrongTitle": "Ollia — Urgent",
+    "familyStrongBody": "{{name}} hasn't been heard from in over a day. Please check on them.",
     "scheduledTitle": "Ollia",
-    "scheduledBody": "{{name}} missed their scheduled check-in. You may want to reach out."
+    "scheduledBody": "{{name}} missed their check-in. You may want to reach out."
+  },
+  "checkIn": {
+    "today": "Checked in today at {{time}}",
+    "yesterday": "Checked in yesterday at {{time}}",
+    "daysAgo_one": "Last check-in {{count}} day ago",
+    "daysAgo_other": "Last check-in {{count}} days ago",
+    "never": "Never checked in",
+    "familySees": "Your family sees:"
+  },
+  "permissions": {
+    "sectionTitle": "Permissions",
+    "notifications": "Notifications",
+    "notificationsHint": "Lets your family know when you haven't been active. Never used for marketing.",
+    "backgroundRefresh": "Background App Refresh",
+    "backgroundRefreshHint": "Quietly sends a signal while the app is closed so your status stays current.",
+    "backgroundRefreshHintLowPower": "Quietly sends a signal while the app is closed so your status stays current. Disabled by iOS when Low Power Mode is on.",
+    "backgroundLocation": "Background Location",
+    "backgroundLocationHint": "Used only as a trigger, never stored or shared. Set to Always in iOS Settings for best results.",
+    "statusOn": "On",
+    "statusOff": "Off — tap to enable",
+    "statusLowPower": "Needs Low Power Mode off"
   }
 }

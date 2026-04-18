@@ -670,7 +670,7 @@ export default function SettingsScreen() {
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Permissions</Text>
+      <Text style={styles.sectionTitle}>{t("permissions.sectionTitle")}</Text>
       <View style={styles.section}>
         {/* Notifications */}
         <Pressable
@@ -681,14 +681,14 @@ export default function SettingsScreen() {
             <Feather name="bell" size={18} color={BRAND.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Notifications</Text>
+            <Text style={styles.rowLabel}>{t("permissions.notifications")}</Text>
             <Text style={styles.rowSubtitle}>
-              Lets your family know when you haven't been active. Never used for marketing.
+              {t("permissions.notificationsHint")}
             </Text>
           </View>
           <View style={[permStyles.badge, { backgroundColor: notifPermGranted ? `${BRAND.statusGreen}18` : `#F59E0B18` }]}>
             <Text style={[permStyles.badgeText, { color: notifPermGranted ? BRAND.statusGreen : "#F59E0B" }]}>
-              {notifPermGranted ? "On" : "Off — tap to enable"}
+              {notifPermGranted ? t("permissions.statusOn") : t("permissions.statusOff")}
             </Text>
           </View>
         </Pressable>
@@ -704,11 +704,11 @@ export default function SettingsScreen() {
             <Feather name="refresh-cw" size={18} color={BRAND.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Background App Refresh</Text>
+            <Text style={styles.rowLabel}>{t("permissions.backgroundRefresh")}</Text>
             <Text style={styles.rowSubtitle}>
               {bgRefreshStatus === "limited"
-                ? "Quietly sends a signal while the app is closed so your status stays current. Disabled by iOS when Low Power Mode is on."
-                : "Quietly sends a signal while the app is closed so your status stays current."}
+                ? t("permissions.backgroundRefreshHintLowPower")
+                : t("permissions.backgroundRefreshHint")}
             </Text>
           </View>
           <View style={[permStyles.badge, {
@@ -721,7 +721,7 @@ export default function SettingsScreen() {
                 : bgRefreshStatus === "off" ? "#F59E0B"
                 : BRAND.textMuted,
             }]}>
-              {bgRefreshStatus === "on" ? "On" : bgRefreshStatus === "off" ? "Off — tap to enable" : "Needs Low Power Mode off"}
+              {bgRefreshStatus === "on" ? t("permissions.statusOn") : bgRefreshStatus === "off" ? t("permissions.statusOff") : t("permissions.statusLowPower")}
             </Text>
           </View>
         </Pressable>
@@ -743,14 +743,12 @@ export default function SettingsScreen() {
             <Feather name="map-pin" size={18} color={BRAND.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowLabel}>Background Location</Text>
-            <Text style={styles.rowSubtitle}>
-              Used only as a trigger, never stored or shared. Set to Always in iOS Settings for best results.
-            </Text>
+            <Text style={styles.rowLabel}>{t("permissions.backgroundLocation")}</Text>
+            <Text style={styles.rowSubtitle}>{t("permissions.backgroundLocationHint")}</Text>
           </View>
           <View style={[permStyles.badge, { backgroundColor: bgLocationGranted ? `${BRAND.statusGreen}18` : `#F59E0B18` }]}>
             <Text style={[permStyles.badgeText, { color: bgLocationGranted ? BRAND.statusGreen : "#F59E0B" }]}>
-              {bgLocationGranted ? "On" : "Off — tap to enable"}
+              {bgLocationGranted ? t("permissions.statusOn") : t("permissions.statusOff")}
             </Text>
           </View>
         </Pressable>

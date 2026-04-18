@@ -51,7 +51,7 @@ private object NudgeMessages {
 
     private val translations: Map<String, Messages> = mapOf(
         "en" to Messages(
-            firstNudge = "A little check-in goes a long way \uD83D\uDC9B",
+            firstNudge = "A little check-in goes a long way 💛",
             secondNudge = "Still thinking of you. One tap is all it takes.",
             soft = "%s hasn't checked in today. You may want to reach out.",
             strong = "%s hasn't been heard from in over a day. Please check on them.",
@@ -60,28 +60,28 @@ private object NudgeMessages {
             nudgeTitle = "Ollia"
         ),
         "fr" to Messages(
-            firstNudge = "Un petit signe fait toute la différence \uD83D\uDC9B",
-            secondNudge = "On pense à vous. Une petite pression suffit.",
-            soft = "%s ne s'est pas manifesté(e) aujourd'hui. Pensez à lui/elle écrire.",
-            strong = "%s n'a pas donné de nouvelles depuis plus d'une journée. Merci de vérifier.",
+            firstNudge = "Un petit check-in, ça compte beaucoup 💛",
+            secondNudge = "On pense à toi. Un simple geste suffit.",
+            soft = "%s ne s’est pas manifesté aujourd’hui. Vous pourriez prendre de ses nouvelles.",
+            strong = "%s est injoignable depuis un moment. Merci de vérifier que tout va bien.",
             softTitle = "Ollia",
             strongTitle = "Ollia — Urgent",
             nudgeTitle = "Ollia"
         ),
         "ar" to Messages(
-            firstNudge = "تسجيل صغير يُحدث فرقاً كبيراً \uD83D\uDC9B",
+            firstNudge = "تسجيل صغير يُحدث فرقاً كبيراً 💛",
             secondNudge = "ما زلنا نفكر فيك. ضغطة واحدة تكفي.",
-            soft = "%s لم يسجل اليوم. ربما تريد التواصل معه.",
-            strong = "%s لم نسمع منه منذ أكثر من يوم. يرجى التحقق منه.",
+            soft = "%s لم يسجل اليوم. ربما تود التواصل معه.",
+            strong = "%s لم يتم التواصل معه منذ أكثر من يوم. يرجى التحقق منه.",
             softTitle = "أوليا",
             strongTitle = "أوليا — عاجل",
             nudgeTitle = "أوليا"
         ),
         "bs" to Messages(
-            firstNudge = "Mala provjera znači mnogo \uD83D\uDC9B",
-            secondNudge = "Mislimo na vas. Jedan tap je dovoljan.",
+            firstNudge = "Mala provjera znači mnogo 💛",
+            secondNudge = "Još uvijek mislimo na tebe. Jedan dodir je dovoljan.",
             soft = "%s se danas nije javio/la. Možda biste trebali provjeriti.",
-            strong = "%s se nije čuo/la više od jednog dana. Molimo provjerite.",
+            strong = "%s se nije javio/la više od jednog dana. Molimo provjerite.",
             softTitle = "Ollia",
             strongTitle = "Ollia — Hitno",
             nudgeTitle = "Ollia"
@@ -160,7 +160,8 @@ class NudgeScheduler(
             pushNotificationService.sendPushNotification(
                 expoPushToken = pushToken,
                 title = msgs.nudgeTitle,
-                body = msgs.firstNudge
+                body = msgs.firstNudge,
+                "CHECKIN_NUDGE"
             )
             user.nudgeSentAt = now
             userRepository.save(user)
@@ -175,7 +176,8 @@ class NudgeScheduler(
             pushNotificationService.sendPushNotification(
                 expoPushToken = pushToken,
                 title = msgs.nudgeTitle,
-                body = msgs.secondNudge
+                body = msgs.secondNudge,
+                "CHECKIN_NUDGE"
             )
             user.secondNudgeSentAt = now
             userRepository.save(user)

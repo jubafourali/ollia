@@ -201,7 +201,7 @@ export default function InviteOnboardingScreen() {
       const circle = await api.joinCircle({
         inviteCode: inviteToken,
         userId,
-        relation: "Family",
+        relation: t("invite.relations.Other"),
       });
 
       await AsyncStorage.setItem(CIRCLE_KEY, circle.id);
@@ -281,7 +281,7 @@ export default function InviteOnboardingScreen() {
             return handleEmailContinue(true);
           }
           setError(
-            e2?.errors?.[0]?.longMessage ?? "Something went wrong. Try again."
+            e2?.errors?.[0]?.longMessage ?? t("onboarding.errorGeneric")
           );
         }
       } else {
@@ -291,7 +291,7 @@ export default function InviteOnboardingScreen() {
           return handleEmailContinue(true);
         }
         setError(
-          e?.errors?.[0]?.longMessage ?? "Something went wrong. Try again."
+          e?.errors?.[0]?.longMessage ?? t("onboarding.errorGeneric")
         );
       }
     } finally {

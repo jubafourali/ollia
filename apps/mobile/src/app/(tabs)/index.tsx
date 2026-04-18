@@ -426,7 +426,7 @@ export default function FamilyScreen() {
             name,
             relation,
             avatar: name[0]?.toUpperCase() ?? "?",
-            region: "Invited",
+            region: t("family.invited"),
             pending: true,
           });
         }}

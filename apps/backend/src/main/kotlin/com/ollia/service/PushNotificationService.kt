@@ -12,7 +12,7 @@ class PushNotificationService {
         .baseUrl("https://exp.host/--/api/v2/push/send")
         .build()
 
-    fun sendPushNotification(expoPushToken: String, title: String, body: String) {
+    fun sendPushNotification(expoPushToken: String, title: String, body: String, categoryId: String? = null) {
         try {
             webClient.post()
                 .bodyValue(mapOf(
@@ -20,8 +20,9 @@ class PushNotificationService {
                     "sound" to "default",
                     "title" to title,
                     "body" to body,
-                    "data" to mapOf("type" to "checkin")
-                ))
+                    "data" to mapOf("type" to "checkin"),
+                    ).let { if (categoryId != null) it + ("categoryId" to categoryId) else it }
+                )
                 .retrieve()
                 .bodyToMono(String::class.java)
                 .block()

@@ -33,17 +33,6 @@ type Props = {
   onNameSet?: (name: string) => void;
 };
 
-const RELATION_KEYS = [
-  "Mother",
-  "Father",
-  "Sister",
-  "Brother",
-  "Partner",
-  "Child",
-  "Friend",
-  "Other",
-] as const;
-
 export function InviteModal({
   visible,
   onClose,
@@ -52,12 +41,24 @@ export function InviteModal({
   onInviteSent,
   onNameSet,
 }: Props) {
-  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [relation, setRelation] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
   const [editingName, setEditingName] = useState("");
   const checkScale = useSharedValue(0);
+
+  const {t} = useTranslation();
+
+  const RELATION_KEYS = [
+    { key: "Mother", label: t("invite.relations.Mother") },
+    { key: "Father", label: t("invite.relations.Father") },
+    { key: "Sister", label: t("invite.relations.Sister") },
+    { key: "Brother", label: t("invite.relations.Brother") },
+    { key: "Partner", label: t("invite.relations.Partner") },
+    { key: "Child", label: t("invite.relations.Child") },
+    { key: "Friend", label: t("invite.relations.Friend") },
+    { key: "Other", label: t("invite.relations.Other") },
+  ];
 
   const needsName = !myProfile?.name;
 
@@ -92,7 +93,7 @@ export function InviteModal({
     try {
       await Share.share({
         message: `${name} cares about you \u{1F49B}\n\nThey're using Ollia to quietly make sure everyone is okay.\n\nJoin their circle:\n${link}`,
-        title: "Join my Ollia circle",
+        title: t("invite.shareSheetTitle"),
       });
       if (relation) {
         onInviteSent(relation, relation);
@@ -194,20 +195,20 @@ export function InviteModal({
           <Text style={styles.sectionLabel}>{t("invite.relationLabel")}</Text>
           <View style={styles.chips}>
             {RELATION_KEYS.map((r) => (
-              <Pressable
-                key={r}
-                style={[styles.chip, relation === r && styles.chipSelected]}
-                onPress={() => setRelation(r)}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    relation === r && styles.chipTextSelected,
-                  ]}
+                <Pressable
+                    key={r.key}
+                    style={[styles.chip, relation === r.key && styles.chipSelected]}
+                    onPress={() => setRelation(r.key)}
                 >
-                  {t(`invite.relations.${r}`)}
-                </Text>
-              </Pressable>
+                  <Text
+                      style={[
+                        styles.chipText,
+                        relation === r.key && styles.chipTextSelected,
+                      ]}
+                  >
+                    {r.label}
+                  </Text>
+                </Pressable>
             ))}
           </View>
 
