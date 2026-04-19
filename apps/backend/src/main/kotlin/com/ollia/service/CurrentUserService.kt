@@ -5,10 +5,15 @@ import com.ollia.repository.UserRepository
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.stereotype.Service
+import java.time.ZoneOffset
 import java.util.UUID
 
 @Service
 class CurrentUserService(private val userRepository: UserRepository) {
+    companion object {
+        const val FOUNDING_MEMBER_LIMIT = 100L
+        const val FOUNDING_PERK_MONTHS = 6L
+    }
 
     fun getClerkId(): String {
         val jwt = SecurityContextHolder.getContext().authentication.principal as Jwt
