@@ -889,176 +889,178 @@ export default function SettingsScreen() {
         </Pressable>
       )}
 
-      <Text style={styles.sectionTitle}>{t("settings.activityApps")}</Text>
-      {plan === "premium" ? (
-        <View style={[styles.section, { padding: 16, gap: 14 }]}>
-          {/* Privacy notice */}
-          <View style={aaStyles.privacyNotice}>
-            <Feather name="eye-off" size={14} color={BRAND.primary} />
-            <Text style={aaStyles.privacyText}>
-              {t("settings.activityAppsPrivacy")}
-            </Text>
-          </View>
+      {/*TODO this feature will come soon after launch*/}
+      {/*<Text style={styles.sectionTitle}>{t("settings.activityApps")}</Text>*/}
+      {/*{plan === "premium" ? (*/}
+      {/*  <View style={[styles.section, { padding: 16, gap: 14 }]}>*/}
+      {/*    /!* Privacy notice *!/*/}
+      {/*    <View style={aaStyles.privacyNotice}>*/}
+      {/*      <Feather name="eye-off" size={14} color={BRAND.primary} />*/}
+      {/*      <Text style={aaStyles.privacyText}>*/}
+      {/*        {t("settings.activityAppsPrivacy")}*/}
+      {/*      </Text>*/}
+      {/*    </View>*/}
 
-          {/* One-line explanation */}
-          <Text style={aaStyles.explanationText}>
-            Opening one of these apps will quietly let your family know you're okay.
-          </Text>
+      {/*    /!* One-line explanation *!/*/}
+      {/*    <Text style={aaStyles.explanationText}>*/}
+      {/*      Opening one of these apps will quietly let your family know you're okay.*/}
+      {/*    </Text>*/}
 
-          {/* Selected apps */}
-          {selectedApps.length > 0 && (
-            <View style={{ gap: 6 }}>
-              <Text style={profileStyles.label}>{t("settings.selectedApps")}</Text>
-              {selectedApps.map((app) => (
-                <View key={app.id} style={aaStyles.appChipRow}>
-                  <View style={aaStyles.chip}>
-                    <Text style={aaStyles.chipText}>{app.name}</Text>
-                    <Pressable
-                      onPress={() => handleRemoveApp(app.id)}
-                      hitSlop={8}
-                    >
-                      <Feather name="x" size={13} color={BRAND.textSecondary} />
-                    </Pressable>
-                  </View>
-                  <Pressable
-                    style={({ pressed }) => [aaStyles.setupBtn, pressed && { opacity: 0.7 }]}
-                    onPress={() => {
-                      Linking.openURL("shortcuts://");
-                      setSetupGuideApp(app.name);
-                      if (!shortcutToken) {
-                        setShortcutTokenLoading(true);
-                        api.getShortcutToken()
-                          .then((res) => setShortcutToken(res.token))
-                          .catch(() => {})
-                          .finally(() => setShortcutTokenLoading(false));
-                      }
-                    }}
-                  >
-                    <Feather name="zap" size={13} color={BRAND.primary} />
-                    <Text style={aaStyles.setupBtnText}>Set it up for me</Text>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          )}
+      {/*    /!* Selected apps *!/*/}
+      {/*    {selectedApps.length > 0 && (*/}
+      {/*      <View style={{ gap: 6 }}>*/}
+      {/*        <Text style={profileStyles.label}>{t("settings.selectedApps")}</Text>*/}
+      {/*        {selectedApps.map((app) => (*/}
+      {/*          <View key={app.id} style={aaStyles.appChipRow}>*/}
+      {/*            <View style={aaStyles.chip}>*/}
+      {/*              <Text style={aaStyles.chipText}>{app.name}</Text>*/}
+      {/*              <Pressable*/}
+      {/*                onPress={() => handleRemoveApp(app.id)}*/}
+      {/*                hitSlop={8}*/}
+      {/*              >*/}
+      {/*                <Feather name="x" size={13} color={BRAND.textSecondary} />*/}
+      {/*              </Pressable>*/}
+      {/*            </View>*/}
+      {/*            <Pressable*/}
+      {/*              style={({ pressed }) => [aaStyles.setupBtn, pressed && { opacity: 0.7 }]}*/}
+      {/*              onPress={() => {*/}
+      {/*                Linking.openURL("shortcuts://");*/}
+      {/*                setSetupGuideApp(app.name);*/}
+      {/*                if (!shortcutToken) {*/}
+      {/*                  setShortcutTokenLoading(true);*/}
+      {/*                  api.getShortcutToken()*/}
+      {/*                    .then((res) => setShortcutToken(res.token))*/}
+      {/*                    .catch(() => {})*/}
+      {/*                    .finally(() => setShortcutTokenLoading(false));*/}
+      {/*                }*/}
+      {/*              }}*/}
+      {/*            >*/}
+      {/*              <Feather name="zap" size={13} color={BRAND.primary} />*/}
+      {/*              <Text style={aaStyles.setupBtnText}>Set it up for me</Text>*/}
+      {/*            </Pressable>*/}
+      {/*          </View>*/}
+      {/*        ))}*/}
+      {/*      </View>*/}
+      {/*    )}*/}
 
-          {/* Add apps button / picker */}
-          {showAppPicker ? (
-            <View style={{ gap: 8 }}>
-              <TextInput
-                style={profileStyles.input}
-                placeholder={t("common.searchApps")}
-                placeholderTextColor={BRAND.textMuted}
-                value={appSearch}
-                onChangeText={setAppSearch}
-                autoCorrect={false}
-                autoFocus
-              />
-              <View style={aaStyles.appList}>
-                {filteredCatalog
-                  .filter((a) => !selectedAppIds.includes(a.id))
-                  .slice(0, 12)
-                  .map((app) => (
-                    <Pressable
-                      key={app.id}
-                      style={({ pressed }) => [
-                        aaStyles.appRow,
-                        pressed && { opacity: 0.7 },
-                      ]}
-                      onPress={() => handleAddApp(app.id)}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={aaStyles.appName}>{app.name}</Text>
-                        <Text style={aaStyles.appCategory}>{app.category}</Text>
-                      </View>
-                      <Feather name="plus-circle" size={18} color={BRAND.primary} />
-                    </Pressable>
-                  ))}
-              </View>
-              <Pressable
-                style={({ pressed }) => [aaStyles.doneBtn, pressed && { opacity: 0.7 }]}
-                onPress={() => {
-                  setShowAppPicker(false);
-                  setAppSearch("");
-                }}
-              >
-                <Text style={aaStyles.doneBtnText}>{t("common.done")}</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <Pressable
-              style={({ pressed }) => [aaStyles.addBtn, pressed && { opacity: 0.7 }]}
-              onPress={() => setShowAppPicker(true)}
-            >
-              <Feather name="plus" size={16} color={BRAND.primary} />
-              <Text style={aaStyles.addBtnText}>{t("settings.addApps")}</Text>
-            </Pressable>
-          )}
-        </View>
-      ) : (
-        <Pressable style={styles.section} onPress={() => setShowUpgrade(true)}>
-          <View style={spStyles.lockedRow}>
-            <Feather name="lock" size={14} color={BRAND.textMuted} />
-            <View style={{ flex: 1 }}>
-              <Text style={spStyles.lockedTitle}>{t("settings.activityApps")}</Text>
-              <Text style={spStyles.lockedText}>
-                {t("settings.activityAppsLocked")}
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={14} color={BRAND.textMuted} />
-          </View>
-        </Pressable>
-      )}
+      {/*    /!* Add apps button / picker *!/*/}
+      {/*    {showAppPicker ? (*/}
+      {/*      <View style={{ gap: 8 }}>*/}
+      {/*        <TextInput*/}
+      {/*          style={profileStyles.input}*/}
+      {/*          placeholder={t("common.searchApps")}*/}
+      {/*          placeholderTextColor={BRAND.textMuted}*/}
+      {/*          value={appSearch}*/}
+      {/*          onChangeText={setAppSearch}*/}
+      {/*          autoCorrect={false}*/}
+      {/*          autoFocus*/}
+      {/*        />*/}
+      {/*        <View style={aaStyles.appList}>*/}
+      {/*          {filteredCatalog*/}
+      {/*            .filter((a) => !selectedAppIds.includes(a.id))*/}
+      {/*            .slice(0, 12)*/}
+      {/*            .map((app) => (*/}
+      {/*              <Pressable*/}
+      {/*                key={app.id}*/}
+      {/*                style={({ pressed }) => [*/}
+      {/*                  aaStyles.appRow,*/}
+      {/*                  pressed && { opacity: 0.7 },*/}
+      {/*                ]}*/}
+      {/*                onPress={() => handleAddApp(app.id)}*/}
+      {/*              >*/}
+      {/*                <View style={{ flex: 1 }}>*/}
+      {/*                  <Text style={aaStyles.appName}>{app.name}</Text>*/}
+      {/*                  <Text style={aaStyles.appCategory}>{app.category}</Text>*/}
+      {/*                </View>*/}
+      {/*                <Feather name="plus-circle" size={18} color={BRAND.primary} />*/}
+      {/*              </Pressable>*/}
+      {/*            ))}*/}
+      {/*        </View>*/}
+      {/*        <Pressable*/}
+      {/*          style={({ pressed }) => [aaStyles.doneBtn, pressed && { opacity: 0.7 }]}*/}
+      {/*          onPress={() => {*/}
+      {/*            setShowAppPicker(false);*/}
+      {/*            setAppSearch("");*/}
+      {/*          }}*/}
+      {/*        >*/}
+      {/*          <Text style={aaStyles.doneBtnText}>{t("common.done")}</Text>*/}
+      {/*        </Pressable>*/}
+      {/*      </View>*/}
+      {/*    ) : (*/}
+      {/*      <Pressable*/}
+      {/*        style={({ pressed }) => [aaStyles.addBtn, pressed && { opacity: 0.7 }]}*/}
+      {/*        onPress={() => setShowAppPicker(true)}*/}
+      {/*      >*/}
+      {/*        <Feather name="plus" size={16} color={BRAND.primary} />*/}
+      {/*        <Text style={aaStyles.addBtnText}>{t("settings.addApps")}</Text>*/}
+      {/*      </Pressable>*/}
+      {/*    )}*/}
+      {/*  </View>*/}
+      {/*) : (*/}
+      {/*  <Pressable style={styles.section} onPress={() => setShowUpgrade(true)}>*/}
+      {/*    <View style={spStyles.lockedRow}>*/}
+      {/*      <Feather name="lock" size={14} color={BRAND.textMuted} />*/}
+      {/*      <View style={{ flex: 1 }}>*/}
+      {/*        <Text style={spStyles.lockedTitle}>{t("settings.activityApps")}</Text>*/}
+      {/*        <Text style={spStyles.lockedText}>*/}
+      {/*          {t("settings.activityAppsLocked")}*/}
+      {/*        </Text>*/}
+      {/*      </View>*/}
+      {/*      <Feather name="chevron-right" size={14} color={BRAND.textMuted} />*/}
+      {/*    </View>*/}
+      {/*  </Pressable>*/}
+      {/*)}*/}
 
-      <Text style={styles.sectionTitle}>{t("settings.emergencyContact")}</Text>
-      <View style={[styles.section, { padding: 16, gap: 14 }]}>
-        <Text style={ecStyles.hint}>
-          {t("settings.emergencyContactHint")}
-        </Text>
-        <View style={profileStyles.field}>
-          <Text style={profileStyles.label}>{t("settings.name")}</Text>
-          <TextInput
-            style={profileStyles.input}
-            placeholder={t("settings.ecNamePlaceholder")}
-            placeholderTextColor={BRAND.textMuted}
-            value={ecName}
-            onChangeText={setEcName}
-            autoCorrect={false}
-          />
-        </View>
-        <View style={profileStyles.field}>
-          <Text style={profileStyles.label}>{t("settings.phoneNumber")}</Text>
-          <TextInput
-            style={profileStyles.input}
-            placeholder={t("settings.phonePlaceholder")}
-            placeholderTextColor={BRAND.textMuted}
-            value={ecPhone}
-            onChangeText={setEcPhone}
-            keyboardType="phone-pad"
-            autoCorrect={false}
-          />
-        </View>
-        <Pressable
-          style={({ pressed }) => [
-            profileStyles.saveBtn,
-            !ecDirty && profileStyles.saveBtnDisabled,
-            pressed && { opacity: 0.85 },
-          ]}
-          onPress={handleSaveEmergencyContact}
-          disabled={ecSaving || !ecDirty}
-        >
-          {ecSaved ? (
-            <>
-              <Feather name="check" size={16} color={BRAND.white} />
-              <Text style={profileStyles.saveBtnText}>{t("common.saved")}</Text>
-            </>
-          ) : (
-            <Text style={profileStyles.saveBtnText}>
-              {ecSaving ? t("common.saving") : t("settings.saveEmergencyContact")}
-            </Text>
-          )}
-        </Pressable>
-      </View>
+      {/*TODO this feature will come soon after launch*/}
+      {/*<Text style={styles.sectionTitle}>{t("settings.emergencyContact")}</Text>*/}
+      {/*<View style={[styles.section, { padding: 16, gap: 14 }]}>*/}
+      {/*  <Text style={ecStyles.hint}>*/}
+      {/*    {t("settings.emergencyContactHint")}*/}
+      {/*  </Text>*/}
+      {/*  <View style={profileStyles.field}>*/}
+      {/*    <Text style={profileStyles.label}>{t("settings.name")}</Text>*/}
+      {/*    <TextInput*/}
+      {/*      style={profileStyles.input}*/}
+      {/*      placeholder={t("settings.ecNamePlaceholder")}*/}
+      {/*      placeholderTextColor={BRAND.textMuted}*/}
+      {/*      value={ecName}*/}
+      {/*      onChangeText={setEcName}*/}
+      {/*      autoCorrect={false}*/}
+      {/*    />*/}
+      {/*  </View>*/}
+      {/*  <View style={profileStyles.field}>*/}
+      {/*    <Text style={profileStyles.label}>{t("settings.phoneNumber")}</Text>*/}
+      {/*    <TextInput*/}
+      {/*      style={profileStyles.input}*/}
+      {/*      placeholder={t("settings.phonePlaceholder")}*/}
+      {/*      placeholderTextColor={BRAND.textMuted}*/}
+      {/*      value={ecPhone}*/}
+      {/*      onChangeText={setEcPhone}*/}
+      {/*      keyboardType="phone-pad"*/}
+      {/*      autoCorrect={false}*/}
+      {/*    />*/}
+      {/*  </View>*/}
+      {/*  <Pressable*/}
+      {/*    style={({ pressed }) => [*/}
+      {/*      profileStyles.saveBtn,*/}
+      {/*      !ecDirty && profileStyles.saveBtnDisabled,*/}
+      {/*      pressed && { opacity: 0.85 },*/}
+      {/*    ]}*/}
+      {/*    onPress={handleSaveEmergencyContact}*/}
+      {/*    disabled={ecSaving || !ecDirty}*/}
+      {/*  >*/}
+      {/*    {ecSaved ? (*/}
+      {/*      <>*/}
+      {/*        <Feather name="check" size={16} color={BRAND.white} />*/}
+      {/*        <Text style={profileStyles.saveBtnText}>{t("common.saved")}</Text>*/}
+      {/*      </>*/}
+      {/*    ) : (*/}
+      {/*      <Text style={profileStyles.saveBtnText}>*/}
+      {/*        {ecSaving ? t("common.saving") : t("settings.saveEmergencyContact")}*/}
+      {/*      </Text>*/}
+      {/*    )}*/}
+      {/*  </Pressable>*/}
+      {/*</View>*/}
 
       <Text style={styles.sectionTitle}>{t("settings.privacy")}</Text>
       <View style={styles.section}>

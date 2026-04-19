@@ -35,7 +35,8 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
     { icon: "alert-triangle", text: t("upgrade.features.smartEscalation") },
     { icon: "clock", text: t("upgrade.features.customInactivity") },
     { icon: "calendar", text: t("upgrade.features.scheduledMode") },
-    { icon: "smartphone", text: t("upgrade.features.activityApps") },
+    // TODO this feature will come soon after launch
+    // { icon: "smartphone", text: t("upgrade.features.activityApps") },
     { icon: "navigation", text: t("upgrade.features.travelMode") },
     { icon: "map-pin", text: t("upgrade.features.cityAlerts") },
     { icon: "shield", text: t("upgrade.features.severityControl") },
