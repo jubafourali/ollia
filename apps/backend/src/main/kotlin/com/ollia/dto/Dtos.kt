@@ -22,8 +22,9 @@ data class ApiUserResponse(
     val createdAt: String? = null,
     val plan: String? = null,
     val foundingMember: Boolean = false,
-    val foundingExpiresAt: String? = null
-)
+    val foundingExpiresAt: String? = null,
+    val foundingClaimedAt: String? = null,
+    )
 
 // POST /api/activity — request
 data class ActivityRequest(

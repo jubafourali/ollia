@@ -68,6 +68,17 @@ class ReferenceApiController(
         return user.toApiResponse(clerkId)
     }
 
+    // ─── POST /api/users/me/claim-founding ─── mark the founding welcome as seen
+    @PostMapping("/users/me/claim-founding")
+    fun claimFounding(): Map<String, Boolean> {
+        val user = currentUserService.getCurrentUser()
+        if (user.foundingClaimedAt == null) {
+            user.foundingClaimedAt = Instant.now()
+            userRepository.save(user)
+        }
+        return mapOf("success" to true)
+    }
+
     // ─── GET /api/users ─── get current user
     @GetMapping("/users")
     fun getMe(): ApiUserResponse {
@@ -87,7 +98,8 @@ class ReferenceApiController(
             createdAt = createdAt.toString(),
             plan = effectivePlan(),
             foundingMember = foundingMember,
-            foundingExpiresAt = foundingExpiresAt?.toString()
+            foundingExpiresAt = foundingExpiresAt?.toString(),
+            foundingClaimedAt = foundingClaimedAt?.toString()
         )
 
     // ─── POST /api/activity ─── send activity signal

@@ -86,6 +86,9 @@ class User(
 
     var foundingExpiresAt: Instant? = null,
 
+    @Column(name = "founding_claimed_at")
+    var foundingClaimedAt: Instant? = null,
+
     val createdAt: Instant = Instant.now()
 ) {
     /**
