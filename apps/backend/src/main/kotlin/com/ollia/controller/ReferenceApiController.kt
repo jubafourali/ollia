@@ -513,13 +513,11 @@ class ReferenceApiController(
     @Transactional
     fun registerPushToken(@RequestBody request: PushTokenRequest): Map<String, Boolean> {
         val user = currentUserService.getCurrentUser()
-        try {
-            pushTokenRepository.deleteAllByUserId(user.id!!)
-            pushTokenRepository.flush()
-            pushTokenRepository.upsertToken(userId = user.id, token = request.token, platform = request.platform)
-        } catch (e: ObjectOptimisticLockingFailureException) {
-            // Concurrent request already updated the token — safe to ignore
-        }
+        pushTokenRepository.upsertToken(
+            userId = user.id!!,
+            token = request.token,
+            platform = request.platform
+        )
         return mapOf("success" to true)
     }
 
