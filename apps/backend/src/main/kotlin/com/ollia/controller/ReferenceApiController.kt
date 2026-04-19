@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.UUID
 
 /**
@@ -40,6 +41,9 @@ class ReferenceApiController(
 
     companion object {
         const val FREE_PLAN_MEMBER_LIMIT = 3
+        const val FOUNDING_MEMBER_LIMIT = 100L
+        /** How long the founding-member premium perk lasts, counted from signup. */
+        const val FOUNDING_PERK_MONTHS = 6L
         val HUMAN_SIGNAL_TYPES = setOf("heartbeat", "check_in_response", "shortcut")
     }
 
@@ -49,6 +53,8 @@ class ReferenceApiController(
     @PostMapping("/users")
     fun upsertUser(@RequestBody request: UpsertUserRequest): ApiUserResponse {
         val clerkId = currentUserService.getClerkId()
+        // Detect brand-new signup so we can grant the founding-member perk.
+        val isNewSignup = userRepository.findByClerkId(clerkId) == null
         // The `id` from the frontend is the Clerk userId — use clerkId from JWT
         userRepository.upsertByClerkId(
             id = UUID.randomUUID().toString(),
@@ -65,6 +71,21 @@ class ReferenceApiController(
         if (request.timezone != null) {
             user.timezone = request.timezone
             dirty = true
+        }
+        // Grant founding-member status to the first 100 signups. The perk grants
+        // premium for 6 months from *their* signup, so each founder has their own
+        // expiry date. Count includes the row we just inserted, so the 100th user
+        // sees count == 100.
+        if (isNewSignup && !user.foundingMember) {
+            val totalUsers = userRepository.count()
+            if (totalUsers <= FOUNDING_MEMBER_LIMIT) {
+                user.foundingMember = true
+                user.foundingExpiresAt = user.createdAt
+                    .atZone(ZoneOffset.UTC)
+                    .plusMonths(FOUNDING_PERK_MONTHS)
+                    .toInstant()
+                dirty = true
+            }
         }
         if (dirty) userRepository.save(user)
         return user.toApiResponse(clerkId)
