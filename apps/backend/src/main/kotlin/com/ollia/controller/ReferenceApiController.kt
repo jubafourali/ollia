@@ -4,19 +4,15 @@ import com.ollia.dto.*
 import com.ollia.entity.ActivitySignal
 import com.ollia.entity.FamilyCircle
 import com.ollia.entity.FamilyMember
-import com.ollia.entity.PushToken
 import com.ollia.repository.*
 import com.ollia.service.ActivityPatternService
 import com.ollia.service.CurrentUserService
 import com.ollia.service.SafetyEventService
 import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
-import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
-import java.time.ZoneOffset
 import java.util.UUID
 
 /**
@@ -41,9 +37,6 @@ class ReferenceApiController(
 
     companion object {
         const val FREE_PLAN_MEMBER_LIMIT = 3
-        const val FOUNDING_MEMBER_LIMIT = 100L
-        /** How long the founding-member premium perk lasts, counted from signup. */
-        const val FOUNDING_PERK_MONTHS = 6L
         val HUMAN_SIGNAL_TYPES = setOf("heartbeat", "check_in_response", "shortcut")
     }
 
@@ -53,16 +46,15 @@ class ReferenceApiController(
     @PostMapping("/users")
     fun upsertUser(@RequestBody request: UpsertUserRequest): ApiUserResponse {
         val clerkId = currentUserService.getClerkId()
-        // Detect brand-new signup so we can grant the founding-member perk.
-        val isNewSignup = userRepository.findByClerkId(clerkId) == null
-        // The `id` from the frontend is the Clerk userId — use clerkId from JWT
         userRepository.upsertByClerkId(
             id = UUID.randomUUID().toString(),
             clerkId = clerkId,
             name = request.name,
             email = "$clerkId@ollia.app"
         )
-        val user = userRepository.findByClerkId(clerkId)!!
+        // Route through CurrentUserService so the founding-member perk is
+        // granted on first authenticated call for users created here.
+        val user = currentUserService.getCurrentUser()
         var dirty = false
         if (request.region != null) {
             user.region = request.region
@@ -71,21 +63,6 @@ class ReferenceApiController(
         if (request.timezone != null) {
             user.timezone = request.timezone
             dirty = true
-        }
-        // Grant founding-member status to the first 100 signups. The perk grants
-        // premium for 6 months from *their* signup, so each founder has their own
-        // expiry date. Count includes the row we just inserted, so the 100th user
-        // sees count == 100.
-        if (isNewSignup && !user.foundingMember) {
-            val totalUsers = userRepository.count()
-            if (totalUsers <= FOUNDING_MEMBER_LIMIT) {
-                user.foundingMember = true
-                user.foundingExpiresAt = user.createdAt
-                    .atZone(ZoneOffset.UTC)
-                    .plusMonths(FOUNDING_PERK_MONTHS)
-                    .toInstant()
-                dirty = true
-            }
         }
         if (dirty) userRepository.save(user)
         return user.toApiResponse(clerkId)
@@ -194,13 +171,11 @@ class ReferenceApiController(
     @PostMapping("/circles")
     fun createCircle(@RequestBody request: CreateCircleRequest): CircleDetailResponse {
         val user = currentUserService.getCurrentUser()
-        // Check if user already owns a circle
         var circle = familyCircleRepository.findByOwnerId(user.id!!)
         if (circle == null) {
             circle = familyCircleRepository.save(
                 FamilyCircle(ownerId = user.id!!, inviteCode = UUID.randomUUID().toString())
             )
-            // Owner becomes a member
             familyMemberRepository.save(
                 FamilyMember(circleId = circle.id!!, userId = user.id!!, role = "owner", relation = "Family")
             )
@@ -259,7 +234,6 @@ class ReferenceApiController(
         val circle = familyCircleRepository.findByInviteCode(request.inviteCode)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Invite code not found")
 
-        // Check if already a member
         val existing = familyMemberRepository.findByCircleIdAndUserId(circle.id!!, user.id!!)
         if (existing == null) {
             // Enforce free plan cap — check circle owner's user plan
@@ -282,7 +256,6 @@ class ReferenceApiController(
             )
         }
 
-        // Return the full circle with members
         return getCircle(circle.id.toString())
     }
 
@@ -297,7 +270,6 @@ class ReferenceApiController(
         val circle = familyCircleRepository.findById(UUID.fromString(circleId))
             .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Circle not found") }
 
-        // Only circle owner can remove members
         if (circle.ownerId != currentUser.id) {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Only the circle owner can remove members")
         }
@@ -305,7 +277,6 @@ class ReferenceApiController(
         val member = familyMemberRepository.findById(UUID.fromString(memberId))
             .orElseThrow { ResponseStatusException(HttpStatus.NOT_FOUND, "Member not found") }
 
-        // Prevent owner from removing themselves
         if (member.userId == currentUser.id) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot remove yourself from the circle")
         }
