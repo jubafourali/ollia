@@ -15,6 +15,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BRAND from "@/constants/colors";
 import {useTranslation} from "react-i18next";
+import {useAuth} from "@clerk/clerk-expo";
+import { useFamilyContext } from "@/context/FamilyContext";
 
 const FOUNDING_CLAIMED_KEY = "@ollia_founding_claimed";
 
@@ -24,19 +26,21 @@ export default function FoundingScreen() {
   const starScale = useSharedValue(0);
   const starWiggle = useSharedValue(0);
   const contentOpacity = useSharedValue(0);
+  const { userId } = useAuth();
+  const { dismissFounding } = useFamilyContext();
 
   useEffect(() => {
     starScale.value = withSpring(1, { damping: 8, stiffness: 110 });
     starWiggle.value = withDelay(
-      700,
-      withRepeat(
-        withSequence(
-          withTiming(1, { duration: 1400 }),
-          withTiming(0, { duration: 1400 })
-        ),
-        -1,
-        true
-      )
+        700,
+        withRepeat(
+            withSequence(
+                withTiming(1, { duration: 1400 }),
+                withTiming(0, { duration: 1400 })
+            ),
+            -1,
+            true
+        )
     );
     contentOpacity.value = withDelay(250, withTiming(1, { duration: 500 }));
   }, []);
@@ -54,43 +58,47 @@ export default function FoundingScreen() {
 
   async function handleClaim() {
     try {
-      await AsyncStorage.setItem(FOUNDING_CLAIMED_KEY, "1");
+      if (userId) {
+        await AsyncStorage.setItem(`${FOUNDING_CLAIMED_KEY}:${userId}`, "1");
+      }
     } catch {}
+    // Clear the reactive flag so _layout.tsx doesn't bounce us back here
+    dismissFounding();
     router.replace("/(tabs)");
   }
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          paddingTop: insets.top + 24,
-          paddingBottom: Math.max(insets.bottom, 24),
-        },
-      ]}
-    >
-      <View style={styles.inner}>
-        <Reanimated.View style={[styles.starWrap, starStyle]}>
-          <View style={styles.starGlow}>
-            <Text style={styles.starEmoji}>🌟</Text>
-          </View>
-        </Reanimated.View>
+      <View
+          style={[
+            styles.container,
+            {
+              paddingTop: insets.top + 24,
+              paddingBottom: Math.max(insets.bottom, 24),
+            },
+          ]}
+      >
+        <View style={styles.inner}>
+          <Reanimated.View style={[styles.starWrap, starStyle]}>
+            <View style={styles.starGlow}>
+              <Text style={styles.starEmoji}>🌟</Text>
+            </View>
+          </Reanimated.View>
 
-        <Reanimated.View style={[styles.textBlock, contentStyle]}>
-          <Text style={styles.title}>{t("founding.title")}</Text>
-          <Text style={styles.body}>{t("founding.body")}</Text>
+          <Reanimated.View style={[styles.textBlock, contentStyle]}>
+            <Text style={styles.title}>{t("founding.title")}</Text>
+            <Text style={styles.body}>{t("founding.body")}</Text>
+          </Reanimated.View>
+        </View>
+
+        <Reanimated.View style={[styles.ctaWrap, contentStyle]}>
+          <Pressable
+              style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}
+              onPress={handleClaim}
+          >
+            <Text style={styles.ctaText}>{t("founding.cta")}</Text>
+          </Pressable>
         </Reanimated.View>
       </View>
-
-      <Reanimated.View style={[styles.ctaWrap, contentStyle]}>
-        <Pressable
-          style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}
-          onPress={handleClaim}
-        >
-          <Text style={styles.ctaText}>{t("founding.cta")}</Text>
-        </Pressable>
-      </Reanimated.View>
-    </View>
   );
 }
 

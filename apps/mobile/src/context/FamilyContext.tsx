@@ -74,6 +74,8 @@ type FamilyContextType = {
   safetyEvents: ApiSafetyEvent[];
   patterns: ApiPattern | null;
   alertPrefs: AlertPrefs;
+  shouldShowFounding: boolean;
+  dismissFounding: () => void;
   addMember: (member: Omit<FamilyMember, "id" | "status" | "lastSeen" | "lastCheckInAt">) => void;
   removeMember: (id: string) => Promise<void>;
   clearAllState: () => Promise<void>;
@@ -102,7 +104,6 @@ const PLAN_KEY = "@ollia_plan";
 const TRAVEL_KEY = "@ollia_travel";
 const ALERT_PREFS_KEY = "@ollia_alert_prefs";
 const PENDING_INVITE_KEY = "@ollia_pending_invite";
-const FOUNDING_CLAIMED_KEY = "@ollia_founding_claimed";
 
 /** All @ollia_* storage keys — cleared on sign out to prevent cross-user data leaks */
 const ALL_STORAGE_KEYS = [
@@ -114,7 +115,6 @@ const ALL_STORAGE_KEYS = [
   TRAVEL_KEY,
   ALERT_PREFS_KEY,
   PENDING_INVITE_KEY,
-  FOUNDING_CLAIMED_KEY,
 ];
 
 export type AlertPrefs = {
@@ -185,6 +185,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [bgRefreshDisabled, setBgRefreshDisabled] = useState(false);
   const [locationPermissionMissing, setLocationPermissionMissing] = useState(false);
+  const [shouldShowFounding, setShouldShowFounding] = useState(false);
 
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const refreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -198,6 +199,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const myStatus: ActivityStatus = getStatusFromLastSeen(myLastSeen);
 
   const heartbeatIntervalLabel = DETECTION_LABEL;
+
+  const dismissFounding = useCallback(() => {
+    setShouldShowFounding(false);
+  }, []);
 
   const stopAllIntervals = useCallback(() => {
     if (heartbeatRef.current) { clearInterval(heartbeatRef.current); heartbeatRef.current = null; }
@@ -240,7 +245,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     api.deregisterPushToken().catch(() => {});
     // Tear down background tasks
     unregisterBackgroundActivity().catch(() => {});
-    // Clear AsyncStorage
+    // Clear AsyncStorage — also clear any per-user founding claim keys
     await AsyncStorage.multiRemove(ALL_STORAGE_KEYS);
     // Reset all in-memory state
     setDeviceId("");
@@ -257,6 +262,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setSafetyEvents([]);
     setPatterns(null);
     setAlertPrefsState({ usgs: true, noaa: true, gdacs: true });
+    setShouldShowFounding(false);
     setIsLoading(false);
     // Clear refs
     deviceIdRef.current = "";
@@ -299,8 +305,6 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     if (!cId || !devId) return;
     try {
       const data = await api.getCircle(cId);
-      setPlan(data.plan ?? "free");
-      await AsyncStorage.setItem(PLAN_KEY, data.plan ?? "free");
 
       // Always sync inviteCode from server
       if (data.inviteCode) {
@@ -309,28 +313,28 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       }
 
       const remoteMembers = data.members
-        .filter((m) => m.userId !== devId)
-        .map((m) => apiMemberToLocal(m, devId));
+          .filter((m) => m.userId !== devId)
+          .map((m) => apiMemberToLocal(m, devId));
       setMembers(remoteMembers);
 
       // Prompt the current user to reach out to peers whose last human check-in
       // is over 18h old. Based on lastCheckInAt so passive signals don't hide it.
       const staleThresholdMs = 1000 * 60 * 60 * 18;
       const stale = remoteMembers.filter(
-        (m) => m.lastCheckInAt && Date.now() - m.lastCheckInAt.getTime() > staleThresholdMs
+          (m) => m.lastCheckInAt && Date.now() - m.lastCheckInAt.getTime() > staleThresholdMs
       );
       if (stale.length > 0) {
         setCheckInRequests((prev) => {
           const existingIds = new Set(prev.map((c) => c.memberId));
           const newRequests = stale
-            .filter((m) => !existingIds.has(m.id))
-            .map((m) => ({
-              id: `ci_${m.id}_${Date.now()}`,
-              memberId: m.id,
-              memberName: m.name,
-              timestamp: new Date(),
-              responded: false,
-            }));
+              .filter((m) => !existingIds.has(m.id))
+              .map((m) => ({
+                id: `ci_${m.id}_${Date.now()}`,
+                memberId: m.id,
+                memberName: m.name,
+                timestamp: new Date(),
+                responded: false,
+              }));
           return newRequests.length > 0 ? [...prev, ...newRequests] : prev;
         });
       }
@@ -340,15 +344,15 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const startHeartbeat = useCallback(
-    (uid: string) => {
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-      sendHeartbeatToServer(uid);
-      heartbeatRef.current = setInterval(
-        () => sendHeartbeatToServer(uid),
-        HEARTBEAT_INTERVAL_MS
-      );
-    },
-    [sendHeartbeatToServer]
+      (uid: string) => {
+        if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+        sendHeartbeatToServer(uid);
+        heartbeatRef.current = setInterval(
+            () => sendHeartbeatToServer(uid),
+            HEARTBEAT_INTERVAL_MS
+        );
+      },
+      [sendHeartbeatToServer]
   );
 
   const startRefresh = useCallback(() => {
@@ -363,17 +367,41 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     safetyRef.current = setInterval(refreshSafetyEvents, SAFETY_REFRESH_MS);
   }, [refreshSafetyEvents]);
 
+  const syncSubscription = useCallback(async () => {
+    try {
+      const status = await api.getSubscriptionStatus();
+      setPlan(status.plan);
+      await AsyncStorage.setItem(PLAN_KEY, status.plan);
+    } catch (e) {
+      console.warn("syncSubscription failed:", e);
+    }
+  }, []);
+
+  /** Check founding member status — call after any refresh of server user */
+  const checkFoundingStatus = useCallback(async (uid: string) => {
+    try {
+      const serverUser = await api.getMe();
+      if (serverUser?.foundingMember && !serverUser?.foundingClaimedAt) {
+        setShouldShowFounding(true);
+      }
+    } catch (e) {
+      console.warn("checkFoundingStatus failed:", e);
+    }
+  }, []);
+
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
       const prev = appStateRef.current;
       appStateRef.current = next;
       if (
-        (prev === "background" || prev === "inactive") &&
-        next === "active"
+          (prev === "background" || prev === "inactive") &&
+          next === "active"
       ) {
         sendHeartbeatToServer(deviceIdRef.current);
         refreshCircle();
         syncSubscription();
+        // Re-check founding status in case DB was just updated
+        if (deviceIdRef.current) checkFoundingStatus(deviceIdRef.current);
         // Refresh cached auth token for background tasks
         getToken().then((t: string | null) => storeBackgroundToken(t)).catch(() => {});
         // Re-register push token in case it changed
@@ -382,8 +410,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         if (Platform.OS !== "web") {
           BackgroundFetch.getStatusAsync().then((s) => {
             setBgRefreshDisabled(
-              s === BackgroundFetch.BackgroundFetchStatus.Restricted ||
-              s === BackgroundFetch.BackgroundFetchStatus.Denied
+                s === BackgroundFetch.BackgroundFetchStatus.Restricted ||
+                s === BackgroundFetch.BackgroundFetchStatus.Denied
             );
           }).catch(() => {});
           hasBackgroundLocationPermission().then((granted) => {
@@ -405,7 +433,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       responseSub.remove();
       stopAllIntervals();
     };
-  }, [sendHeartbeatToServer, refreshCircle, syncSubscription, registerPushNotifications]);
+  }, [sendHeartbeatToServer, refreshCircle, syncSubscription, registerPushNotifications, checkFoundingStatus]);
 
   // Listen for ollia://heartbeat deep links (e.g. from iOS Shortcuts)
   useEffect(() => {
@@ -423,50 +451,40 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   }, [sendHeartbeatToServer]);
 
   const setupCircle = useCallback(
-    async (devId: string) => {
-      let cId = await AsyncStorage.getItem(CIRCLE_KEY) ?? "";
-      let code = await AsyncStorage.getItem(INVITE_CODE_KEY) ?? "";
-      if (!cId) {
-        try {
-          const circle = await api.createCircle(devId);
-          cId = circle.id;
-          code = circle.inviteCode;
-          await AsyncStorage.setItem(CIRCLE_KEY, cId);
-          await AsyncStorage.setItem(INVITE_CODE_KEY, code);
-        } catch (e) {
-          console.warn("createCircle failed:", e);
-        }
-      }
-      // If we have a circleId but no inviteCode, fetch it from the server
-      if (cId && !code) {
-        try {
-          const circle = await api.getCircle(cId);
-          code = circle.inviteCode;
-          if (code) {
+      async (devId: string) => {
+        let cId = await AsyncStorage.getItem(CIRCLE_KEY) ?? "";
+        let code = await AsyncStorage.getItem(INVITE_CODE_KEY) ?? "";
+        if (!cId) {
+          try {
+            const circle = await api.createCircle(devId);
+            cId = circle.id;
+            code = circle.inviteCode;
+            await AsyncStorage.setItem(CIRCLE_KEY, cId);
             await AsyncStorage.setItem(INVITE_CODE_KEY, code);
+          } catch (e) {
+            console.warn("createCircle failed:", e);
           }
-        } catch (e) {
-          console.warn("Failed to fetch inviteCode:", e);
         }
-      }
+        // If we have a circleId but no inviteCode, fetch it from the server
+        if (cId && !code) {
+          try {
+            const circle = await api.getCircle(cId);
+            code = circle.inviteCode;
+            if (code) {
+              await AsyncStorage.setItem(INVITE_CODE_KEY, code);
+            }
+          } catch (e) {
+            console.warn("Failed to fetch inviteCode:", e);
+          }
+        }
 
-      circleIdRef.current = cId;
-      setCircleId(cId);
-      setInviteCode(code);
-      return cId;
-    },
-    []
+        circleIdRef.current = cId;
+        setCircleId(cId);
+        setInviteCode(code);
+        return cId;
+      },
+      []
   );
-
-  const syncSubscription = useCallback(async () => {
-    try {
-      const status = await api.getSubscriptionStatus();
-      setPlan(status.plan);
-      await AsyncStorage.setItem(PLAN_KEY, status.plan);
-    } catch (e) {
-      console.warn("syncSubscription failed:", e);
-    }
-  }, []);
 
   const bootstrap = useCallback(async (uid: string) => {
     if (!uid) return;
@@ -507,7 +525,9 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         }
         try {
           serverUser = await api.getMe();
-        } catch {}
+        } catch (e) {
+          console.warn("getMe (after upsert) failed:", e);
+        }
       } else {
         try {
           serverUser = await api.getMe();
@@ -522,14 +542,11 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Founding member welcome — show once per device+account
-      if (serverUser?.foundingMember) {
-        try {
-          const claimed = await AsyncStorage.getItem(FOUNDING_CLAIMED_KEY);
-          if (!claimed) {
-            router.replace("/founding");
-          }
-        } catch {}
+      // Founding member welcome — show once per device+account.
+      // Flip the flag and let _layout.tsx handle the navigation reactively
+      // once the router is ready.
+      if (serverUser?.foundingMember && !serverUser?.foundingClaimedAt) {
+        setShouldShowFounding(true);
       }
 
       const cId = await setupCircle(uid);
@@ -552,8 +569,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       if (Platform.OS !== "web") {
         BackgroundFetch.getStatusAsync().then((s) => {
           setBgRefreshDisabled(
-            s === BackgroundFetch.BackgroundFetchStatus.Restricted ||
-            s === BackgroundFetch.BackgroundFetchStatus.Denied
+              s === BackgroundFetch.BackgroundFetchStatus.Restricted ||
+              s === BackgroundFetch.BackgroundFetchStatus.Denied
           );
         }).catch(() => {});
 
@@ -562,22 +579,25 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         }).catch(() => {});
       }
 
-      // Sync subscription status from server (authoritative source for plan)
+      // Sync subscription status from server (authoritative source for plan).
+      // Founding members get "premium" here via effectivePlan() on the backend.
       try {
         const status = await api.getSubscriptionStatus();
         setPlan(status.plan);
         await AsyncStorage.setItem(PLAN_KEY, status.plan);
-      } catch {}
+      } catch (e) {
+        console.warn("getSubscriptionStatus failed:", e);
+      }
 
       startSafetyRefresh();
 
       const checkins = await AsyncStorage.getItem(CHECKINS_KEY);
       if (checkins) {
         setCheckInRequests(
-          JSON.parse(checkins).map((c: CheckInRequest) => ({
-            ...c,
-            timestamp: new Date(c.timestamp),
-          }))
+            JSON.parse(checkins).map((c: CheckInRequest) => ({
+              ...c,
+              timestamp: new Date(c.timestamp),
+            }))
         );
       }
     } catch (e) {
@@ -612,17 +632,17 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   }, [userId, authLoaded]);
 
   const addMember = useCallback(
-    (member: Omit<FamilyMember, "id" | "status" | "lastSeen" | "lastCheckInAt">) => {
-      const newMember: FamilyMember = {
-        ...member,
-        id: generateId(8),
-        status: "inactive",
-        lastSeen: new Date(0),
-        lastCheckInAt: null,
-      };
-      setMembers((prev) => [...prev, newMember]);
-    },
-    []
+      (member: Omit<FamilyMember, "id" | "status" | "lastSeen" | "lastCheckInAt">) => {
+        const newMember: FamilyMember = {
+          ...member,
+          id: generateId(8),
+          status: "inactive",
+          lastSeen: new Date(0),
+          lastCheckInAt: null,
+        };
+        setMembers((prev) => [...prev, newMember]);
+      },
+      []
   );
 
   const removeMember = useCallback(async (id: string) => {
@@ -641,21 +661,21 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const respondToCheckIn = useCallback(
-    async (requestId: string, response: "fine" | "help") => {
-      const devId = deviceIdRef.current;
-      if (devId) {
-        api.sendHeartbeat(devId, "check_in_response").catch(() => {});
-      }
-      setCheckInRequests((prev) => {
-        const updated = prev.map((c) =>
-          c.id === requestId ? { ...c, responded: true, response } : c
-        );
-        AsyncStorage.setItem(CHECKINS_KEY, JSON.stringify(updated));
-        return updated;
-      });
-      setMyLastSeen(new Date());
-    },
-    []
+      async (requestId: string, response: "fine" | "help") => {
+        const devId = deviceIdRef.current;
+        if (devId) {
+          api.sendHeartbeat(devId, "check_in_response").catch(() => {});
+        }
+        setCheckInRequests((prev) => {
+          const updated = prev.map((c) =>
+              c.id === requestId ? { ...c, responded: true, response } : c
+          );
+          AsyncStorage.setItem(CHECKINS_KEY, JSON.stringify(updated));
+          return updated;
+        });
+        setMyLastSeen(new Date());
+      },
+      []
   );
 
   const sendHeartbeat = useCallback(() => {
@@ -664,53 +684,53 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   }, [sendHeartbeatToServer]);
 
   const setMyProfile = useCallback(
-    async (profile: MyProfile) => {
-      setMyProfileState(profile);
-      await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+      async (profile: MyProfile) => {
+        setMyProfileState(profile);
+        await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 
-      const devId = deviceIdRef.current;
-      if (!devId) return;
+        const devId = deviceIdRef.current;
+        if (!devId) return;
 
-      try {
-        await api.upsertUser({
-          id: devId,
-          name: profile.name,
-          region: profile.region,
-          timezone: profile.timezone,
-        });
-        setIsRegistered(true);
-      } catch (e) {
-        console.warn("upsertUser failed:", e);
-      }
+        try {
+          await api.upsertUser({
+            id: devId,
+            name: profile.name,
+            region: profile.region,
+            timezone: profile.timezone,
+          });
+          setIsRegistered(true);
+        } catch (e) {
+          console.warn("upsertUser failed:", e);
+        }
 
-      const cId = await setupCircle(devId);
-      if (cId) {
-        startHeartbeat(devId);
-        startRefresh();
-        refreshPatterns(devId);
-      }
-    },
-    [setupCircle, startHeartbeat, startRefresh, refreshPatterns]
+        const cId = await setupCircle(devId);
+        if (cId) {
+          startHeartbeat(devId);
+          startRefresh();
+          refreshPatterns(devId);
+        }
+      },
+      [setupCircle, startHeartbeat, startRefresh, refreshPatterns]
   );
 
   const setTravelMode = useCallback(
-    async (on: boolean, destination?: string) => {
-      const devId = deviceIdRef.current;
-      setTravelModeState(on);
-      setTravelDestinationState(on ? (destination ?? "") : "");
-      await AsyncStorage.setItem(
-        TRAVEL_KEY,
-        JSON.stringify({ on, destination: destination ?? "" })
-      );
-      if (devId) {
-        try {
-          await api.setTravelMode(devId, on, destination);
-        } catch (e) {
-          console.warn("setTravelMode failed:", e);
+      async (on: boolean, destination?: string) => {
+        const devId = deviceIdRef.current;
+        setTravelModeState(on);
+        setTravelDestinationState(on ? (destination ?? "") : "");
+        await AsyncStorage.setItem(
+            TRAVEL_KEY,
+            JSON.stringify({ on, destination: destination ?? "" })
+        );
+        if (devId) {
+          try {
+            await api.setTravelMode(devId, on, destination);
+          } catch (e) {
+            console.warn("setTravelMode failed:", e);
+          }
         }
-      }
-    },
-    []
+      },
+      []
   );
 
   const upgradePlan = useCallback(async (planType: "monthly" | "annual") => {
@@ -760,13 +780,13 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   });
 
   const activeLocation = travelMode && travelDestination
-    ? travelDestination
-    : (myProfile?.region ?? "");
+      ? travelDestination
+      : (myProfile?.region ?? "");
 
   const toCountry = (location: string): string =>
-    location.includes(",")
-      ? location.split(",").pop()?.trim().toLowerCase() ?? ""
-      : location.trim().toLowerCase();
+      location.includes(",")
+          ? location.split(",").pop()?.trim().toLowerCase() ?? ""
+          : location.trim().toLowerCase();
 
   const userCountry = toCountry(activeLocation);
 
@@ -780,62 +800,64 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   }
 
   const isUsRelated = [...relevantCountries].some(
-    (c) => c === "us" || c === "usa" || c.includes("united states"),
+      (c) => c === "us" || c === "usa" || c.includes("united states"),
   );
 
   // City-filtered alerts are a Premium feature — free users always see global alerts
   const filteredSafetyEvents = (plan === "premium" && relevantCountries.size > 0)
-    ? prefFilteredEvents.filter((e) => {
+      ? prefFilteredEvents.filter((e) => {
         if (e.source === "NOAA") {
           return isUsRelated;
         }
         const haystack = `${e.region ?? ""} ${e.title ?? ""}`.toLowerCase();
         return [...relevantCountries].some((c) => haystack.includes(c));
       })
-    : prefFilteredEvents;
+      : prefFilteredEvents;
 
   const pendingCheckIn = checkInRequests.find((c) => !c.responded) ?? null;
 
   return (
-    <FamilyContext.Provider
-      value={{
-        members,
-        checkInRequests,
-        myStatus,
-        heartbeatIntervalLabel,
-        myLastSeen,
-        myProfile,
-        circleId,
-        inviteCode,
-        deviceId,
-        isRegistered,
-        isLoading,
-        plan,
-        travelMode,
-        travelDestination,
-        safetyEvents: filteredSafetyEvents,
-        patterns,
-        alertPrefs,
-        addMember,
-        removeMember,
-        clearAllState,
-        respondToCheckIn,
-        sendHeartbeat,
-        setMyProfile,
-        pendingCheckIn,
-        refreshCircle,
-        reloadCircleFromStorage,
-        setTravelMode,
-        upgradePlan,
-        syncSubscription,
-        refreshSafetyEvents,
-        setAlertPref,
-        bgRefreshDisabled,
-        locationPermissionMissing,
-      }}
-    >
-      {children}
-    </FamilyContext.Provider>
+      <FamilyContext.Provider
+          value={{
+            members,
+            checkInRequests,
+            myStatus,
+            heartbeatIntervalLabel,
+            myLastSeen,
+            myProfile,
+            circleId,
+            inviteCode,
+            deviceId,
+            isRegistered,
+            isLoading,
+            plan,
+            travelMode,
+            travelDestination,
+            safetyEvents: filteredSafetyEvents,
+            patterns,
+            alertPrefs,
+            shouldShowFounding,
+            dismissFounding,
+            addMember,
+            removeMember,
+            clearAllState,
+            respondToCheckIn,
+            sendHeartbeat,
+            setMyProfile,
+            pendingCheckIn,
+            refreshCircle,
+            reloadCircleFromStorage,
+            setTravelMode,
+            upgradePlan,
+            syncSubscription,
+            refreshSafetyEvents,
+            setAlertPref,
+            bgRefreshDisabled,
+            locationPermissionMissing,
+          }}
+      >
+        {children}
+      </FamilyContext.Provider>
   );
 }
 

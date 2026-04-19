@@ -17,6 +17,7 @@ import * as Localization from "expo-localization";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { FamilyProvider } from "@/context/FamilyContext";
+import { FoundingModal } from "@/components/FoundingModal";
 import i18n, { mapLocaleToSupported, LANGUAGE_STORAGE_KEY } from "@/i18n";
 
 // Import to register background tasks at module scope (TaskManager.defineTask)
@@ -27,22 +28,22 @@ SplashScreen.preventAutoHideAsync();
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 
 const tokenCache =
-  Platform.OS === "web"
-    ? undefined
-    : {
-        async getToken(key: string) {
-          try {
-            return await SecureStore.getItemAsync(key);
-          } catch {
-            return null;
-          }
-        },
-        async saveToken(key: string, value: string) {
-          try {
-            await SecureStore.setItemAsync(key, value);
-          } catch {}
-        },
-      };
+    Platform.OS === "web"
+        ? undefined
+        : {
+          async getToken(key: string) {
+            try {
+              return await SecureStore.getItemAsync(key);
+            } catch {
+              return null;
+            }
+          },
+          async saveToken(key: string, value: string) {
+            try {
+              await SecureStore.setItemAsync(key, value);
+            } catch {}
+          },
+        };
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useAuth();
@@ -56,11 +57,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     const inAuth = segments[0] === "(auth)";
     const inInvite = segments[0] === "invite";
     const inPremiumRedirect =
-      segments[0] === "premium-success" || segments[0] === "premium-cancel";
-    const inFounding = segments[0] === "founding";
+        segments[0] === "premium-success" || segments[0] === "premium-cancel";
 
-    // Allow invite onboarding, post-checkout redirects, and founding welcome without auth gate
-    if (inInvite || inPremiumRedirect || inFounding) {
+    // Allow invite onboarding and post-checkout redirects without auth gate
+    if (inInvite || inPremiumRedirect) {
       setAuthReady(true);
       return;
     }
@@ -84,36 +84,34 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 function RootLayoutNav() {
   return (
-    <AuthGate>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="member/[id]"
-          options={{ headerShown: false, animation: "slide_from_right" }}
-        />
-        <Stack.Screen
-          name="join"
-          options={{ headerShown: false, animation: "slide_from_bottom" }}
-        />
-        <Stack.Screen
-          name="invite"
-          options={{ headerShown: false, animation: "fade" }}
-        />
-        <Stack.Screen
-          name="premium-success"
-          options={{ headerShown: false, animation: "fade" }}
-        />
-        <Stack.Screen
-          name="premium-cancel"
-          options={{ headerShown: false, animation: "fade" }}
-        />
-        <Stack.Screen
-          name="founding"
-          options={{ headerShown: false, animation: "fade", gestureEnabled: false }}
-        />
-      </Stack>
-    </AuthGate>
+      <AuthGate>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+              name="member/[id]"
+              options={{ headerShown: false, animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+              name="join"
+              options={{ headerShown: false, animation: "slide_from_bottom" }}
+          />
+          <Stack.Screen
+              name="invite"
+              options={{ headerShown: false, animation: "fade" }}
+          />
+          <Stack.Screen
+              name="premium-success"
+              options={{ headerShown: false, animation: "fade" }}
+          />
+          <Stack.Screen
+              name="premium-cancel"
+              options={{ headerShown: false, animation: "fade" }}
+          />
+        </Stack>
+        {/* Overlays on top of any screen when a founding member hasn't claimed yet */}
+        <FoundingModal />
+      </AuthGate>
   );
 }
 
@@ -122,10 +120,10 @@ function RootLayoutNav() {
  * Must be inside ClerkProvider so it can read useAuth().
  */
 function SplashGate({
-  fontsReady,
-  i18nReady,
-  children,
-}: {
+                      fontsReady,
+                      i18nReady,
+                      children,
+                    }: {
   fontsReady: boolean;
   i18nReady: boolean;
   children: React.ReactNode;
@@ -185,16 +183,16 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <SafeAreaProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <SplashGate fontsReady={fontsReady} i18nReady={i18nReady}>
-            <FamilyProvider>
-              <RootLayoutNav />
-            </FamilyProvider>
-          </SplashGate>
-        </GestureHandlerRootView>
-      </SafeAreaProvider>
-    </ClerkProvider>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        <SafeAreaProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <SplashGate fontsReady={fontsReady} i18nReady={i18nReady}>
+              <FamilyProvider>
+                <RootLayoutNav />
+              </FamilyProvider>
+            </SplashGate>
+          </GestureHandlerRootView>
+        </SafeAreaProvider>
+      </ClerkProvider>
   );
 }

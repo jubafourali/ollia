@@ -45,6 +45,7 @@ export type ApiUser = {
   plan?: string;
   foundingMember: boolean;
   foundingExpiresAt: string | null;
+  foundingClaimedAt: string | null;
 };
 
 export type ApiSubscriptionStatus = {
@@ -120,6 +121,10 @@ export const api = {
     return req(`/users`, {
       method: "GET"
     });
+  },
+
+  claimFounding(): Promise<{ success: boolean }> {
+    return req("/users/me/claim-founding", { method: "POST" });
   },
 
   sendHeartbeat(userId: string, signalType = "heartbeat"): Promise<ApiActivityResponse> {

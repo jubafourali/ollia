@@ -103,10 +103,9 @@
     "scheduledTitle": "Ollia",
     "scheduledBody": "{{name}} n’a pas répondu à temps. Vous pouvez vérifier."
   },
-
   "founding": {
     "title": "Vous êtes parmi les premiers 🌟",
     "body": "Premium vous est offert pendant 6 mois.\n\nMerci d’être là depuis le début 💛",
-    "cta": "Activer Premium"
+    "cta": "Allons-y"
   }
 }
