@@ -43,6 +43,8 @@ export type ApiUser = {
   travelDestination?: string;
   createdAt?: string;
   plan?: string;
+  foundingMember: boolean;
+  foundingExpiresAt: string | null;
 };
 
 export type ApiSubscriptionStatus = {

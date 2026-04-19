@@ -161,7 +161,9 @@
     "restartRequired": "Veuillez redémarrer l'application pour appliquer la nouvelle direction de mise en page.",
     "expired": "Expiré",
     "urgentOvernight": "Alertes urgentes nocturnes",
-    "urgentOvernightHint": "Notifier votre famille même pendant les heures de sommeil si vous n'avez pas donné signe de vie"
+    "urgentOvernightHint": "Notifier votre famille même pendant les heures de sommeil si vous n'avez pas donné signe de vie",
+    "shareOllia": "Partager Ollia avec quelqu'un",
+    "shareMessage": "J'utilise Ollia pour faire savoir discrètement à ma famille que je vais bien. Rejoins-moi 💛"
   },
   "upgrade": {
     "title": "Débloquer Premium",
@@ -356,5 +358,10 @@
     "familyStrongBody": "{{name}} est injoignable depuis un moment. Merci de vérifier que tout va bien.",
     "scheduledTitle": "Ollia",
     "scheduledBody": "{{name}} a manqué son check-in. Vous pourriez le contacter."
+  },
+  "founding": {
+    "title": "Tu fais partie des premiers 🌟",
+    "body": "Premium est débloqué pour toi — gratuit jusqu'en octobre 2026.\n\nMerci d'être là depuis le début 💛",
+    "cta": "Débloquer mon Premium"
   }
 }

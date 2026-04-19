@@ -169,7 +169,9 @@
     "languageSubtitle": "App language",
     "chooseLanguage": "Choose Language",
     "restartRequired": "Please restart the app to apply the new layout direction.",
-    "expired": "Expired"
+    "expired": "Expired",
+    "shareOllia": "Share Ollia with someone",
+    "shareMessage": "I've been using Ollia to quietly let my family know I'm okay. Join me 💛"
   },
   "upgrade": {
     "title": "Unlock Premium",
@@ -363,5 +365,11 @@
     "statusOn": "On",
     "statusOff": "Off — tap to enable",
     "statusLowPower": "Needs Low Power Mode off"
-  }
+  },
+  "founding": {
+    "title": "You're one of the first 🌟",
+    "body": "Premium is unlocked for you — free until October 2026.\n\nThanks for being here from the start 💛",
+    "cta": "Unlock my Premium"
+  },
+
 }

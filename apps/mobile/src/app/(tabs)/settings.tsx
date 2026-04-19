@@ -17,6 +17,7 @@ import {
   Text,
   TextInput,
   View,
+  Share,
 } from "react-native";
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from "expo-linking";
@@ -44,6 +45,7 @@ import {
   requestLocationPermission,
   hasBackgroundLocationPermission,
 } from "@/services/backgroundActivity";
+import { APP_STORE_URL } from "@/constants";
 
 type SettingRowProps = {
   icon: string;
@@ -539,6 +541,15 @@ export default function SettingsScreen() {
     }
     setShowUpgrade(true);
   };
+
+  async function handleShareOllia() {
+    try {
+      await Share.share({
+        message: t("settings.shareMessage"),
+        url: APP_STORE_URL,
+      });
+    } catch {}
+  }
 
   return (
     <ScrollView
@@ -1166,6 +1177,15 @@ export default function SettingsScreen() {
         <Feather name="log-out" size={17} color={BRAND.statusRed} />
         <Text style={styles.signOutText}>{t("settings.signOut")}</Text>
       </Pressable>
+
+      <Pressable
+          style={({ pressed }) => [styles.shareBtn, pressed && { opacity: 0.7 }]}
+          onPress={handleShareOllia}
+      >
+        <Feather name="share" size={17} color={BRAND.primary} />
+        <Text style={styles.shareBtnText}>{t("settings.shareOllia")}</Text>
+      </Pressable>
+
 
       <Pressable
         style={({ pressed }) => [styles.deleteAccountBtn, pressed && { opacity: 0.7 }]}
@@ -1923,6 +1943,24 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: `${BRAND.statusRed}30`,
     backgroundColor: `${BRAND.statusRed}08`,
+  },
+  shareBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: `${BRAND.primary}30`,
+    backgroundColor: `${BRAND.primary}08`,
+  },
+  shareBtnText: {
+    fontSize: 15,
+    fontFamily: "Inter_500Medium",
+    color: BRAND.primary,
   },
   signOutText: {
     fontSize: 15,

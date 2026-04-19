@@ -57,9 +57,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     const inInvite = segments[0] === "invite";
     const inPremiumRedirect =
       segments[0] === "premium-success" || segments[0] === "premium-cancel";
+    const inFounding = segments[0] === "founding";
 
-    // Allow invite onboarding and post-checkout redirect screens without auth gate
-    if (inInvite || inPremiumRedirect) {
+    // Allow invite onboarding, post-checkout redirects, and founding welcome without auth gate
+    if (inInvite || inPremiumRedirect || inFounding) {
       setAuthReady(true);
       return;
     }
@@ -106,6 +107,10 @@ function RootLayoutNav() {
         <Stack.Screen
           name="premium-cancel"
           options={{ headerShown: false, animation: "fade" }}
+        />
+        <Stack.Screen
+          name="founding"
+          options={{ headerShown: false, animation: "fade", gestureEnabled: false }}
         />
       </Stack>
     </AuthGate>

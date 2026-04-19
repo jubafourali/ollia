@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@clerk/clerk-expo";
 import * as WebBrowser from "expo-web-browser";
+import { router } from "expo-router";
 import React, {
   createContext,
   useCallback,
@@ -101,6 +102,7 @@ const PLAN_KEY = "@ollia_plan";
 const TRAVEL_KEY = "@ollia_travel";
 const ALERT_PREFS_KEY = "@ollia_alert_prefs";
 const PENDING_INVITE_KEY = "@ollia_pending_invite";
+const FOUNDING_CLAIMED_KEY = "@ollia_founding_claimed";
 
 /** All @ollia_* storage keys — cleared on sign out to prevent cross-user data leaks */
 const ALL_STORAGE_KEYS = [
@@ -112,6 +114,7 @@ const ALL_STORAGE_KEYS = [
   TRAVEL_KEY,
   ALERT_PREFS_KEY,
   PENDING_INVITE_KEY,
+  FOUNDING_CLAIMED_KEY,
 ];
 
 export type AlertPrefs = {
@@ -487,6 +490,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       }
 
       const profileStr = await AsyncStorage.getItem(PROFILE_KEY);
+      let serverUser: Awaited<ReturnType<typeof api.getMe>> | null = null;
       if (profileStr) {
         const profile = JSON.parse(profileStr) as MyProfile;
         setMyProfileState(profile);
@@ -501,11 +505,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         } catch (e) {
           console.warn("upsertUser failed:", e);
         }
+        try {
+          serverUser = await api.getMe();
+        } catch {}
       } else {
         try {
-          const user = await api.getMe();
-          if (user?.name) {
-            const profile: MyProfile = { name: user.name, region: user.region ?? "" };
+          serverUser = await api.getMe();
+          if (serverUser?.name) {
+            const profile: MyProfile = { name: serverUser.name, region: serverUser.region ?? "" };
             setMyProfileState(profile);
             await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
             setIsRegistered(true);
@@ -513,6 +520,16 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         } catch (e) {
           console.warn("getMe failed:", e);
         }
+      }
+
+      // Founding member welcome — show once per device+account
+      if (serverUser?.foundingMember) {
+        try {
+          const claimed = await AsyncStorage.getItem(FOUNDING_CLAIMED_KEY);
+          if (!claimed) {
+            router.replace("/founding");
+          }
+        } catch {}
       }
 
       const cId = await setupCircle(uid);
