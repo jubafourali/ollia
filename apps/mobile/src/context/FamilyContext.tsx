@@ -127,7 +127,7 @@ const SAFETY_REFRESH_MS = 15 * 60 * 1000;
 function generateId(len = 20): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   return Array.from({ length: len }, () =>
-    chars[Math.floor(Math.random() * chars.length)]
+      chars[Math.floor(Math.random() * chars.length)]
   ).join("");
 }
 
@@ -206,16 +206,25 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     if (Platform.OS === "web") return;
     try {
       const { status } = await Notifications.requestPermissionsAsync();
-      console.log("Push permission status:", status);
       if (status !== "granted") return;
+
+      // Register notification action category for nudge notifications
+      await Notifications.setNotificationCategoryAsync("CHECKIN_NUDGE", [
+        {
+          identifier: "IM_OKAY",
+          buttonTitle: "I'm okay 💛",
+          options: {
+            isDestructive: false,
+            isAuthenticationRequired: false,
+            opensAppToForeground: false,
+          },
+        },
+      ]);
+
       const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
-      console.log("Project ID:", projectId);
-      console.log("Expo config:", JSON.stringify(Constants.expoConfig?.extra));
       if (!projectId) return;
       const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-      console.log("Push token:", token);
       await api.registerPushToken(token);
-      console.log("Token registered successfully");
     } catch (e) {
       console.log("Push registration error:", e);
     }
@@ -380,8 +389,17 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         }
       }
     });
+
+    // Handle notification action buttons (e.g. "I'm okay 💛" from nudge notification)
+    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (response.actionIdentifier === "IM_OKAY") {
+        sendHeartbeatToServer(deviceIdRef.current);
+      }
+    });
+
     return () => {
       sub.remove();
+      responseSub.remove();
       stopAllIntervals();
     };
   }, [sendHeartbeatToServer, refreshCircle, syncSubscription, registerPushNotifications]);

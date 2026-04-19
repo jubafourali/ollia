@@ -11,6 +11,7 @@ import com.ollia.service.CurrentUserService
 import com.ollia.service.SafetyEventService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.server.ResponseStatusException
@@ -512,8 +513,13 @@ class ReferenceApiController(
     @Transactional
     fun registerPushToken(@RequestBody request: PushTokenRequest): Map<String, Boolean> {
         val user = currentUserService.getCurrentUser()
-        pushTokenRepository.deleteAllByUserId(user.id!!)
-        pushTokenRepository.upsertToken(userId = user.id, token = request.token, platform = request.platform)
+        try {
+            pushTokenRepository.deleteAllByUserId(user.id!!)
+            pushTokenRepository.flush()
+            pushTokenRepository.upsertToken(userId = user.id, token = request.token, platform = request.platform)
+        } catch (e: ObjectOptimisticLockingFailureException) {
+            // Concurrent request already updated the token — safe to ignore
+        }
         return mapOf("success" to true)
     }
 
