@@ -95,7 +95,8 @@ class ReferenceApiController(
     @GetMapping("/users")
     fun getMe(): ApiUserResponse {
         val clerkId = currentUserService.getClerkId()
-        val user = userRepository.findByClerkId(clerkId)!!
+        val user = userRepository.findByClerkId(clerkId)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
         return user.toApiResponse(clerkId)
     }
 
