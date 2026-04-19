@@ -14,19 +14,23 @@ class PushNotificationService {
 
     fun sendPushNotification(expoPushToken: String, title: String, body: String, categoryId: String? = null) {
         try {
+            val data = buildMap<String, String> {
+                put("type", "checkin")
+                if (categoryId != null) put("categoryId", categoryId)
+            }
             webClient.post()
                 .bodyValue(mapOf(
                     "to" to expoPushToken,
                     "sound" to "default",
                     "title" to title,
                     "body" to body,
-                    "data" to mapOf("type" to "checkin"),
-                    ).let { if (categoryId != null) it + ("categoryId" to categoryId) else it }
-                )
+                    "data" to data,
+                    "categoryIdentifier" to categoryId,  // belt-and-suspenders for iOS
+                ).filterValues { it != null })
                 .retrieve()
                 .bodyToMono(String::class.java)
                 .block()
-            logger.info("Push notification sent to $expoPushToken")
+            logger.info("Push notification sent to $expoPushToken (category=$categoryId)")
         } catch (e: Exception) {
             logger.error("Failed to send push notification to $expoPushToken", e)
         }
