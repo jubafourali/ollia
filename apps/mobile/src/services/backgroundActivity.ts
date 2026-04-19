@@ -46,21 +46,26 @@ async function sendBackgroundHeartbeat(): Promise<void> {
   try {
     const token = await SecureStore.getItemAsync(BG_TOKEN_KEY);
     if (token) headers["Authorization"] = `Bearer ${token}`;
-  } catch {
-    // SecureStore may fail in some background states — proceed without auth
-  }
+  } catch {}
 
-  const res = await fetch(`${API_URL}/activity`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ userId, signalType: "background" }),
-  });
+  // Abort after 10s so the task doesn't hang
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
 
-  if (!res.ok) {
-    throw new Error(`Background heartbeat failed: ${res.status}`);
+  try {
+    const res = await fetch(`${API_URL}/activity`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ userId, signalType: "background" }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new Error(`Background heartbeat failed: ${res.status}`);
+    }
+  } finally {
+    clearTimeout(timeout);
   }
 }
-
 // ── Task definitions (must be at module scope) ──────────────────────
 
 TaskManager.defineTask(BG_FETCH_TASK, async () => {
