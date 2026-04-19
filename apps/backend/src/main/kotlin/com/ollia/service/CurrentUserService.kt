@@ -15,7 +15,7 @@ class CurrentUserService(private val userRepository: UserRepository) {
         return jwt.subject
     }
 
-    fun getCurrentUser(): User {
+fun getCurrentUser(): User {
         val clerkId = getClerkId()
         return userRepository.findByClerkId(clerkId)
             ?: run {
@@ -25,7 +25,18 @@ class CurrentUserService(private val userRepository: UserRepository) {
                     name = "User",
                     email = "$clerkId@placeholder.com"
                 )
-                userRepository.findByClerkId(clerkId)!!
+                val user = userRepository.findByClerkId(clerkId)!!
+                // Grant founding member status if under the cap
+                val totalUsers = userRepository.count()
+                if (totalUsers <= FOUNDING_MEMBER_LIMIT) {
+                    user.foundingMember = true
+                    user.foundingExpiresAt = user.createdAt
+                        .atZone(ZoneOffset.UTC)
+                        .plusMonths(FOUNDING_PERK_MONTHS)
+                        .toInstant()
+                    userRepository.save(user)
+                }
+                user
             }
     }
 }
