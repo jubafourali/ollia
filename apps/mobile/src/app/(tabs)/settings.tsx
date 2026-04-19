@@ -101,11 +101,13 @@ function PlanCard({ plan, onUpgrade }: { plan: string; onUpgrade: () => void }) 
 
   const premiumFeatures = [
     t("upgrade.plan.unlimitedMembers"),
-    t("upgrade.plan.passiveDetection"),
+      // TODO later
+    // t("upgrade.plan.passiveDetection"),
     t("upgrade.plan.smartEscalation"),
     t("upgrade.plan.customInactivity"),
     t("upgrade.plan.scheduledMode"),
-    t("upgrade.plan.activityApps"),
+      // TODO Enable this later
+    // t("upgrade.plan.activityApps"),
     t("upgrade.plan.travelMode"),
     t("upgrade.plan.cityAlerts"),
     t("upgrade.plan.severityControl"),
@@ -195,13 +197,12 @@ function SourceRow({ orgName, orgAbbrev, website, description, icon, enabled, on
       <View style={{ flex: 1 }}>
         <View style={srcStyles.orgLine}>
           <Text style={srcStyles.orgName}>{orgName}</Text>
-          <View style={srcStyles.officialBadge}>
-            <Feather name="shield" size={9} color="#059669" />
-            <Text style={srcStyles.officialText}>{t("settings.officialBadge")}</Text>
-          </View>
         </View>
         <Text style={srcStyles.abbrev}>{orgAbbrev} · {website}</Text>
-        <Text style={srcStyles.description}>{description}</Text>
+        <Text style={srcStyles.description}>
+          {description}{" "}
+          <Text style={srcStyles.officialText}>{t("settings.officialBadge")}</Text>
+        </Text>
       </View>
       <Switch
         value={enabled}
@@ -503,8 +504,10 @@ export default function SettingsScreen() {
     // Also persist to backend
     api.updatePreferredLanguage(code).catch(() => {});
     // RTL requires a restart
-    const needsRTL = code === "ar";
-    const hadRTL = currentLanguage === "ar";
+    const needsRTL = false;
+    const hadRTL = false;
+    // const needsRTL = code === "ar";
+    // const hadRTL = currentLanguage === "ar";
     if (needsRTL !== hadRTL) {
       I18nManager.forceRTL(needsRTL);
       Alert.alert(t("settings.chooseLanguage"), t("settings.restartRequired"));
@@ -697,7 +700,7 @@ export default function SettingsScreen() {
               {t("permissions.notificationsHint")}
             </Text>
           </View>
-          <View style={[permStyles.badge, { backgroundColor: notifPermGranted ? `${BRAND.statusGreen}18` : `#F59E0B18` }]}>
+          <View style={[permStyles.badge, {backgroundColor: bgLocationGranted ? `${BRAND.statusGreen}18` : `#F59E0B18`, marginTop: 2}]}>
             <Text style={[permStyles.badgeText, { color: notifPermGranted ? BRAND.statusGreen : "#F59E0B" }]}>
               {notifPermGranted ? t("permissions.statusOn") : t("permissions.statusOff")}
             </Text>
@@ -1697,10 +1700,12 @@ const permStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
+    maxWidth: 120,
   },
   badgeText: {
     fontSize: 12,
     fontFamily: "Inter_600SemiBold",
+    textAlign: "center",
   },
 });
 
@@ -1753,7 +1758,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 12,
@@ -1762,6 +1767,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
+    marginTop: 2,
     alignItems: "center",
     justifyContent: "center",
   },

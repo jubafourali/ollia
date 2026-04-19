@@ -31,7 +31,7 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
 
   const unlockFeatures = [
     { icon: "users", text: t("upgrade.features.unlimitedMembers") },
-    { icon: "activity", text: t("upgrade.features.passiveDetection") },
+    // { icon: "activity", text: t("upgrade.features.passiveDetection") },
     { icon: "alert-triangle", text: t("upgrade.features.smartEscalation") },
     { icon: "clock", text: t("upgrade.features.customInactivity") },
     { icon: "calendar", text: t("upgrade.features.scheduledMode") },

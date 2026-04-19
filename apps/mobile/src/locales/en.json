@@ -187,33 +187,33 @@
     "comingSoonTitle": "Coming very soon",
     "comingSoonBody": "Premium is coming very soon. We'll notify you the moment it's ready.",
     "features": {
-      "unlimitedMembers": "Unlimited family members",
-      "passiveDetection": "Passive activity detection — Ollia watches automatically, no action needed",
-      "smartEscalation": "Smart escalation — if you go silent, Ollia notifies your family, then your emergency contact",
-      "customInactivity": "Custom inactivity window — set your own threshold (1–24h)",
-      "scheduledMode": "Scheduled mode — ping your family if you don't check in by a set time",
-      "activityApps": "Activity apps — opening Instagram, WhatsApp, or any app you choose means you're okay",
-      "travelMode": "Travel mode — alert your circle when traveling",
-      "cityAlerts": "City-filtered alerts — only what's near you",
-      "severityControl": "Severity control — filter by low, medium, high",
-      "activityPatterns": "Activity patterns — see your weekly check-in trends"
+      "oneTapCheckin": "One-tap check-ins — let them know you’re okay in a second",
+      "unlimitedMembers": "Unlimited family members — everyone you care about, not just a few",
+      "smartEscalation": "Smart escalation — if you go quiet, someone is notified",
+      "customInactivity": "Flexible check-in timing (1–24h) — you decide what “too long” means",
+      "flexibleCheckins": "Flexible check-ins — set a check-in time that works for you (1–24h)",
+      "scheduledMode": "Scheduled mode — going for a hike? set 5pm, and if you don’t reply, your family gets notified",
+      "travelMode": "Travel mode — your family knows when you leave and arrive safely",
+      "cityAlerts": "Location-based safety alerts — know when something happens near you",
+      "severityControl": "Severity control & region alerts",
+      "activityPatterns": "Activity insights — notice when something feels off"
     },
     "plan": {
-      "unlimitedMembers": "Unlimited family members",
-      "passiveDetection": "Passive activity detection — Ollia watches automatically, no action needed",
-      "smartEscalation": "Smart escalation — if you go silent, Ollia notifies your family, then your emergency contact",
-      "customInactivity": "Custom inactivity window — set your own threshold (1–24h)",
-      "scheduledMode": "Scheduled mode — \"ping my family if I don't check in by 5pm\"",
-      "activityApps": "Activity apps — opening Instagram, WhatsApp, or any app you choose means you're okay",
-      "travelMode": "Travel mode — alert your circle when traveling",
-      "cityAlerts": "City-filtered safety alerts",
+      "unlimitedMembers": "Unlimited family members — everyone you care about, not just a few",
+      "smartEscalation": "Smart escalation — if you go quiet, someone is notified",
+      "customInactivity": "Flexible check-in timing (1–24h) — you decide what “too long” means",
+      "flexibleCheckins": "Flexible check-ins — set a check-in time that works for you (1–24h)",
+      "scheduledMode": "Scheduled mode — going for a hike? set 5pm, and if you don’t reply, your family gets notified",
+      "travelMode": "Travel mode — your family knows when you leave and arrive safely",
+      "cityAlerts": "Location-based safety alerts — know when something happens near you",
       "severityControl": "Severity control & region alerts",
-      "activityPatterns": "Activity patterns & check-in history"
+      "activityPatterns": "Activity insights — notice when something feels off"
     },
     "freePlan": {
       "members": "Up to 3 family members",
-      "basicReassurance": "Basic activity reassurance",
-      "safetyAlerts": "Global safety alerts (USGS, NOAA, GDACS)"
+      "oneTapCheckin": "One-tap check-ins — let them know you’re okay in a second",
+      "basicReassurance": "Basic reassurance — your family sees when you last checked in",
+      "safetyAlerts": "Global safety alerts"
     }
   },
   "onboarding": {
@@ -282,14 +282,7 @@
     "title": "Welcome to Premium",
     "subtitle": "Your circle is now unlimited. Here's what just unlocked:",
     "continue": "Continue to Ollia",
-    "footerNote": "Manage your subscription anytime in Settings.",
-    "features": {
-      "unlimitedMembers": "Unlimited family members",
-      "travelMode": "Travel mode",
-      "smartAlerts": "Smart inactivity alerts",
-      "cityAlerts": "City-filtered safety alerts",
-      "activityPatterns": "Activity patterns"
-    }
+    "footerNote": "Manage your subscription anytime in Settings."
   },
   "premiumCancel": {
     "title": "No worries",

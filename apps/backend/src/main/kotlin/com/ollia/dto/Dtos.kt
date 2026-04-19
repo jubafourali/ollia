@@ -20,7 +20,9 @@ data class ApiUserResponse(
     val travelMode: Boolean? = null,
     val travelDestination: String? = null,
     val createdAt: String? = null,
-    val plan: String? = null
+    val plan: String? = null,
+    val foundingMember: Boolean = false,
+    val foundingExpiresAt: String? = null
 )
 
 // POST /api/activity — request

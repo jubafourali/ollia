@@ -134,7 +134,7 @@ class NudgeScheduler(
 
         if (user.familyNotifiedStrong) return
 
-        val isPremium = user.plan == "premium"
+        val isPremium = user.effectivePlan(now) == "premium"
         val thresholdHours = if (isPremium) user.inactivityThresholdHours else FREE_THRESHOLD_HOURS
         val sinceCheckIn = Duration.between(lastCheckIn, now)
         if (sinceCheckIn.toHours() < thresholdHours) return

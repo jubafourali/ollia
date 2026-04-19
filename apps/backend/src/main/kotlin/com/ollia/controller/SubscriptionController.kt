@@ -186,7 +186,7 @@ class SubscriptionController(
     fun getStatus(): SubscriptionStatusResponse {
         val user = currentUserService.getCurrentUser()
         return SubscriptionStatusResponse(
-            plan = user.plan,
+            plan = user.effectivePlan(),
             subscriptionId = user.stripeSubscriptionId
         )
     }

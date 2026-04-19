@@ -81,5 +81,20 @@ class User(
 
     var timezone: String? = null,
 
+    @Column(nullable = false)
+    var foundingMember: Boolean = false,
+
+    var foundingExpiresAt: Instant? = null,
+
     val createdAt: Instant = Instant.now()
-)
+) {
+    /**
+     * Plan resolution that honors the founding-member grant. While
+     * foundingMember is true and foundingExpiresAt is in the future the user
+     * is effectively premium, regardless of their Stripe `plan` column.
+     */
+    fun effectivePlan(now: Instant = Instant.now()): String {
+        if (foundingMember && foundingExpiresAt?.isAfter(now) == true) return "premium"
+        return plan
+    }
+}

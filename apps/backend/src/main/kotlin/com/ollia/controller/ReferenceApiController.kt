@@ -67,15 +67,7 @@ class ReferenceApiController(
             dirty = true
         }
         if (dirty) userRepository.save(user)
-        return ApiUserResponse(
-            id = clerkId,
-            name = user.name,
-            region = user.region,
-            travelMode = user.travelMode,
-            travelDestination = user.travelDestination,
-            createdAt = user.createdAt.toString(),
-            plan = user.plan
-        )
+        return user.toApiResponse(clerkId)
     }
 
     // ─── GET /api/users ─── get current user
@@ -83,16 +75,21 @@ class ReferenceApiController(
     fun getMe(): ApiUserResponse {
         val clerkId = currentUserService.getClerkId()
         val user = userRepository.findByClerkId(clerkId)!!
-        return ApiUserResponse(
-            id = clerkId,
-            name = user.name,
-            region = user.region,
-            travelMode = user.travelMode,
-            travelDestination = user.travelDestination,
-            createdAt = user.createdAt.toString(),
-            plan = user.plan
-        )
+        return user.toApiResponse(clerkId)
     }
+
+    private fun com.ollia.entity.User.toApiResponse(clerkId: String): ApiUserResponse =
+        ApiUserResponse(
+            id = clerkId,
+            name = name,
+            region = region,
+            travelMode = travelMode,
+            travelDestination = travelDestination,
+            createdAt = createdAt.toString(),
+            plan = effectivePlan(),
+            foundingMember = foundingMember,
+            foundingExpiresAt = foundingExpiresAt?.toString()
+        )
 
     // ─── POST /api/activity ─── send activity signal
     // Request: { userId: string, signalType: string }
@@ -245,7 +242,7 @@ class ReferenceApiController(
         if (existing == null) {
             // Enforce free plan cap — check circle owner's user plan
             val circleOwner = userRepository.findById(circle.ownerId).orElse(null)
-            if (circleOwner?.plan != "premium") {
+            if (circleOwner?.effectivePlan() != "premium") {
                 val count = familyMemberRepository.countByCircleId(circle.id!!)
                 if (count >= FREE_PLAN_MEMBER_LIMIT) {
                     throw ResponseStatusException(
@@ -326,21 +323,13 @@ class ReferenceApiController(
         @RequestBody request: SetTravelModeRequest
     ): ApiUserResponse {
         val user = currentUserService.getCurrentUser()
-        if (request.travelMode && user.plan != "premium") {
+        if (request.travelMode && user.effectivePlan() != "premium") {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Travel mode requires a Premium subscription")
         }
         user.travelMode = request.travelMode
         user.travelDestination = if (request.travelMode) request.travelDestination else null
         userRepository.save(user)
-        return ApiUserResponse(
-            id = currentUserService.getClerkId(),
-            name = user.name,
-            region = user.region,
-            travelMode = user.travelMode,
-            travelDestination = user.travelDestination,
-            createdAt = user.createdAt.toString(),
-            plan = user.plan
-        )
+        return user.toApiResponse(currentUserService.getClerkId())
     }
 
     // ─── GET /api/safety-events ─── get safety events
@@ -428,7 +417,7 @@ class ReferenceApiController(
     @PatchMapping("/users/me/safety-preferences")
     fun updateSafetyPreferences(@RequestBody request: UpdateSafetyPreferencesRequest): SafetyPreferencesResponse {
         val user = currentUserService.getCurrentUser()
-        if (user.plan != "premium") {
+        if (user.effectivePlan() != "premium") {
             throw ResponseStatusException(HttpStatus.FORBIDDEN, "Safety preferences require a Premium subscription")
         }
         if (request.inactivityThresholdHours != null) {

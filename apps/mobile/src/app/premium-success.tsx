@@ -26,11 +26,14 @@ export default function PremiumSuccessScreen() {
   const { syncSubscription } = useFamilyContext();
 
   const features = [
-    t("premiumSuccess.features.unlimitedMembers"),
-    t("premiumSuccess.features.travelMode"),
-    t("premiumSuccess.features.smartAlerts"),
-    t("premiumSuccess.features.cityAlerts"),
-    t("premiumSuccess.features.activityPatterns"),
+    t("upgrade.plan.unlimitedMembers"),
+    t("upgrade.plan.smartEscalation"),
+    t("upgrade.plan.customInactivity"),
+    t("upgrade.plan.scheduledMode"),
+    t("upgrade.plan.travelMode"),
+    t("upgrade.plan.cityAlerts"),
+    t("upgrade.plan.severityControl"),
+    t("upgrade.plan.activityPatterns"),
   ];
   const [synced, setSynced] = useState(false);
   const syncedRef = useRef(false);
