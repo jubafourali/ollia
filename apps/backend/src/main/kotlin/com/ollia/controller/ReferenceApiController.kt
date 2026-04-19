@@ -82,10 +82,8 @@ class ReferenceApiController(
     // ─── GET /api/users ─── get current user
     @GetMapping("/users")
     fun getMe(): ApiUserResponse {
-        val clerkId = currentUserService.getClerkId()
-        val user = userRepository.findByClerkId(clerkId)
-            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
-        return user.toApiResponse(clerkId)
+        val user = currentUserService.getCurrentUser()
+        return user.toApiResponse(currentUserService.getClerkId())
     }
 
     private fun com.ollia.entity.User.toApiResponse(clerkId: String): ApiUserResponse =
