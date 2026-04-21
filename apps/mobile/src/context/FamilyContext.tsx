@@ -242,7 +242,8 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const clearAllState = useCallback(async () => {
     stopAllIntervals();
     // Remove push token from backend before clearing auth
-    api.deregisterPushToken().catch(() => {});
+    // TODO We keep the token in order to notify the user
+    // api.deregisterPushToken().catch(() => {});
     // Tear down background tasks
     unregisterBackgroundActivity().catch(() => {});
     // Clear AsyncStorage — also clear any per-user founding claim keys
