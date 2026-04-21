@@ -293,7 +293,21 @@ export default function SignInScreen() {
         </View>
 
         <Text style={styles.legal}>
-          {t("onboarding.legal")}
+          {t("onboarding.legalPrefix")}{" "}
+          <Text
+              style={{ color: BRAND.primary, textDecorationLine: "underline" }}
+              onPress={() => Linking.openURL("https://ollia.app/terms")}
+          >
+            {t("onboarding.legalTerms")}
+          </Text>
+          {" "}{t("onboarding.legalAnd")}{" "}
+          <Text
+              style={{ color: BRAND.primary, textDecorationLine: "underline" }}
+              onPress={() => Linking.openURL("https://ollia.app/privacy")}
+          >
+            {t("onboarding.legalPrivacy")}
+          </Text>
+          .
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>

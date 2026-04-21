@@ -476,7 +476,7 @@ export default function MyStatusScreen() {
         </View>
       </View>
 
-      <View style={{ height: Platform.OS === "web" ? 34 : 20 }} />
+      <View style={{ height: Platform.OS === "web" ? 34 : insets.bottom + 20 }} />
 
       <UpgradeModal
         visible={showUpgrade}

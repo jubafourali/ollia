@@ -44,6 +44,7 @@ hs_err_pid*
 .env
 .env.local
 .env*.local
+.env*
 
 # ========================
 # IDE / Editor

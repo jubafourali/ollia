@@ -12,7 +12,7 @@
     "official": "Officiel",
     "you": "Vous",
     "version": "Version {{version}}",
-    "justNow": "À l’instant",
+    "justNow": "À l'instant",
     "minutesAgo": "il y a {{count}} min",
     "hoursAgo": "il y a {{count}} h",
     "daysAgo": "il y a {{count}} j",
@@ -21,7 +21,7 @@
     "lastActiveMinutes_other": "Actif il y a {{count}} minutes",
     "lastActiveHours_one": "Actif il y a {{count}} heure",
     "lastActiveHours_other": "Actif il y a {{count}} heures",
-    "lastActiveDay": "Actif il y a plus d’un jour",
+    "lastActiveDay": "Actif il y a plus d'un jour",
     "chooseCity": "Choisis ta ville…",
     "searchCity": "Recherche ta ville…",
     "noCitiesFound": "Aucune ville trouvée — essaie une autre écriture."
@@ -35,7 +35,7 @@
   },
 
   "checkIn": {
-    "today": "Signal envoyé aujourd’hui à {{time}}",
+    "today": "Signal envoyé aujourd'hui à {{time}}",
     "yesterday": "Signal envoyé hier à {{time}}",
     "daysAgo_one": "Dernier signal il y a {{count}} jour",
     "daysAgo_other": "Dernier signal il y a {{count}} jours",
@@ -52,7 +52,7 @@
   "family": {
     "title": "Cercle familial",
     "activeNow": "{{count}} sur {{total}} actifs",
-    "checkedInToday": "{{count}} sur {{total}} ont donné un signe aujourd’hui",
+    "checkedInToday": "{{count}} sur {{total}} ont donné un signe aujourd'hui",
     "watching": "Ollia veille discrètement sur tout le monde",
     "travelBanner_one": "{{names}} est en voyage",
     "travelBanner_other": "{{names}} sont en voyage",
@@ -68,11 +68,11 @@
     "footerFree": "Alertes globales — passe à Premium pour filtrer par ville.",
     "footerNote": "Données officielles USGS, NOAA & GDACS. {{context}} Appuie sur une alerte pour voir la source.",
     "emptyTitle": "Ton cercle est vide",
-    "emptyText": "Invite ta famille pour qu’ils reçoivent un signal discret que tu vas bien.",
-    "inviteSomeone": "Inviter quelqu’un",
+    "emptyText": "Invite ta famille pour qu'ils reçoivent un signal discret que tu vas bien.",
+    "inviteSomeone": "Inviter quelqu'un",
     "invited": "Invité",
     "invite": {
-      "continue" : "Continuer sur Ollia",
+      "continue": "Continuer sur Ollia",
       "youAreIn": "Tu es dedans 💛",
       "youAreInSub": "Ollia partage uniquement que tu es actif — jamais ta position,\nni tes messages, ni quoi que ce soit de personnel.\n"
     }
@@ -80,7 +80,7 @@
 
   "myStatus": {
     "title": "Mon statut",
-    "subtitle": "C’est ce que voit ta famille",
+    "subtitle": "C'est ce que voit ta famille",
     "sendHeartbeat": "Envoyer un signal maintenant",
     "lastHeartbeat": "Dernier signal : {{elapsed}}",
     "activityPattern": "Activité",
@@ -89,7 +89,7 @@
     "backendSync": "Connexion serveur",
     "connected": "Connecté",
     "offline": "Hors ligne",
-    "activityDetection": "Détection d’activité",
+    "activityDetection": "Détection d'activité",
     "profile": "Profil",
     "notSet": "Non défini",
     "region": "Région",
@@ -98,13 +98,13 @@
     "travelingTo": "En voyage vers {{destination}}",
     "searchDestination": "Recherche ta destination…",
     "smartAlertsTitle": "Alertes intelligentes",
-    "smartAlertsLocked": "Recevoir des alertes si quelqu’un disparaît — Premium",
+    "smartAlertsLocked": "Recevoir des alertes si quelqu'un disparaît — Premium",
     "needsAttention": "À surveiller",
-    "needsAttentionHint": "Ces personnes n’ont pas donné de signe récemment",
+    "needsAttentionHint": "Ces personnes n'ont pas donné de signe récemment",
     "noSignal12h": "Pas de signal depuis 12h+",
     "noSignal3h": "Pas de signal depuis 3h+",
     "whoCanSee": "Qui voit ton statut",
-    "inviteFromFamily": "Invite depuis l’onglet Famille",
+    "inviteFromFamily": "Invite depuis l'onglet Famille",
     "canSee": "Peut voir",
     "pending": "En attente",
     "privacyTitle": "Vie privée protégée",
@@ -128,11 +128,11 @@
     "officialBadge": "Officiel",
     "notifications": "Notifications",
     "activityAlerts": "Activité",
-    "activityAlertsSubtitle": "Notifier quand quelqu’un est actif",
+    "activityAlertsSubtitle": "Notifier quand quelqu'un est actif",
     "inactivityAlerts": "Inactivité",
-    "inactivityAlertsSubtitle": "Notifier si quelqu’un disparaît",
+    "inactivityAlertsSubtitle": "Notifier si quelqu'un disparaît",
     "safetyPreferences": "Préférences",
-    "inactivityThreshold": "Délai d’inactivité",
+    "inactivityThreshold": "Délai d'inactivité",
     "inactivityThresholdHint": "Alerte après X heures sans signal",
     "urgentOvernight": "Alertes nocturnes urgentes",
     "urgentOvernightHint": "Ollia reste silencieux la nuit (23h–8h). Active si tu veux recevoir quand même.",
@@ -143,12 +143,12 @@
     "cancelSchedule": "Annuler",
     "canceling": "Annulation…",
     "safetyPreferencesLocked": "Fonction Premium",
-    "activityApps": "Apps d’activité",
-    "activityAppsPrivacy": "On détecte seulement l’ouverture, jamais le contenu.",
+    "activityApps": "Apps d'activité",
+    "activityAppsPrivacy": "On détecte seulement l'ouverture, jamais le contenu.",
     "selectedApps": "Apps sélectionnées",
     "addApps": "Ajouter",
     "activityAppsLocked": "Fonction Premium",
-    "emergencyContact": "Contact d’urgence",
+    "emergencyContact": "Contact d'urgence",
     "emergencyContactHint": "Contacté si tu es injoignable trop longtemps",
     "name": "Nom",
     "ecNamePlaceholder": "ex : Maman",
@@ -177,12 +177,178 @@
     "failedRemoveMember": "Erreur. Réessaie.",
     "failedDeleteAccount": "Erreur. Réessaie.",
     "language": "Langue",
-    "languageSubtitle": "Langue de l’app",
+    "languageSubtitle": "Langue de l'app",
     "chooseLanguage": "Choisir la langue",
-    "restartRequired": "Redémarre l’app.",
+    "restartRequired": "Redémarre l'app.",
     "expired": "Expiré",
     "shareOllia": "Partager Ollia",
-    "shareMessage": "J’utilise Ollia pour rassurer ma famille discrètement. Rejoins-moi 💛"
+    "shareMessage": "J'utilise Ollia pour rassurer ma famille discrètement. Rejoins-moi 💛"
+  },
+
+  "upgrade": {
+    "title": "Passer à Premium",
+    "tagline": "Garde ta famille proche, où qu'elle soit.",
+    "annual": "Annuel",
+    "savePercent": "Économise ~33%",
+    "annualPrice": "$79.99",
+    "annualPriceSub": "/an",
+    "monthly": "Mensuel",
+    "monthlyPrice": "$9.99 / mois",
+    "legalNote": "Annule à tout moment. Sans frais cachés.",
+    "notNow": "Pas maintenant",
+    "comingSoonTitle": "Bientôt disponible",
+    "comingSoonBody": "Premium arrive très bientôt. On te préviendra dès que c'est prêt.",
+    "features": {
+      "oneTapCheckin": "Signal en un tap",
+      "unlimitedMembers": "Membres illimités",
+      "smartEscalation": "Escalade intelligente",
+      "customInactivity": "Délai personnalisé (1–24h)",
+      "flexibleCheckins": "Check-ins flexibles",
+      "scheduledMode": "Mode planifié",
+      "travelMode": "Mode voyage",
+      "cityAlerts": "Alertes locales",
+      "severityControl": "Contrôle de sévérité",
+      "activityPatterns": "Analyse d'activité"
+    },
+    "plan": {
+      "unlimitedMembers": "Membres illimités — toute ta famille, sans limite",
+      "smartEscalation": "Escalade intelligente — si tu disparais, quelqu'un est prévenu",
+      "customInactivity": "Délai flexible (1–24h) — tu définis ce que « trop long » signifie",
+      "flexibleCheckins": "Check-ins flexibles",
+      "scheduledMode": "Mode planifié — pars randonner ? Mets 17h, ta famille est prévenue si tu ne réponds pas",
+      "travelMode": "Mode voyage — ta famille sait quand tu pars et arrives",
+      "cityAlerts": "Alertes locales — sois informé quand quelque chose se passe près de toi",
+      "severityControl": "Contrôle de sévérité et alertes régionales",
+      "activityPatterns": "Analyse d'activité — détecte quand quelque chose semble inhabituel"
+    },
+    "freePlan": {
+      "members": "Jusqu'à 3 membres",
+      "oneTapCheckin": "Signal en un tap",
+      "basicReassurance": "Réassurance de base",
+      "safetyAlerts": "Alertes mondiales"
+    }
+  },
+
+  "onboarding": {
+    "logoTagline": "Un signal discret pour que ta famille sache que tu vas bien",
+    "welcome": "Bienvenue",
+    "signInSub": "Connecte-toi ou crée un compte pour rester proche de ta famille.",
+    "yourEmail": "Ton adresse e-mail",
+    "emailPlaceholder": "toi@exemple.com",
+    "continueEmail": "Continuer avec l'e-mail",
+    "or": "ou",
+    "continueGoogle": "Continuer avec Google",
+    "continueApple": "Continuer avec Apple",
+    "checkEmail": "Vérifie ta boîte mail",
+    "codeSentTo": "On a envoyé un code à 6 chiffres à",
+    "verificationCode": "Code de vérification",
+    "verifyCode": "Vérifier le code",
+    "didntReceive": "Pas reçu ? Réessaie",
+    "legalPrefix": "En continuant, tu acceptes nos",
+    "legalTerms": "Conditions d'utilisation",
+    "legalAnd": "et notre",
+    "legalPrivacy": "Politique de confidentialité",
+    "legal": "En continuant, tu acceptes les Conditions d'utilisation et la Politique de confidentialité d'Ollia.",
+    "errorGeneric": "Une erreur s'est produite. Réessaie.",
+    "errorCode": "Code incorrect. Réessaie.",
+    "errorSignInFailed": "Connexion échouée. Réessaie.",
+    "back": "Retour"
+  },
+
+  "invite": {
+    "title": "Inviter dans le cercle",
+    "smartLink": "Envoie-leur un lien",
+    "smartLinkSub": "En appuyant dessus, ils rejoindront directement le cercle de {{name}} sur Ollia.",
+    "namePrompt": "C'est quoi ton prénom ?",
+    "namePromptHint": "Pour que l'invitation soit personnelle, pas juste un lien anonyme.",
+    "thatsMe": "C'est moi",
+    "relationLabel": "Leur lien avec toi",
+    "shareLink": "Partager le lien",
+    "privacyNote": "Seules les personnes avec ce lien peuvent rejoindre ton cercle. Tu peux les retirer à tout moment.",
+    "shareSheetTitle": "Rejoins mon cercle Ollia",
+    "relations": {
+      "Mother": "Mère",
+      "Father": "Père",
+      "Sister": "Sœur",
+      "Brother": "Frère",
+      "Partner": "Partenaire",
+      "Child": "Enfant",
+      "Friend": "Ami(e)",
+      "Other": "Autre",
+      "Family": "Famille"
+    }
+  },
+
+  "join": {
+    "invited": "{{ownerName}} t'a invité(e)",
+    "joinSub": "Rejoins son cercle familial pour envoyer un signal discret que tu vas bien — sans check-in nécessaire.",
+    "yourName": "Ton prénom",
+    "yourNamePlaceholder": "Comment t'appellent-ils ?",
+    "yourCity": "Ta ville",
+    "optional": "(facultatif)",
+    "privacyNote": "Seul ton statut d'activité est partagé. Jamais ta position.",
+    "joinBtn": "Rejoindre le cercle de {{ownerName}}",
+    "joining": "Rejoindre…",
+    "successTitle": "Tu es dans le cercle !",
+    "successSub": "Tu as rejoint le cercle de {{ownerName}}.\nIls verront un signal discret quand tu seras actif(ve).",
+    "successPrivacy": "Seul ton statut d'activité est partagé — jamais ta position exacte ni ce que tu fais.",
+    "openOllia": "Ouvrir Ollia",
+    "errorInvalid": "Ce lien d'invitation n'est plus valide.",
+    "errorFull": "Ce cercle est complet. Demande au propriétaire de passer à Premium.",
+    "errorGeneric": "Une erreur s'est produite. Réessaie."
+  },
+
+  "premiumSuccess": {
+    "title": "Bienvenue dans Premium",
+    "subtitle": "Ton cercle est maintenant illimité. Voici ce qui vient de se débloquer :",
+    "continue": "Continuer sur Ollia",
+    "footerNote": "Gère ton abonnement à tout moment dans Réglages."
+  },
+
+  "premiumCancel": {
+    "title": "Pas de problème",
+    "subtitle": "Ollia est toujours là pour toi et ta famille. Tu peux passer à Premium depuis Réglages à tout moment.",
+    "backBtn": "Retour sur Ollia"
+  },
+
+  "member": {
+    "notFound": "Membre introuvable",
+    "goBack": "Retour",
+    "lastActive": "Dernière activité",
+    "region": "Région",
+    "privacyNote": "Ollia affiche uniquement les signaux d'activité — jamais la position, les messages ou les données personnelles.",
+    "removeMember": "Retirer le membre",
+    "removeMemberMsg": "Retirer {{name}} de ton cercle ?",
+    "failedRemove": "Échec du retrait. Réessaie."
+  },
+
+  "checkin": {
+    "title": "Tu vas bien ?",
+    "subtitle": "Ta famille a remarqué que tu n'étais pas actif(ve) depuis un moment.\nFais-leur savoir que tu vas bien.",
+    "fine": "Je vais bien",
+    "help": "J'ai besoin d'aide"
+  },
+
+  "sources": {
+    "usgs": {
+      "orgName": "U.S. Geological Survey",
+      "abbrev": "USGS",
+      "website": "earthquake.usgs.gov",
+      "description": "Alertes sismiques en temps réel dans le monde entier. Données publiées directement par l'USGS."
+    },
+    "noaa": {
+      "orgName": "National Weather Service",
+      "abbrev": "NOAA / NWS",
+      "website": "weather.gov",
+      "description": "Alertes météo sévères pour les États-Unis : tempêtes, inondations et conditions extrêmes."
+    },
+    "gdacs": {
+      "orgName": "Alerte mondiale aux catastrophes",
+      "abbrev": "GDACS / EU JRC",
+      "website": "gdacs.org",
+      "description": "Alertes mondiales — séismes, cyclones, inondations et volcans. Couvre les EAU, le Moyen-Orient et toutes les régions hors couverture NOAA."
+    },
+    "disclaimer": "Ollia ne modifie pas les données d'alerte officielles. Les données proviennent directement de l'USGS, de la NOAA et du GDACS et sont liées aux rapports originaux."
   },
 
   "notifications": {
@@ -191,16 +357,30 @@
     "nudge2Title": "Ollia",
     "nudge2Body": "On pense à toi. Un tap suffit.",
     "familySoftTitle": "Ollia",
-    "familySoftBody": "{{name}} ne s’est pas manifesté aujourd’hui. Tu peux peut-être vérifier.",
+    "familySoftBody": "{{name}} ne s'est pas manifesté aujourd'hui. Tu peux peut-être vérifier.",
     "familyStrongTitle": "Ollia — Urgent",
-    "familyStrongBody": "{{name}} n’a pas donné de nouvelles depuis plus d’un jour. Merci de vérifier.",
+    "familyStrongBody": "{{name}} n'a pas donné de nouvelles depuis plus d'un jour. Merci de vérifier.",
     "scheduledTitle": "Ollia",
-    "scheduledBody": "{{name}} n’a pas donné de signe comme prévu. Tu peux vérifier."
+    "scheduledBody": "{{name}} n'a pas donné de signe comme prévu. Tu peux vérifier."
+  },
+
+  "permissions": {
+    "sectionTitle": "Autorisations",
+    "notifications": "Notifications",
+    "notificationsHint": "Prévient ta famille si tu n'es pas actif(ve). Jamais utilisé pour la publicité.",
+    "backgroundRefresh": "Actualisation en arrière-plan",
+    "backgroundRefreshHint": "Envoie discrètement un signal quand l'app est fermée pour garder ton statut à jour.",
+    "backgroundRefreshHintLowPower": "Désactivé par iOS en mode économie d'énergie.",
+    "backgroundLocation": "Localisation en arrière-plan",
+    "backgroundLocationHint": "Utilisé uniquement comme déclencheur, jamais stocké ni partagé. Mets sur Toujours dans les réglages iOS.",
+    "statusOn": "Activé",
+    "statusOff": "Désactivé — appuie pour activer",
+    "statusLowPower": "Désactive le mode économie d'énergie"
   },
 
   "founding": {
     "title": "Tu fais partie des premiers 🌟",
-    "body": "Premium est offert pour toi — pendant 6 mois.\n\nMerci d’être là depuis le début 💛",
-    "cta": "C’est parti"
+    "body": "Premium est offert pour toi — pendant 6 mois.\n\nMerci d'être là depuis le début 💛",
+    "cta": "C'est parti"
   }
 }

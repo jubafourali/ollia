@@ -1371,8 +1371,7 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
-
-      <View style={styles.aboutCard}>
+      <View style={[styles.aboutCard, { paddingBottom: insets.bottom + 28 }]}>
         <View style={styles.aboutLogo}>
           <Text style={styles.aboutLogoText}>Oll</Text>
           <Text style={[styles.aboutLogoText, { color: BRAND.primary }]}>ia</Text>
