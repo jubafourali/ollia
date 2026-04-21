@@ -476,7 +476,7 @@ export default function InviteOnboardingScreen() {
             }}
             disabled={!userName.trim()}
           >
-            <Text style={styles.ctaButtonText}>Continue</Text>
+            <Text style={styles.ctaButtonText}>{t("family.invite.continue")}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -714,18 +714,15 @@ export default function InviteOnboardingScreen() {
             </View>
           </View>
 
-          <Text style={styles.successTitle}>You're in {"\uD83D\uDC9B"}</Text>
+          <Text style={styles.successTitle}>{t("family.invite.youAreIn")} {"\uD83D\uDC9B"}</Text>
 
-          <Text style={styles.successDescription}>
-            Ollia only shares that you're active — never your location,
-            messages, or anything personal.
-          </Text>
+          <Text style={styles.successDescription}>{t("family.invite.youAreInSub")}</Text>
 
           <Pressable
-            style={({ pressed }) => [
-              styles.ctaButton,
-              pressed && { opacity: 0.85 },
-            ]}
+              style={({ pressed }) => [
+                styles.ctaButton,
+                pressed && { opacity: 0.85 },
+              ]}
             onPress={() => {
               if (Platform.OS !== "web") {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -733,7 +730,7 @@ export default function InviteOnboardingScreen() {
               setStep("firstValue");
             }}
           >
-            <Text style={styles.ctaButtonText}>Continue</Text>
+            <Text style={styles.ctaButtonText}>{t("family.invite.continue")}</Text>
           </Pressable>
         </Animated.View>
       </View>
@@ -1051,6 +1048,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 20,
     paddingHorizontal: 8,
+    width: "100%",
   },
   pulseContainer: {
     width: 120,
@@ -1201,5 +1199,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: "Inter_600SemiBold",
     color: BRAND.white,
+    textAlign: "center",
   },
 });

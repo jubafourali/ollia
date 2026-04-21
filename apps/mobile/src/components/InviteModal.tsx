@@ -60,7 +60,7 @@ export function InviteModal({
     { key: "Other", label: t("invite.relations.Other") },
   ];
 
-  const needsName = !myProfile?.name;
+  const needsName = !myProfile?.name || myProfile.name === "User";
 
   useEffect(() => {
     if (visible) {
@@ -76,12 +76,7 @@ export function InviteModal({
 
   function buildInviteLink(): string {
     const ownerName = encodeURIComponent(myProfile?.name || editingName.trim() || "Someone");
-    return Linking.createURL("/invite", {
-      queryParams: {
-        token: inviteCode,
-        name: ownerName,
-      },
-    });
+    return `https://ollia.app/invite?token=${inviteCode}&name=${ownerName}`;
   }
 
   async function handleShare() {
@@ -89,7 +84,7 @@ export function InviteModal({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     const link = buildInviteLink();
-    const name = myProfile?.name || editingName.trim() || "Someone";
+    const name = myProfile?.name?.trim() || editingName.trim() || "Someone";
     try {
       await Share.share({
         message: `${name} cares about you \u{1F49B}\n\nThey're using Ollia to quietly make sure everyone is okay.\n\nJoin their circle:\n${link}`,
@@ -215,7 +210,7 @@ export function InviteModal({
           <View style={styles.linkPreview}>
             <Feather name="link" size={14} color={BRAND.textMuted} />
             <Text style={styles.linkPreviewText} numberOfLines={1}>
-              ollia://invite?token={inviteCode ? inviteCode.substring(0, 8) : "…"}…
+              ollia.app/invite?token={inviteCode ? inviteCode.substring(0, 8) : "…"}…
             </Text>
           </View>
 

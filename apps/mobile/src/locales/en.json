@@ -66,7 +66,12 @@
     "emptyTitle": "Your circle is empty",
     "emptyText": "Invite family members so they can receive a quiet signal that you're safe.",
     "inviteSomeone": "Invite someone",
-    "invited": "Invited"
+    "invited": "Invited",
+    "invite": {
+      "continue" : "Continue to Ollia",
+      "youAreIn": "You're in",
+      "youAreInSub": "Ollia only shares that you're active — never your location,\nmessages, or anything personal.\n"
+    }
   },
   "myStatus": {
     "title": "My Status",
