@@ -11,7 +11,7 @@ import java.util.UUID
 @Service
 class CurrentUserService(private val userRepository: UserRepository) {
     companion object {
-        const val FOUNDING_MEMBER_LIMIT = 100L
+        const val FOUNDING_MEMBER_LIMIT = 300L
         const val FOUNDING_PERK_MONTHS = 6L
     }
 
