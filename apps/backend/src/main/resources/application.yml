@@ -28,6 +28,9 @@ spring:
 clerk:
   secret-key: ${CLERK_SECRET_KEY:sk_test_rmM3vga9XaLFQVKbz9UOGOUy4c5juGD1ebXgUHJdNh}
 
+revenuecat:
+  webhook-secret: ${REVENUECAT_WEBHOOK_SECRET:test_RwsQEgOzKHVTQMrEBgyhcPOxYaI}
+
 stripe:
   secret-key: ${STRIPE_SECRET_KEY:}
   price-id: ${STRIPE_PRICE_ID:}
