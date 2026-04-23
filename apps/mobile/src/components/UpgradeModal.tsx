@@ -3,7 +3,7 @@ import * as Haptics from "expo-haptics";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ActivityIndicator,
+  ActivityIndicator, Alert,
   Modal,
   Platform,
   Pressable, ScrollView,
@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BRAND from "@/constants/colors";
+import Purchases from 'react-native-purchases';
 
 
 type Props = {
@@ -43,24 +44,37 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
     { icon: "trending-up", text: t("upgrade.features.activityPatterns") },
   ];
 
-  // Checkout logic preserved — will be re-enabled when Stripe is ready
+  // Checkout logic preserved — will be re-enabled when Stripe/RevenueCat is ready
   const handleSelect = async (plan: "monthly" | "annual") => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     setSelecting(plan);
     try {
-      await onSelect(plan);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const offerings = await Purchases.getOfferings();
+
+      const offering = offerings.current;
+      if (!offering) throw new Error("No offerings available");
+
+      const pkg = plan === "annual"
+          ? offering.annual
+          : offering.monthly;
+      if (!pkg) throw new Error("Package not found");
+
+      const { customerInfo } = await Purchases.purchasePackage(pkg);
+      const isPremium = customerInfo.entitlements.active["premium"] !== undefined;
+      if (isPremium) {
+        await onSelect(plan);
+      }
+    } catch (e: any) {
+      if (!e.userCancelled) {
+        Alert.alert("Purchase failed", e.message ?? "Please try again.");
+      }
     } finally {
       setSelecting(null);
     }
-  };
-
-  const _handleSelect = (_plan: "monthly" | "annual") => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    setShowComingSoon(true);
   };
 
   const isLoading = loading || selecting !== null;
@@ -187,9 +201,27 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
             </Text>
 
             {!isLoading && (
-              <Pressable onPress={onClose} style={styles.dismissBtn}>
-                <Text style={styles.dismissText}>{t("upgrade.notNow")}</Text>
-              </Pressable>
+                <>
+                  <Pressable onPress={onClose} style={styles.dismissBtn}>
+                    <Text style={styles.dismissText}>{t("upgrade.notNow")}</Text>
+                  </Pressable>
+                  <Pressable onPress={async () => {
+                    try {
+                      const customerInfo = await Purchases.restorePurchases();
+                      const isPremium = customerInfo.entitlements.active["premium"] !== undefined;
+                      if (isPremium) {
+                        await onSelect("monthly");
+                        onClose();
+                      } else {
+                        Alert.alert("No active subscription found.");
+                      }
+                    } catch (e: any) {
+                      Alert.alert("Restore failed", e.message);
+                    }
+                  }} style={styles.dismissBtn}>
+                    <Text style={styles.dismissText}>Restore purchases</Text>
+                  </Pressable>
+                </>
             )}
           </>
         )}
@@ -357,8 +389,9 @@ const styles = StyleSheet.create({
   },
   dismissText: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    color: BRAND.textMuted,
+    fontFamily: "Inter_500Medium",
+    color: BRAND.textSecondary,
+    textDecorationLine: "underline",
   },
   comingSoonWrap: {
     alignItems: "center",

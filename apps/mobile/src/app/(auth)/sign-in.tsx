@@ -41,7 +41,6 @@ export default function SignInScreen() {
   const [error, setError] = useState("");
 
   const isLoaded = signInLoaded && signUpLoaded;
-  if (authLoaded && isSignedIn) return null;
 
   React.useEffect(() => {
     if (authLoaded && isSignedIn) {

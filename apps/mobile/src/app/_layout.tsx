@@ -19,6 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FamilyProvider } from "@/context/FamilyContext";
 import { FoundingModal } from "@/components/FoundingModal";
 import i18n, { mapLocaleToSupported, LANGUAGE_STORAGE_KEY } from "@/i18n";
+import Purchases, {STOREKIT_VERSION} from 'react-native-purchases';
 
 // Import to register background tasks at module scope (TaskManager.defineTask)
 import "@/services/backgroundActivity";
@@ -46,10 +47,17 @@ const tokenCache =
         };
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { isSignedIn, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded, userId } = useAuth();  // add userId here
   const segments = useSegments();
   const router = useRouter();
   const [authReady, setAuthReady] = useState(false);
+
+  // RevenueCat identity sync
+  useEffect(() => {
+    if (isSignedIn && userId) {
+      Purchases.logIn(userId);
+    }
+  }, [isSignedIn, userId]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -59,7 +67,6 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     const inPremiumRedirect =
         segments[0] === "premium-success" || segments[0] === "premium-cancel";
 
-    // Allow invite onboarding and post-checkout redirects without auth gate
     if (inInvite || inPremiumRedirect) {
       setAuthReady(true);
       return;
@@ -71,12 +78,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       router.replace("/(tabs)");
     }
 
-    // Mark auth as ready after first routing decision
     setAuthReady(true);
   }, [isSignedIn, isLoaded, segments]);
 
-  // Don't render children until Clerk has loaded and first routing decision is made.
-  // This prevents the brief flash of the wrong screen.
   if (!isLoaded || !authReady) return <View style={{ flex: 1, backgroundColor: "#F0E2C4" }} />;
 
   return <>{children}</>;
@@ -180,6 +184,16 @@ export default function RootLayout() {
       }
     }
     initLanguage();
+  }, []);
+  useEffect(() => {
+    const iosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '';
+
+    if (Platform.OS === 'ios') {
+      Purchases.configure({
+        apiKey: iosApiKey,
+        storeKitVersion: STOREKIT_VERSION.STOREKIT_2,
+      });
+    }
   }, []);
 
   return (

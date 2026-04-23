@@ -734,13 +734,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       []
   );
 
-  const upgradePlan = useCallback(async (planType: "monthly" | "annual") => {
-    const { url } = await api.createCheckout(planType);
-    // openAuthSessionAsync captures the https://ollia.app/premium-* redirect automatically
-    await WebBrowser.openAuthSessionAsync(url, "https://ollia.app/premium-success");
-    // Always sync after the session closes (success or cancel)
+  const upgradePlan = async (plan: "monthly" | "annual") => {
+    // RevenueCat handles the purchase — just refresh the user's plan from backend
     await syncSubscription();
-  }, [syncSubscription]);
+  };
 
   const reloadCircleFromStorage = useCallback(async () => {
     const uid = deviceIdRef.current || userId;
