@@ -5,6 +5,7 @@
     "apps/mobile"
   ],
   "dependencies": {
+    "expo-store-review": "~9.0.9",
     "react-native-worklets": "^0.5.1"
   }
 }

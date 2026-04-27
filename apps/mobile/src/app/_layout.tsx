@@ -23,6 +23,7 @@ import Purchases, {STOREKIT_VERSION} from 'react-native-purchases';
 
 // Import to register background tasks at module scope (TaskManager.defineTask)
 import "@/services/backgroundActivity";
+import {initInstallDate, triggerReviewAfter7Days} from "@/utils/reviewPrompt";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -194,6 +195,11 @@ export default function RootLayout() {
         storeKitVersion: STOREKIT_VERSION.STOREKIT_2,
       });
     }
+  }, []);
+
+  useEffect(() => {
+    initInstallDate();
+    triggerReviewAfter7Days()
   }, []);
 
   return (
