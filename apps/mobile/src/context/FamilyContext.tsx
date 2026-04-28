@@ -22,6 +22,7 @@ import {
 import * as BackgroundFetch from "expo-background-fetch";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import {triggerReviewAfterFirstMember} from "@/utils/reviewPrompt";
 
 export type ActivityStatus = "active" | "recent" | "away" | "inactive";
 
@@ -39,6 +40,7 @@ export type FamilyMember = {
   pending?: boolean;
   travelMode?: boolean;
   travelDestination?: string;
+  joinedAt?: string | null;
 };
 
 export type CheckInRequest = {
@@ -163,6 +165,7 @@ function apiMemberToLocal(m: ApiCircleMember, meId: string): FamilyMember {
     pending: false,
     travelMode: m.travelMode ?? false,
     travelDestination: m.travelDestination,
+    joinedAt: m.joinedAt
   };
 }
 
@@ -755,7 +758,17 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     try {
       const circle = await api.getCircle(cId);
       if (circle.members) {
-        setMembers(circle.members.map((m: ApiCircleMember) => apiMemberToLocal(m, uid)));
+        const mapped = circle.members.map((m: ApiCircleMember) => apiMemberToLocal(m, uid));
+        setMembers(mapped);
+
+        if (mapped.length === 1) {
+          const firstMember = mapped[0];
+          const joinedAt = firstMember.joinedAt ? new Date(firstMember.joinedAt) : null;
+          const isToday = joinedAt && (Date.now() - joinedAt.getTime()) < 1000 * 60 * 60 * 24;
+          if (isToday) {
+            await triggerReviewAfterFirstMember();
+          }
+        }
       }
     } catch (e) {
       console.warn("reloadCircleFromStorage fetch failed:", e);
