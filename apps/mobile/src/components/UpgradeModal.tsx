@@ -3,7 +3,7 @@ import * as Haptics from "expo-haptics";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ActivityIndicator, Alert,
+  ActivityIndicator, Alert, Linking,
   Modal,
   Platform,
   Pressable, ScrollView,
@@ -221,6 +221,18 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
                   }} style={styles.dismissBtn}>
                     <Text style={styles.dismissText}>Restore purchases</Text>
                   </Pressable>
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 }}>
+                    <Pressable onPress={() => Linking.openURL('https://ollia.app/privacy')}>
+                      <Text style={{ fontSize: 12, color: BRAND.textMuted, textDecorationLine: 'underline' }}>
+                        Privacy Policy
+                      </Text>
+                    </Pressable>
+                    <Pressable onPress={() => Linking.openURL('https://ollia.app/terms')}>
+                      <Text style={{ fontSize: 12, color: BRAND.textMuted, textDecorationLine: 'underline' }}>
+                        Terms of Use
+                      </Text>
+                    </Pressable>
+                  </View>
                 </>
             )}
           </>
