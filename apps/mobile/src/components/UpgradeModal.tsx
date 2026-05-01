@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useWindowDimensions } from "react-native";
 
 import BRAND from "@/constants/colors";
 import Purchases from 'react-native-purchases';
@@ -29,6 +30,8 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
   const insets = useSafeAreaInsets();
   const [selecting, setSelecting] = React.useState<"monthly" | "annual" | null>(null);
   const [showComingSoon, setShowComingSoon] = React.useState(false);
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
 
   const unlockFeatures = [
     { icon: "users", text: t("upgrade.features.unlimitedMembers") },
@@ -80,14 +83,22 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
   const isLoading = loading || selecting !== null;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.backdrop} onPress={isLoading ? undefined : onClose} />
-      <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+      <Modal
+          visible={visible}
+          animationType="slide"
+          transparent
+          onRequestClose={onClose}
+      >
+        <View style={[styles.modalContainer, isTablet && styles.modalContainerTablet]}>
+          <Pressable
+              style={StyleSheet.absoluteFillObject}
+              onPress={isLoading ? undefined : onClose}
+          />
+          <View style={[
+            styles.sheet,
+            { paddingBottom: Math.max(insets.bottom, 24) },
+            isTablet && styles.sheetTablet,
+          ]}>
         {/* Handle */}
         <View style={styles.handle} />
 
@@ -130,7 +141,7 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
 
             {/* Feature list */}
             <ScrollView
-                style={{ maxHeight: 400 }}
+                style={{ maxHeight: isTablet ? 500 : 400 }}
                 showsVerticalScrollIndicator={false}
             >
               <View style={styles.features}>
@@ -237,6 +248,7 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
             )}
           </>
         )}
+          </View>
       </View>
     </Modal>
   );
@@ -418,5 +430,30 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingHorizontal: 12,
     marginBottom: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalContainerTablet: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sheet: {
+    backgroundColor: BRAND.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderColor: BRAND.borderLight,
+    maxHeight: '90%',
+  },
+  sheetTablet: {
+    width: 560,
+    borderRadius: 24,
+    borderTopWidth: 0,
+    marginBottom: 0,
   },
 });

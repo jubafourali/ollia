@@ -199,7 +199,7 @@
     "comingSoonTitle": "Bientôt disponible",
     "comingSoonBody": "Premium arrive très bientôt. On te préviendra dès que c'est prêt.",
     "features": {
-      "oneTapCheckin": "Signal en un tap",
+      "oneTapCheckin": "Signal en un click",
       "unlimitedMembers": "Membres illimités",
       "smartEscalation": "Escalade intelligente",
       "customInactivity": "Délai personnalisé (1–24h)",
@@ -223,7 +223,7 @@
     },
     "freePlan": {
       "members": "Jusqu'à 3 membres",
-      "oneTapCheckin": "Signal en un tap",
+      "oneTapCheckin": "Signal en un click",
       "basicReassurance": "Réassurance de base",
       "safetyAlerts": "Alertes mondiales"
     }
@@ -355,7 +355,7 @@
     "nudgeTitle": "Ollia",
     "nudgeBody": "Un petit signe, ça change tout 💛",
     "nudge2Title": "Ollia",
-    "nudge2Body": "On pense à toi. Un tap suffit.",
+    "nudge2Body": "On pense à toi. Un click suffit.",
     "familySoftTitle": "Ollia",
     "familySoftBody": "{{name}} ne s'est pas manifesté aujourd'hui. Tu peux peut-être vérifier.",
     "familyStrongTitle": "Ollia — Urgent",
