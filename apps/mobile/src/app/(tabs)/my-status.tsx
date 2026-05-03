@@ -12,7 +12,8 @@ import {
   Text,
   View,
 } from "react-native";
-import * as Linking from "expo-linking";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Reanimated, {
   useSharedValue,
@@ -94,6 +95,14 @@ export default function MyStatusScreen() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [locationPromptVisible, setLocationPromptVisible] = useState(false);
 
+  const [permissionDismissed, setPermissionDismissed] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem('location_permission_dismissed').then(val => {
+      if (val === 'true') setPermissionDismissed(true);
+    });
+  }, []);
+
   // Show location prompt when permission is missing; hide when granted
   useEffect(() => {
     if (!locationPermissionMissing) {
@@ -102,6 +111,14 @@ export default function MyStatusScreen() {
     }
     setLocationPromptVisible(true);
   }, [locationPermissionMissing]);
+
+  useEffect(() => {
+    if (!locationPermissionMissing || permissionDismissed) {
+      setLocationPromptVisible(false);
+      return;
+    }
+    setLocationPromptVisible(true);
+  }, [locationPermissionMissing, permissionDismissed]);
 
   const isPremium = plan === "premium";
 
@@ -269,38 +286,30 @@ export default function MyStatusScreen() {
           <Feather name="map-pin" size={16} color={BRAND.primary} />
           <View style={{ flex: 1 }}>
             <Text style={styles.locationPermissionText}>
-              Allow background location so Ollia can quietly update your status as you move. No location is ever stored.
+              {t("location.permissionText")}
             </Text>
             <View style={styles.locationPermissionActions}>
               <Pressable
                 style={styles.locationPermissionEnableBtn}
                 onPress={async () => {
-                  const granted = await requestLocationPermission();
-                  if (granted) {
-                    setLocationPromptVisible(false);
-                    return;
-                  }
-                  const ok = await hasBackgroundLocationPermission();
-                  if (ok) {
-                    setLocationPromptVisible(false);
-                    return;
-                  }
-                  // Permanently denied — send to Settings.
-                  // FamilyContext's foreground listener will update
-                  // locationPermissionMissing when the user returns.
-                  Linking.openURL("app-settings:");
-                }}
-              >
-                <Text style={styles.locationPermissionEnableBtnText}>Enable</Text>
-              </Pressable>
-              <Pressable
-                style={styles.locationPermissionDismissBtn}
-                onPress={() => {
+                  // Mark as dismissed FIRST — never show again regardless of outcome
+                  await AsyncStorage.setItem('location_permission_dismissed', 'true');
+                  setPermissionDismissed(true);
                   setLocationPromptVisible(false);
+
+                  await requestLocationPermission();
                 }}
               >
-                <Text style={styles.locationPermissionDismissBtnText}>Not now</Text>
+                <Text style={styles.locationPermissionEnableBtnText}>{t("location.continueBtn")}</Text>
               </Pressable>
+              {/*<Pressable*/}
+              {/*  style={styles.locationPermissionDismissBtn}*/}
+              {/*  onPress={() => {*/}
+              {/*    setLocationPromptVisible(false);*/}
+              {/*  }}*/}
+              {/*>*/}
+              {/*  <Text style={styles.locationPermissionDismissBtnText}>{t("location.notNow")}</Text>*/}
+              {/*</Pressable>*/}
             </View>
           </View>
         </View>

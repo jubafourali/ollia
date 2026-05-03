@@ -73,7 +73,7 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
       }
     } catch (e: any) {
       if (!e.userCancelled) {
-        Alert.alert("Purchase failed", e.message ?? "Please try again.");
+        Alert.alert(t("upgrade.purchaseFailed"), e.message ?? t("common.tryAgain"));
       }
     } finally {
       setSelecting(null);
@@ -224,13 +224,13 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
                         await onSelect("monthly");
                         onClose();
                       } else {
-                        Alert.alert("No active subscription found.");
+                        Alert.alert(t("upgrade.noActiveSubscription"));
                       }
                     } catch (e: any) {
-                      Alert.alert("Restore failed", e.message);
+                      Alert.alert(t("upgrade.restoreFailed"), e.message);
                     }
                   }} style={styles.dismissBtn}>
-                    <Text style={styles.dismissText}>Restore purchases</Text>
+                    <Text style={styles.dismissText}>{t("upgrade.restorePurchases")}</Text>
                   </Pressable>
                   <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 }}>
                     <Pressable onPress={() => Linking.openURL('https://ollia.app/privacy')}>

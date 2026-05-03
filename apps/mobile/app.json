@@ -26,9 +26,9 @@
           "location"
         ],
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationAlwaysUsageDescription": "Ollia uses background location changes only as an activity trigger to let your family know you're okay. No location data is stored or shared.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ollia uses background location changes only as an activity trigger to let your family know you're okay. No location data is stored or shared.",
-        "NSLocationWhenInUseUsageDescription": "Ollia uses location changes only as an activity trigger. No location data is stored or shared."
+        "NSLocationWhenInUseUsageDescription": "Ollia detects when your phone is moving as a sign of activity. For example, if your phone hasn't moved in a while, Ollia will send you a gentle nudge to confirm you're okay. No location data is stored or shared.",
+        "NSLocationAlwaysUsageDescription": "Ollia uses background location changes to detect phone activity. For example, if your phone stops moving for an extended period, Ollia will send you a gentle nudge to confirm you're okay. No location data is stored or shared.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ollia uses background location changes to detect phone activity. For example, if your phone stops moving for an extended period, Ollia will send you a gentle nudge to confirm you're okay. No location data is stored or shared."
       },
       "appleTeamId": "CP67H3M7M2"
     },
@@ -96,8 +96,8 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Ollia uses background location changes only as an activity trigger to let your family know you're okay. No location data is stored or shared.",
-          "locationWhenInUsePermission": "Ollia uses location changes only as an activity trigger. No location data is stored or shared.",
+          "locationAlwaysAndWhenInUsePermission": "Ollia uses background location changes to detect phone activity. For example, if your phone stops moving for an extended period, Ollia will send you a gentle nudge to confirm you're okay. No location data is stored or shared.",
+          "locationWhenInUsePermission": "Ollia uses location changes to detect phone activity. For example, if your phone stops moving for an extended period, Ollia will send you a gentle nudge to confirm you're okay. No location data is stored or shared.",
           "isIosBackgroundLocationEnabled": true
         }
       ]

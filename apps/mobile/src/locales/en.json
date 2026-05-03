@@ -191,6 +191,10 @@
     "notNow": "Not now",
     "comingSoonTitle": "Coming very soon",
     "comingSoonBody": "Premium is coming very soon. We'll notify you the moment it's ready.",
+    "restorePurchases": "Restore purchases",
+    "noActiveSubscription": "No active subscription found.",
+    "restoreFailed": "Restore failed",
+    "purchaseFailed": "Purchase failed",
     "features": {
       "oneTapCheckin": "One-tap check-ins — let them know you’re okay in a second",
       "unlimitedMembers": "Unlimited family members — everyone you care about, not just a few",
@@ -365,12 +369,17 @@
     "backgroundLocation": "Background Location",
     "backgroundLocationHint": "Used only as a trigger, never stored or shared. Set to Always in iOS Settings for best results.",
     "statusOn": "On",
-    "statusOff": "Off — tap to enable",
+    "statusOff": "Allow",
     "statusLowPower": "Needs Low Power Mode off"
   },
   "founding": {
     "title": "You're one of the first 🌟",
     "body": "Premium is unlocked for you — free for 6 months.\n\nThanks for being here from the start 💛",
     "cta": "Let's go"
+  },
+  "location": {
+    "permissionText": "Allow background location so Ollia can quietly update your status as you move. No location is ever stored.",
+    "continueBtn": "Continue",
+    "notNow": "Not now"
   }
 }

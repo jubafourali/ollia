@@ -198,6 +198,10 @@
     "notNow": "Pas maintenant",
     "comingSoonTitle": "Bientôt disponible",
     "comingSoonBody": "Premium arrive très bientôt. On te préviendra dès que c'est prêt.",
+    "restorePurchases": "Restaurer les achats",
+    "noActiveSubscription": "Aucun abonnement actif trouvé.",
+    "restoreFailed": "Échec de la restauration",
+    "purchaseFailed": "Échec de l'achat",
     "features": {
       "oneTapCheckin": "Signal en un click",
       "unlimitedMembers": "Membres illimités",
@@ -374,7 +378,7 @@
     "backgroundLocation": "Localisation en arrière-plan",
     "backgroundLocationHint": "Utilisé uniquement comme déclencheur, jamais stocké ni partagé. Mets sur Toujours dans les réglages iOS.",
     "statusOn": "Activé",
-    "statusOff": "Désactivé — appuie pour activer",
+    "statusOff": "Autoriser",
     "statusLowPower": "Désactive le mode économie d'énergie"
   },
 
@@ -382,5 +386,10 @@
     "title": "Tu fais partie des premiers 🌟",
     "body": "Premium est offert pour toi — pendant 6 mois.\n\nMerci d'être là depuis le début 💛",
     "cta": "C'est parti"
+  },
+  "location": {
+    "permissionText": "Autorisez la localisation en arrière-plan pour qu'Ollia puisse mettre à jour votre statut discrètement lorsque vous bougez. Aucune donnée de localisation n'est jamais stockée.",
+    "continueBtn": "Continuer",
+    "notNow": "Pas maintenant"
   }
 }
