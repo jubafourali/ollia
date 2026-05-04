@@ -220,17 +220,19 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       if (status !== "granted") return;
 
       // Register notification action category for nudge notifications
-      await Notifications.setNotificationCategoryAsync("CHECKIN_NUDGE", [
-        {
-          identifier: "IM_OKAY",
-          buttonTitle: "I'm okay 💛",
-          options: {
-            isDestructive: false,
-            isAuthenticationRequired: false,
-            opensAppToForeground: false,
+      if (Platform.OS === 'ios') {
+        await Notifications.setNotificationCategoryAsync("CHECKIN_NUDGE", [
+          {
+            identifier: "IM_OKAY",
+            buttonTitle: "I'm okay 💛",
+            options: {
+              isDestructive: false,
+              isAuthenticationRequired: false,
+              opensAppToForeground: false,
+            },
           },
-        },
-      ]);
+        ]);
+      }
 
       const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
       if (!projectId) return;

@@ -26,18 +26,12 @@ export default function TabLayout() {
           elevation: 0,
           ...(isWeb ? { height: 84 } : {}),
         },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView
-              intensity={90}
-              tint="light"
-              style={StyleSheet.absoluteFill}
-            />
-          ) : isWeb ? (
-            <View
-              style={[StyleSheet.absoluteFill, { backgroundColor: BRAND.backgroundCard }]}
-            />
-          ) : null,
+          tabBarBackground: () =>
+              isIOS ? (
+                  <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
+              ) : (
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: BRAND.backgroundCard }]} />
+              ),
       }}
     >
       <Tabs.Screen

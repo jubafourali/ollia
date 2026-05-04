@@ -11,7 +11,8 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ollia-production.up.railway.app",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_YmlnLWthdHlkaWQtODQuY2xlcmsuYWNjb3VudHMuZGV2JA",
-        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_OZQGIdEdxrZGpjeunKPHTLYJzgG"
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_OZQGIdEdxrZGpjeunKPHTLYJzgG",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "your_android_key_here"
       }
     },
     "preview": {
@@ -20,7 +21,8 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ollia-production.up.railway.app",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_YmlnLWthdHlkaWQtODQuY2xlcmsuYWNjb3VudHMuZGV2JA",
-        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_OZQGIdEdxrZGpjeunKPHTLYJzgG"
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_OZQGIdEdxrZGpjeunKPHTLYJzgG",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "your_android_key_here"
       }
     },
     "production": {
@@ -28,7 +30,8 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ollia-production.up.railway.app",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsub2xsaWEuYXBwJA",
-        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_OZQGIdEdxrZGpjeunKPHTLYJzgG"
+        "EXPO_PUBLIC_REVENUECAT_IOS_KEY": "appl_OZQGIdEdxrZGpjeunKPHTLYJzgG",
+        "EXPO_PUBLIC_REVENUECAT_ANDROID_KEY": "your_android_key_here"
       }
     }
   },

@@ -187,12 +187,14 @@ export default function RootLayout() {
     initLanguage();
   }, []);
   useEffect(() => {
-    const iosApiKey = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '';
-
     if (Platform.OS === 'ios') {
       Purchases.configure({
-        apiKey: iosApiKey,
+        apiKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '',
         storeKitVersion: STOREKIT_VERSION.STOREKIT_2,
+      });
+    } else if (Platform.OS === 'android') {
+      Purchases.configure({
+        apiKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '',
       });
     }
   }, []);

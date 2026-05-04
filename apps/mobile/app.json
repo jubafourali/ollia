@@ -38,6 +38,13 @@
         "backgroundColor": "#F0E2C4"
       },
       "package": "com.ollia.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "FOREGROUND_SERVICE"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -98,7 +105,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Ollia uses background location changes to detect phone activity. For example, if your phone stops moving for an extended period, Ollia will send you a gentle nudge to confirm you're okay. No location data is stored or shared.",
           "locationWhenInUsePermission": "Ollia uses location changes to detect phone activity. For example, if your phone stops moving for an extended period, Ollia will send you a gentle nudge to confirm you're okay. No location data is stored or shared.",
-          "isIosBackgroundLocationEnabled": true
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ]
     ],

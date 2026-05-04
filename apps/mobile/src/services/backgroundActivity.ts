@@ -203,7 +203,7 @@ export async function requestLocationPermission(): Promise<boolean> {
   if (bg.status !== Location.PermissionStatus.GRANTED) return false;
 
   // Kick off the location trigger now that we have permission
-  if (Platform.OS === "ios") {
+  if (Platform.OS === "ios" || Platform.OS === "android") {
     await startLocationTrigger();
   }
 
