@@ -249,7 +249,7 @@ class ReferenceApiController(
             // Enforce free plan cap — check circle owner's user plan
             val circleOwner = userRepository.findById(circle.ownerId).orElse(null)
             if (circleOwner?.effectivePlan() != "premium") {
-                val count = familyMemberRepository.countByCircleId(circle.id!!)
+                val count = familyMemberRepository.countByCircleId(circle.id)
                 if (count >= FREE_PLAN_MEMBER_LIMIT) {
                     throw ResponseStatusException(
                         HttpStatus.FORBIDDEN,
@@ -257,15 +257,32 @@ class ReferenceApiController(
                     )
                 }
             }
+            // Add B to A's circle
             familyMemberRepository.save(
                 FamilyMember(
-                    circleId = circle.id!!,
-                    userId = user.id!!,
+                    circleId = circle.id,
+                    userId = user.id,
                     relation = request.relation ?: "Family"
                 )
             )
-        }
 
+            // ── Mutual join — add A to B's circle automatically ──────────
+            val userCircle = familyCircleRepository.findByOwnerId(user.id!!)
+            if (userCircle != null) {
+                val alreadyInUserCircle = familyMemberRepository
+                    .findByCircleIdAndUserId(userCircle.id!!, circle.ownerId)
+                if (alreadyInUserCircle == null) {
+                    familyMemberRepository.save(
+                        FamilyMember(
+                            circleId = userCircle.id,
+                            userId = circle.ownerId,
+                            relation = request.relation ?: "Family"
+                        )
+                    )
+                }
+            }
+            // ─────────────────────────────────────────────────────────────
+        }
         return getCircle(circle.id.toString())
     }
 
