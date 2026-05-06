@@ -267,7 +267,7 @@ class ReferenceApiController(
             )
 
             // ── Mutual join — add A to B's circle automatically ──────────
-            val userCircle = familyCircleRepository.findByOwnerId(user.id!!)
+            val userCircle = familyCircleRepository.findByOwnerId(user.id)
             if (userCircle != null) {
                 val alreadyInUserCircle = familyMemberRepository
                     .findByCircleIdAndUserId(userCircle.id!!, circle.ownerId)
