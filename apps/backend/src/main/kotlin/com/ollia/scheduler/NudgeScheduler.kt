@@ -224,32 +224,61 @@ class NudgeScheduler(
     }
 
     private fun notifyFamily(inactiveUser: User, strong: Boolean) {
-        val memberships = familyMemberRepository.findAllByUserId(inactiveUser.id!!)
-        val circleIds = memberships.map { it.circleId }.distinct()
-        for (circleId in circleIds) {
-            val peers = familyMemberRepository.findAllByCircleId(circleId)
-                .filter { it.userId != inactiveUser.id }
-            val peerUsers = userRepository.findAllById(peers.map { it.userId })
-                .filter { it.notifyInactivity }
-                .filter { peer ->
-                    val peerCircle = familyCircleRepository.findByOwnerId(peer.id!!)
-                    peerCircle != null && familyMemberRepository
-                        .findByCircleIdAndUserId(peerCircle.id!!, inactiveUser.id!!) != null
-                }
-            val tokens = pushTokenRepository.findAllByUserIdIn(peerUsers.mapNotNull { it.id })
-                .associateBy { it.userId }
-            for (peer in peerUsers) {
-                val token = tokens[peer.id] ?: continue
-                val msgs = NudgeMessages.forLang(peer.preferredLanguage)
-                pushNotificationService.sendPushNotification(
-                    expoPushToken = token.token,
-                    title = if (strong) msgs.strongTitle else msgs.softTitle,
-                    body = (if (strong) msgs.strong else msgs.soft).format(inactiveUser.name)
-                )
+        val inactiveUserId = inactiveUser.id!!
+
+        // 1. Find all circles the inactive user belongs to
+        val circleIds = familyMemberRepository
+            .findAllByUserId(inactiveUserId)
+            .map { it.circleId }
+            .distinct()
+
+        if (circleIds.isEmpty()) return
+
+        // 2. Find all peers in those circles (excluding inactive user)
+        val peers = familyMemberRepository
+            .findAllByCircleIdIn(circleIds)
+            .filter { it.userId != inactiveUserId }
+            .map { it.userId }
+            .distinct()
+
+        if (peers.isEmpty()) return
+
+        // 3. Find peers who have the inactive user in THEIR OWN circle
+        // i.e. inactive user is a member of a circle owned by the peer
+        val peersWhoFollowInactiveUser = familyMemberRepository
+            .findAllByUserIdAndCircleOwnerId(inactiveUserId, peers)
+            .map { it.circleId }
+            .let { peerCircleIds ->
+                familyCircleRepository.findAllById(peerCircleIds)
+                    .map { it.ownerId }
+                    .toSet()
             }
+
+        if (peersWhoFollowInactiveUser.isEmpty()) return
+
+        // 4. Load peer users with inactivity notifications enabled
+        val peerUsers = userRepository
+            .findAllById(peersWhoFollowInactiveUser)
+            .filter { it.notifyInactivity }
+
+        if (peerUsers.isEmpty()) return
+
+        // 5. Load all push tokens in one query
+        val tokens = pushTokenRepository
+            .findAllByUserIdIn(peerUsers.mapNotNull { it.id })
+            .associateBy { it.userId }
+
+        // 6. Send notifications
+        for (peer in peerUsers) {
+            val token = tokens[peer.id] ?: continue
+            val msgs = NudgeMessages.forLang(peer.preferredLanguage)
+            pushNotificationService.sendPushNotification(
+                expoPushToken = token.token,
+                title = if (strong) msgs.strongTitle else msgs.softTitle,
+                body = (if (strong) msgs.strong else msgs.soft).format(inactiveUser.name)
+            )
         }
     }
-
     companion object {
         private val HUMAN_SIGNAL_TYPES = setOf("heartbeat", "check_in_response", "shortcut")
     }
