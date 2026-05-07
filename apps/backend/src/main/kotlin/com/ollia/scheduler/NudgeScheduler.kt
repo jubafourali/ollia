@@ -1,10 +1,7 @@
 package com.ollia.scheduler
 
 import com.ollia.entity.User
-import com.ollia.repository.ActivitySignalRepository
-import com.ollia.repository.FamilyMemberRepository
-import com.ollia.repository.PushTokenRepository
-import com.ollia.repository.UserRepository
+import com.ollia.repository.*
 import com.ollia.service.PushNotificationService
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
@@ -97,7 +94,8 @@ class NudgeScheduler(
     private val pushTokenRepository: PushTokenRepository,
     private val familyMemberRepository: FamilyMemberRepository,
     private val activitySignalRepository: ActivitySignalRepository,
-    private val pushNotificationService: PushNotificationService
+    private val pushNotificationService: PushNotificationService,
+    private val familyCircleRepository: FamilyCircleRepository
 ) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -233,6 +231,11 @@ class NudgeScheduler(
                 .filter { it.userId != inactiveUser.id }
             val peerUsers = userRepository.findAllById(peers.map { it.userId })
                 .filter { it.notifyInactivity }
+                .filter { peer ->
+                    val peerCircle = familyCircleRepository.findByOwnerId(peer.id!!)
+                    peerCircle != null && familyMemberRepository
+                        .findByCircleIdAndUserId(peerCircle.id!!, inactiveUser.id!!) != null
+                }
             val tokens = pushTokenRepository.findAllByUserIdIn(peerUsers.mapNotNull { it.id })
                 .associateBy { it.userId }
             for (peer in peerUsers) {
