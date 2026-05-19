@@ -16,18 +16,19 @@ class SafetyEventService(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
     private val webClient = WebClient.builder().build()
-    private val lastFetch = AtomicReference<Instant>(Instant.EPOCH)
+    private val lastFetch = AtomicReference(Instant.EPOCH)
+    private val USGS_EARTH_QUAKES_URL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+    private val NOAS_ALERTS_URL = "https://api.weather.gov/alerts/active?severity=Extreme,Severe"
 
     fun getEvents(region: String? = null): List<SafetyEvent> {
         val since = Instant.now().minus(24, ChronoUnit.HOURS)
-        return if (region != null) {
-            safetyEventRepository.findAllByRegionIgnoreCaseAndFetchedAtAfterOrderByEventTimeDesc(region, since)
-        } else {
-            safetyEventRepository.findAllByFetchedAtAfterOrderByEventTimeDesc(since)
-        }
+        if (region != null)
+            return safetyEventRepository.findAllByRegionIgnoreCaseAndFetchedAtAfterOrderByEventTimeDesc(region, since)
+        return safetyEventRepository.findAllByFetchedAtAfterOrderByEventTimeDesc(since)
     }
 
-    @Scheduled(fixedRate = 900_000) // every 15 minutes
+    // every 15 minutes
+    @Scheduled(fixedRate = 900_000)
     fun fetchAllSources() {
         val now = Instant.now()
         if (java.time.Duration.between(lastFetch.get(), now).toMinutes() < 14) return
@@ -43,9 +44,7 @@ class SafetyEventService(
     private fun fetchUsgsEarthquakes() {
         try {
             safetyEventRepository.deleteBySource("USGS")
-
-            val url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson"
-            val response = webClient.get().uri(url).retrieve()
+            val response = webClient.get().uri(USGS_EARTH_QUAKES_URL).retrieve()
                 .bodyToMono(Map::class.java).block() ?: return
 
             @Suppress("UNCHECKED_CAST")
@@ -100,7 +99,7 @@ class SafetyEventService(
         try {
             safetyEventRepository.deleteBySource("NOAA")
 
-            val url = "https://api.weather.gov/alerts/active?severity=Extreme,Severe"
+            val url = NOAS_ALERTS_URL
             WebClient.builder().build()
             val response = WebClient.builder()
                 .codecs { it.defaultCodecs().maxInMemorySize(10 * 1024 * 1024) }

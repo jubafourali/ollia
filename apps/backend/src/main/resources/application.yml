@@ -24,7 +24,10 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: ${CLERK_JWKS_URI:https://big-katydid-84.clerk.accounts.dev/.well-known/jwks.json}
-
+  task:
+    scheduling:
+      pool:
+        size: 5
 clerk:
   secret-key: ${CLERK_SECRET_KEY:sk_test_rmM3vga9XaLFQVKbz9UOGOUy4c5juGD1ebXgUHJdNh}
 
