@@ -26,4 +26,10 @@ interface RawSafetySignalRepository :
     @Transactional
     @Query("UPDATE RawSafetyEvent e SET e.processed = true WHERE e.id = :id")
     fun markProcessed(@Param("id") id: UUID)
+
+    @Modifying
+    @Transactional
+    // TODO double check if this is how we do IN ()
+    @Query("UPDATE RawSafetyEvent e SET e.processed = true WHERE e.id in (:ids)")
+    fun markProcessed(@Param("ids") id: Set<UUID>)
 }

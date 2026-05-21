@@ -1,5 +1,6 @@
 package com.ollia.normalizer
 
+import com.ollia.entity.NormalizedSafetyEvent
 import com.ollia.repository.NormalizedSafetyEventRepository
 import com.ollia.repository.RawSafetySignalRepository
 import org.slf4j.LoggerFactory
@@ -28,30 +29,28 @@ class NormalizerOrchestrator(
         if (unprocessed.isEmpty()) return
 
         logger.info("Normalizing ${unprocessed.size} raw signals")
-        var normalized = 0
-        var skipped = 0
+
+        val normalizedEvents = emptyList<NormalizedSafetyEvent>()
 
         for (raw in unprocessed) {
             try {
                 val normalizer = normalizers.firstOrNull { it.canHandle(raw) }
                 if (normalizer == null) {
                     logger.debug("No normalizer for source {} — skipping", raw.source)
-                    rawRepository.markProcessed(raw.id!!)
-                    skipped++
                     continue
                 }
 
                 val event = normalizer.normalize(raw)
-                if (event != null) {
-                    normalizedRepository.save(event)
-                    normalized++
-                }
-                rawRepository.markProcessed(raw.id!!)
+                if (event != null) normalizedEvents.plus(event)
             } catch (e: Exception) {
                 logger.error("Failed to normalize raw signal ${raw.id}", e)
             }
         }
 
-        logger.info("Normalization complete: $normalized saved, $skipped skipped")
+        normalizedRepository.saveAll(normalizedEvents)
+        rawRepository.markProcessed(unprocessed.map { it.id!! }.toSet())
+
+        logger.info("Normalization complete: ${unprocessed.size} normalize, " +
+                "${unprocessed.size - normalizedEvents.size} skipped")
     }
 }
