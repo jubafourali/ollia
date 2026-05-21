@@ -24,7 +24,7 @@ class NoaaNormalizer : SafetySignalNormalizer {
             severity    = severity,
             title       = raw.title ?: "Weather alert",
             description = raw.description,
-            country     = raw.country ?: "United States",
+            country     = raw.country,
             city        = raw.city,
             latitude    = raw.latitude,
             longitude   = raw.longitude,
@@ -35,8 +35,7 @@ class NoaaNormalizer : SafetySignalNormalizer {
     }
 
     private fun mapCategory(title: String): SafetyCategory = when {
-        title.contains("Hurricane", ignoreCase = true) ||
-                title.contains("Tropical", ignoreCase = true)  -> SafetyCategory.HURRICANE
+        title.contains("Hurricane", ignoreCase = true) || title.contains("Tropical", ignoreCase = true)  -> SafetyCategory.HURRICANE
         title.contains("Tornado", ignoreCase = true)   -> SafetyCategory.TORNADO
         title.contains("Flood", ignoreCase = true)     -> SafetyCategory.FLOOD
         title.contains("Fire", ignoreCase = true) ||

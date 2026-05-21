@@ -23,6 +23,7 @@ class NormalizerOrchestrator(
     @Scheduled(fixedRate = 60_000)
     @Transactional
     fun normalize() {
+        // TODO this should go in batches or by category or country ...
         val unprocessed = rawRepository.findAllUnprocessed()
         if (unprocessed.isEmpty()) return
 
@@ -34,7 +35,7 @@ class NormalizerOrchestrator(
             try {
                 val normalizer = normalizers.firstOrNull { it.canHandle(raw) }
                 if (normalizer == null) {
-                    logger.debug("No normalizer for source ${raw.source} — skipping")
+                    logger.debug("No normalizer for source {} — skipping", raw.source)
                     rawRepository.markProcessed(raw.id!!)
                     skipped++
                     continue

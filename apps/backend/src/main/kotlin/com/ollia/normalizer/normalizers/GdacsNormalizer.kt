@@ -11,6 +11,20 @@ import org.springframework.stereotype.Component
 
 @Component
 class GdacsNormalizer : SafetySignalNormalizer {
+    companion object {
+        private const val CRITICAL_HURRICANE_RADIUS = 500.0
+        private const val HIGH_HURRICANE_RADIUS = 300.0
+        private const val DEFAULT_HURRICANE_RADIUS = 150.0
+
+        private const val CRITICAL_TSUNAMI_FLOOD_RADIUS = 200.0
+        private const val HIGH_TSUNAMI_FLOOD_RADIUS = 100.0
+        private const val DEFAULT_TSUNAMI_FLOOD_RADIUS = 50.0
+
+        private const val CRITICAL_OTHER_RADIUS = 150.0
+        private const val HIGH_OTHER_RADIUS = 80.0
+        private const val MEDIUM_OTHER_RADIUS = 40.0
+        private const val LOW_OTHER_RADIUS = 20.0
+    }
 
     override fun canHandle(raw: RawSafetyEvent) = raw.source == SourceType.GDACS
 
@@ -36,13 +50,13 @@ class GdacsNormalizer : SafetySignalNormalizer {
     private fun radiusForCategory(cat: SafetyCategory?, sev: Severity): Double {
         return when (cat) {
             SafetyCategory.HURRICANE, SafetyCategory.EXTREME_WEATHER -> when (sev) {
-                Severity.CRITICAL -> 500.0; Severity.HIGH -> 300.0; else -> 150.0
+                Severity.CRITICAL -> CRITICAL_HURRICANE_RADIUS; Severity.HIGH -> HIGH_HURRICANE_RADIUS; else -> DEFAULT_HURRICANE_RADIUS
             }
             SafetyCategory.FLOOD, SafetyCategory.TSUNAMI -> when (sev) {
-                Severity.CRITICAL -> 200.0; Severity.HIGH -> 100.0; else -> 50.0
+                Severity.CRITICAL -> CRITICAL_TSUNAMI_FLOOD_RADIUS; Severity.HIGH -> HIGH_TSUNAMI_FLOOD_RADIUS; else -> DEFAULT_TSUNAMI_FLOOD_RADIUS
             }
             else -> when (sev) {
-                Severity.CRITICAL -> 150.0; Severity.HIGH -> 80.0; Severity.MEDIUM -> 40.0; Severity.LOW -> 20.0
+                Severity.CRITICAL -> CRITICAL_OTHER_RADIUS; Severity.HIGH -> HIGH_OTHER_RADIUS; Severity.MEDIUM -> MEDIUM_OTHER_RADIUS; Severity.LOW -> LOW_OTHER_RADIUS
             }
         }
     }

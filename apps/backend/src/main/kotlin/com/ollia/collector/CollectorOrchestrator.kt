@@ -19,20 +19,12 @@ class CollectorOrchestrator(
 
     @Scheduled(fixedRate = 300_000)
     fun collect() {
-
-        logger.info("Starting safety collection")
-
+        logger.info("Starting safety events collection")
         collectors.parallelStream().forEach { collector ->
-
             try {
-                logger.info(
-                    "Running collector ${collector.source}"
-                )
-
+                logger.info("Running collector ${collector.source}")
                 val signals = collector.collect()
-
                 rawRepository.saveAll(signals)
-
                 checkpointRepository.save(
                     CollectorCheckpoint(
                         source = collector.source.name,
@@ -40,18 +32,9 @@ class CollectorOrchestrator(
                         status = "SUCCESS",
                     )
                 )
-
-                logger.info(
-                    "${collector.source} completed with ${signals.size} signals"
-                )
-
+                logger.info("${collector.source} completed with ${signals.size} signals")
             } catch (e: Exception) {
-
-                logger.error(
-                    "${collector.source} failed",
-                    e
-                )
-
+                logger.error("${collector.source} failed", e)
                 checkpointRepository.save(
                     CollectorCheckpoint(
                         source = collector.source.name,
