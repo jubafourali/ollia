@@ -30,7 +30,7 @@ class NormalizerOrchestrator(
 
         logger.info("Normalizing ${unprocessed.size} raw signals")
 
-        val normalizedEvents = emptyList<NormalizedSafetyEvent>()
+        val normalizedEvents = mutableListOf<NormalizedSafetyEvent>()
 
         for (raw in unprocessed) {
             try {
@@ -41,7 +41,7 @@ class NormalizerOrchestrator(
                 }
 
                 val event = normalizer.normalize(raw)
-                if (event != null) normalizedEvents.plus(event)
+                if (event != null) normalizedEvents.add(event)
             } catch (e: Exception) {
                 logger.error("Failed to normalize raw signal ${raw.id}", e)
             }

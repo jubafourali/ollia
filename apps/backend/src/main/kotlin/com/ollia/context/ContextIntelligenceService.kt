@@ -1,8 +1,8 @@
 package com.ollia.saiae.context
 
-import LocationRelevance
-import RiskLevel
-import UserActivityStatus
+import com.ollia.entity.LocationRelevance
+import com.ollia.entity.RiskLevel
+import com.ollia.entity.UserActivityStatus
 import com.ollia.entity.NormalizedSafetyEvent
 import com.ollia.entity.SafetyCategory
 import com.ollia.entity.SaiaeConfidenceReport
@@ -84,10 +84,10 @@ class ContextIntelligenceService(
         val floorApplied = isWarEvent &&
                 risk.riskLevel != RiskLevel.IMPORTANT_DISRUPTION &&
                 locationRelevance in setOf(
-                    LocationRelevance.SAME_CITY,
-                    LocationRelevance.SAME_COUNTRY,
-                    LocationRelevance.BORDER_REGION
-                )
+            LocationRelevance.SAME_CITY,
+            LocationRelevance.SAME_COUNTRY,
+            LocationRelevance.BORDER_REGION
+        )
         val effectiveRisk = if (floorApplied) RiskLevel.IMPORTANT_DISRUPTION else risk.riskLevel
 
         // Push eligibility

@@ -1,4 +1,4 @@
-package com.ollia.saiae.controller
+package com.ollia.controller
 
 import com.ollia.repository.FamilyCircleRepository
 import com.ollia.repository.FamilyMemberRepository

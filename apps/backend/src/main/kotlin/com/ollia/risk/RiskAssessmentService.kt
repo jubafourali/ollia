@@ -1,6 +1,6 @@
 package com.ollia.saiae.risk
 
-import RiskLevel
+import com.ollia.entity.RiskLevel
 import com.ollia.entity.NormalizedSafetyEvent
 import com.ollia.entity.SafetyCategory
 import com.ollia.entity.SaiaeConfidenceReport

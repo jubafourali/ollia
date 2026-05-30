@@ -1,3 +1,5 @@
+package com.ollia.entity
+
 enum class ConfidenceTier {
     HIGH,       // 75–95
     MODERATE,   // 50–74

@@ -1,6 +1,6 @@
 package com.ollia.saiae.composer
 
-import RiskLevel
+import com.ollia.entity.RiskLevel
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.ollia.entity.NormalizedSafetyEvent
 import com.ollia.entity.SafetyCategory
@@ -138,13 +138,13 @@ class CalmOutputComposerService(
         )
 
         pushLogRepo.save(SaiaePushLog(
-                userId = observer.id,
-                eventType = event.category.name,
-                city = city,
-                riskLevelAtSend = context.effectiveRisk.name,
-                confidenceAtSend = confidence.score,
-                userStatusAtSend = context.userStatus.name
-            )
+            userId = observer.id,
+            eventType = event.category.name,
+            city = city,
+            riskLevelAtSend = context.effectiveRisk.name,
+            confidenceAtSend = confidence.score,
+            userStatusAtSend = context.userStatus.name
+        )
         )
 
         logger.info("Push sent to observer ${observer.id} for event ${event.id} (${event.category})")

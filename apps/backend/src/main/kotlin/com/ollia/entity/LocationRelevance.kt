@@ -1,3 +1,5 @@
+package com.ollia.entity
+
 enum class LocationRelevance {
     SAME_CITY,
     SAME_COUNTRY,

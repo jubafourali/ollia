@@ -16,6 +16,7 @@ import com.ollia.saiae.repository.SaiaeConfidenceReportRepository
 import com.ollia.saiae.repository.SaiaeContextReportRepository
 import com.ollia.saiae.repository.SaiaeEventSourceMatchRepository
 import com.ollia.saiae.risk.RiskAssessmentService
+import com.ollia.entity.RiskLevel
 import jakarta.transaction.Transactional
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled

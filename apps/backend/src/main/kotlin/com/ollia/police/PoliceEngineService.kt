@@ -7,6 +7,7 @@ import com.ollia.entity.SaiaeConfidenceReport
 import com.ollia.entity.SaiaeEventSourceMatch
 import com.ollia.entity.SaiaeSourceRegistry
 import com.ollia.entity.SourceType
+import com.ollia.entity.ConfidenceTier
 import com.ollia.repository.NormalizedSafetyEventRepository
 import com.ollia.saiae.repository.SaiaeConfidenceReportRepository
 import com.ollia.saiae.repository.SaiaeEventSourceMatchRepository
@@ -237,6 +238,8 @@ class PoliceEngineService(
         SourceType.GDACS            -> "gdacs"
         SourceType.REUTERS          -> "reuters"
         SourceType.BBC              -> "bbc"
+        SourceType.GDELT            -> "gdelt"
+        SourceType.NEWSDATA         -> "newsdata"
         SourceType.GOVERNMENT_ALERT -> "government"
         SourceType.POLICE_FEED      -> "police"
         else                        -> "local_media"

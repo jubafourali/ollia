@@ -1,3 +1,4 @@
+package com.ollia.entity
 
 enum class RiskLevel {
     NORMAL,
