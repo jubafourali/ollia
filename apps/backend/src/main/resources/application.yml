@@ -48,3 +48,5 @@ management:
     web:
       exposure:
         include: health
+newsdata:
+  api-key: ${NEWSDATA_API_KEY:pub_ffd8defed2b04436bdfadf661ba8d23f}
