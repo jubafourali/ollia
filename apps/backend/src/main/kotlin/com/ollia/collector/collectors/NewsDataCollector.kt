@@ -18,14 +18,17 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * NewsData.io collector — global news aggregator.
  *
- * Free tier: 200 requests/day, 10 articles per request.
- * Uses UriComponentsBuilder to properly encode query parameters.
- * Runs two separate queries (conflict + disaster) to stay within
- * the free tier keyword limits.
+ * Free tier: 200 credits/day, 10 articles per request.
+ * Self-throttles to once per hour (24 calls/day max) to stay
+ * well within the free tier limit.
+ *
+ * Single merged query replaces the previous two-query approach
+ * that was burning ~576 credits/day.
  */
 @Component
 class NewsDataCollector(
@@ -45,24 +48,33 @@ class NewsDataCollector(
     private val baseUrl = "https://newsdata.io/api/1/latest"
     private val pubDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
+    // Minimum 60 minutes between calls — keeps usage at ~24 credits/day
+    private val minIntervalMs = 60 * 60 * 1000L
+    private val lastCallAt = AtomicLong(0L)
+
     override fun collect(): List<RawSafetyEvent> {
         if (apiKey.isBlank()) {
             logger.debug("NewsData collector skipped — NEWSDATA_API_KEY not configured")
             return emptyList()
         }
 
-        // Two focused queries instead of one massive OR chain
-        val signals = mutableListOf<RawSafetyEvent>()
-        signals += fetchQuery(q = "missile attack airstrike war conflict", category = "world,top")
-        signals += fetchQuery(q = "protest riot explosion shooting disaster", category = "world,top")
-        return signals
+        val now = System.currentTimeMillis()
+        val elapsed = now - lastCallAt.get()
+        if (elapsed < minIntervalMs) {
+            val waitMin = (minIntervalMs - elapsed) / 60_000
+            logger.debug("NewsData throttled — next call in $waitMin min")
+            return emptyList()
+        }
+
+        lastCallAt.set(now)
+        return fetchQuery("missile airstrike war conflict protest riot explosion shooting disaster")
     }
 
-    private fun fetchQuery(q: String, category: String): List<RawSafetyEvent> {
+    private fun fetchQuery(q: String): List<RawSafetyEvent> {
         val uri = UriComponentsBuilder.fromHttpUrl(baseUrl)
             .queryParam("apikey", apiKey)
             .queryParam("q", q)
-            .queryParam("category", category)
+            .queryParam("category", "world,top")
             .queryParam("language", "en")
             .build()
             .toUri()
@@ -74,7 +86,7 @@ class NewsDataCollector(
                 .bodyToMono(JsonNode::class.java)
                 .block()
         } catch (e: Exception) {
-            logger.warn("NewsData fetch failed for q='$q': ${e.message}")
+            logger.warn("NewsData fetch failed: ${e.message}")
             return emptyList()
         } ?: return emptyList()
 
@@ -85,31 +97,28 @@ class NewsDataCollector(
         }
 
         val results = response["results"] ?: return emptyList()
-        val now = Instant.now()
+        val nowInstant = Instant.now()
         val collected = mutableListOf<RawSafetyEvent>()
 
         results.forEach { article ->
             try {
                 val articleId = article["article_id"]?.asText() ?: return@forEach
-
                 if (repository.existsBySourceAndExternalId(source, articleId)) return@forEach
 
                 val title = article["title"]?.asText() ?: return@forEach
                 val description = article["description"]?.asText()
                 val link = article["link"]?.asText()
                 val language = article["language"]?.asText()?.take(5) ?: "en"
-
                 val country = article["country"]
                     ?.takeIf { it.isArray && it.size() > 0 }
                     ?.get(0)?.asText()
                     ?: article["country"]?.asText()
 
-                val eventOccurredAt = parsePubDate(article["pubDate"]?.asText()) ?: now
+                val eventOccurredAt = parsePubDate(article["pubDate"]?.asText()) ?: nowInstant
                 val (category, severity) = inferCategoryAndSeverity(title, description)
 
                 val payloadString = objectMapper.writeValueAsString(article)
                 val contentHash = HashUtils.sha256(payloadString)
-
                 if (repository.existsBySourceAndContentHash(source, contentHash)) return@forEach
 
                 collected.add(
@@ -124,7 +133,7 @@ class NewsDataCollector(
                         latitude = null,
                         longitude = null,
                         eventOccurredAt = eventOccurredAt,
-                        collectedAt = now,
+                        collectedAt = nowInstant,
                         category = category,
                         severityHint = severity,
                         language = language,
@@ -137,7 +146,7 @@ class NewsDataCollector(
             }
         }
 
-        logger.info("NewsData collector fetched ${collected.size} signals for q='$q'")
+        logger.info("NewsData collector fetched ${collected.size} signals")
         return collected
     }
 
