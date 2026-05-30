@@ -1,13 +1,10 @@
+// ─── UsgsNormalizer.kt ────────────────────────────────────────────────────────
 package com.ollia.normalizer.normalizers
 
-import com.ollia.entity.EventStatus
-import com.ollia.entity.NormalizedSafetyEvent
-import com.ollia.entity.RawSafetyEvent
-import com.ollia.entity.SafetyCategory
-import com.ollia.entity.Severity
-import com.ollia.entity.SourceType
+import com.ollia.entity.*
 import com.ollia.normalizer.SafetySignalNormalizer
 import org.springframework.stereotype.Component
+import java.time.Instant
 
 @Component
 class UsgsNormalizer : SafetySignalNormalizer {

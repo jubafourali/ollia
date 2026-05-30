@@ -10,8 +10,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.*
 
-interface RawSafetySignalRepository :
-    JpaRepository<RawSafetyEvent, UUID> {
+interface RawSafetySignalRepository: JpaRepository<RawSafetyEvent, UUID> {
 
     fun existsBySourceAndExternalId(source: SourceType, externalId: String): Boolean
 

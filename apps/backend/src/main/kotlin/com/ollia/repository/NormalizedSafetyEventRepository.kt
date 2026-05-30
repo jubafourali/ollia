@@ -46,22 +46,3 @@ interface NormalizedSafetyEventRepository : JpaRepository<NormalizedSafetyEvent,
         @Param("floorApplied") floorApplied: Boolean
     )
 }
-
-// ─── RawSafetySignalRepository additions ─────────────────────────────────────
-// Add these methods to the existing RawSafetySignalRepository interface
-
-// findAllUnprocessed and markProcessed need to be added to the existing interface.
-// Since we can't extend a sealed interface in another file, place these as
-// additional query methods directly in RawSafetySignalRepository.kt:
-
-/*
-  Add to existing RawSafetySignalRepository:
-
-  @Query("SELECT e FROM RawSafetyEvent e WHERE e.processed = false ORDER BY e.collectedAt ASC")
-  fun findAllUnprocessed(): List<RawSafetyEvent>
-
-  @Modifying
-  @Transactional
-  @Query("UPDATE RawSafetyEvent e SET e.processed = true WHERE e.id = :id")
-  fun markProcessed(@Param("id") id: UUID)
-*/
