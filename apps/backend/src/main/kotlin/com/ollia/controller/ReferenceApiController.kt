@@ -8,6 +8,7 @@ import com.ollia.repository.*
 import com.ollia.service.ActivityPatternService
 import com.ollia.service.CurrentUserService
 import com.ollia.service.SafetyEventService
+import com.ollia.saiae.repository.SaiaeCircleAlertCacheRepository
 import org.springframework.http.HttpStatus
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.*
@@ -32,7 +33,8 @@ class ReferenceApiController(
     private val pushTokenRepository: PushTokenRepository,
     private val safetyEventService: SafetyEventService,
     private val activityPatternService: ActivityPatternService,
-    private val clerkService: com.ollia.service.ClerkService
+    private val clerkService: com.ollia.service.ClerkService,
+    private val saiaeAlertCacheRepository: SaiaeCircleAlertCacheRepository
 ) {
 
     companion object {
@@ -352,25 +354,43 @@ class ReferenceApiController(
         return user.toApiResponse(currentUserService.getClerkId())
     }
 
-    // ─── GET /api/safety-events ─── get safety events
-    // Response: ApiSafetyEvent[]
+    // ─── GET /api/safety-events ─── proxied to SAIAE v2 alerts
+    // Kept for backwards compatibility with older app versions.
     @GetMapping("/safety-events")
     fun getSafetyEvents(): List<SafetyEventResponse> {
-        return safetyEventService.getEvents().map { event ->
-            SafetyEventResponse(
-                id = event.id.toString(),
-                type = event.type,
-                title = event.title,
-                description = event.description,
-                region = event.region,
-                severity = event.severity,
-                source = event.source,
-                sourceUrl = event.sourceUrl,
-                lat = event.lat?.toString(),
-                lon = event.lon?.toString(),
-                eventTime = event.eventTime.toString()
-            )
-        }
+        val user = currentUserService.getCurrentUser()
+        val memberIds = familyMemberRepository
+            .findAllByUserId(user.id!!)
+            .map { it.userId }
+            .filter { it != user.id }
+            .distinct()
+        val allIds = (memberIds + listOf(user.id!!)).distinct()
+        return saiaeAlertCacheRepository
+            .findAllByUserIdIn(allIds)
+            .filter { it.effectiveRisk != "NORMAL" }
+            .sortedByDescending { it.renderedAt }
+            .take(20)
+            .map { cache ->
+                val card = cache.cardPayload
+                SafetyEventResponse(
+                    id          = cache.normalizedEventId.toString(),
+                    type        = card["eventLabel"]?.asText()?.lowercase()?.replace(" ", "_") ?: "alert",
+                    title       = card["sentence"]?.asText() ?: card["eventLabel"]?.asText() ?: "Safety alert",
+                    description = card["footer"]?.asText(),
+                    region      = null,
+                    severity    = when (cache.effectiveRisk) {
+                        "IMPORTANT_DISRUPTION" -> "high"
+                        "STAY_AWARE"           -> "medium"
+                        else                   -> "low"
+                    },
+                    source      = card["sources"]?.takeIf { it.isArray && it.size() > 0 }
+                        ?.get(0)?.get("name")?.asText() ?: "SAIAE",
+                    sourceUrl   = null,
+                    lat         = null,
+                    lon         = null,
+                    eventTime   = cache.renderedAt.toString()
+                )
+            }
     }
 
     // ─── GET /api/users/{userId}/patterns ─── get activity patterns

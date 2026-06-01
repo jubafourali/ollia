@@ -119,8 +119,8 @@ class ContextIntelligenceService(
             ?: return UserActivityStatus.SILENT
         val hoursAgo = Duration.between(lastSignal, now).toHours()
         return when {
-            hoursAgo <= 4  -> UserActivityStatus.ACTIVE
-            hoursAgo <= 12 -> UserActivityStatus.QUIET
+            hoursAgo <= 3  -> UserActivityStatus.ACTIVE
+            hoursAgo <= 8  -> UserActivityStatus.QUIET
             else           -> UserActivityStatus.SILENT
         }
     }
@@ -217,7 +217,7 @@ class ContextIntelligenceService(
     private fun activityPhrase(status: UserActivityStatus, now: Instant): String = when (status) {
         UserActivityStatus.ACTIVE -> "Normal activity detected."
         UserActivityStatus.QUIET  -> "Activity lower than usual."
-        UserActivityStatus.SILENT -> "No recent activity detected."
+        UserActivityStatus.SILENT -> "No activity detected."
     }
 
     private fun checkinClause(name: String, status: UserActivityStatus, now: Instant, lastSeen: Instant?): String {
