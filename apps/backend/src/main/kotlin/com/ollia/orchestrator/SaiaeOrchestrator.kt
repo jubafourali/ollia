@@ -6,7 +6,6 @@ import com.ollia.entity.NormalizedSafetyEvent
 import com.ollia.entity.RiskLevel
 import com.ollia.entity.SafetyCategory
 import com.ollia.entity.SaiaeConfidenceReport
-import com.ollia.entity.SaiaeEventSourceMatch
 import com.ollia.entity.User
 import com.ollia.repository.FamilyCircleRepository
 import com.ollia.repository.FamilyMemberRepository
@@ -28,15 +27,19 @@ import java.util.UUID
 /**
  * SAIAE Pipeline Orchestrator — runs every 2 minutes.
  *
- * Correct logic per spec:
- *   For each circle member (watched person):
- *     Find events near THEIR location
- *     For each relevant nearby event:
- *       Score confidence → assess risk → compute context → compose card
- *       Show to their circle observers (family members watching them)
+ * TWO-PASS PIPELINE:
  *
- * A US flood is ONLY shown if someone in the circle is in the US.
- * A Kenya earthquake is ONLY shown if someone in the circle is in Kenya.
+ * PASS 1 — Global verification (independent of users)
+ *   All PENDING_VERIFICATION events are scored by the Police Engine.
+ *   Verification is a global operation — an earthquake in Tokyo is
+ *   VERIFIED regardless of whether any Ollia user is in Tokyo.
+ *   Result: events become VERIFIED or REJECTED.
+ *
+ * PASS 2 — Per-user relevance and card composition
+ *   For each watched user, find VERIFIED events near their location.
+ *   Compose alert cards only for events that are geographically relevant.
+ *   A US flood is ONLY shown if someone in the circle is in the US.
+ *   A Kenya earthquake is ONLY shown if someone in the circle is in Kenya.
  */
 @Service
 class SaiaeOrchestrator(
@@ -63,69 +66,100 @@ class SaiaeOrchestrator(
     @Scheduled(fixedRate = 120_000)
     @Transactional
     fun runPipeline() {
-        val events = normalizedRepo.findAllByStatusIn(
+        val allEvents = normalizedRepo.findAllByStatusIn(
             listOf(EventStatus.PENDING_VERIFICATION, EventStatus.VERIFIED)
         )
-        if (events.isEmpty()) return
+        if (allEvents.isEmpty()) return
 
         val allUsers = userRepository.findAll()
         if (allUsers.isEmpty()) return
 
-        logger.info("SAIAE pipeline: ${events.size} events, ${allUsers.size} users")
+        logger.info("SAIAE pipeline: ${allEvents.size} events, ${allUsers.size} users")
 
-        // For each user who is being watched by someone in a circle
+        // ── PASS 1: GLOBAL VERIFICATION ──────────────────────────────────────
+        // Score every PENDING_VERIFICATION event independently of any user.
+        // This promotes events to VERIFIED or REJECTED globally.
+        val pendingEvents = allEvents.filter { it.status == EventStatus.PENDING_VERIFICATION }
+        var verified = 0
+        var rejected = 0
+        for (event in pendingEvents) {
+            try {
+                val existing = confidenceReportRepo.findByNormalizedEventId(event.id!!)
+                if (existing != null) continue // already scored
+                val report = policeEngine.scoreEvent(event)
+                if (report.minimumSourcesMet) verified++ else rejected++
+            } catch (e: Exception) {
+                logger.error("Police Engine failed for event ${event.id}", e)
+            }
+        }
+        if (pendingEvents.isNotEmpty()) {
+            logger.info("Pass 1 complete: ${pendingEvents.size} scored, $verified verified, $rejected rejected")
+        }
+
+        // ── PASS 2: PER-USER RELEVANCE AND CARD COMPOSITION ──────────────────
+        // Only work with VERIFIED events from this point forward.
+        // Re-fetch so we pick up the newly verified events from Pass 1.
+        val verifiedEvents = normalizedRepo.findAllByStatusIn(listOf(EventStatus.VERIFIED))
+        if (verifiedEvents.isEmpty()) {
+            logger.info("Pass 2: no verified events to surface")
+            return
+        }
+
+        // Pre-load all confidence reports to avoid N+1 queries in Pass 2.
+        // SaiaeConfidenceReportRepository only exposes findAll() for bulk load —
+        // filter in-memory to the verified event set (small set at any given time).
+        val verifiedEventIds = verifiedEvents.map { it.id!! }.toSet()
+        val confidenceByEventId = confidenceReportRepo.findAll()
+            .filter { it.normalizedEventId in verifiedEventIds }
+            .associateBy { it.normalizedEventId }
+
         for (watchedUser in allUsers) {
             try {
-                // Who is watching this person?
                 val observers = findCircleObservers(watchedUser, allUsers)
                 if (observers.isEmpty()) continue
 
-                // What is this person's location?
                 val userCoords = approximateUserCoords(watchedUser.region)
                 val userCountry = extractCountry(watchedUser.region)
 
-                // Find events relevant to this person's location
-                for (event in events) {
+                for (event in verifiedEvents) {
                     try {
-                        processEventForWatchedUser(
-                            event        = event,
-                            watchedUser  = watchedUser,
-                            observers    = observers,
-                            userCoords   = userCoords,
-                            userCountry  = userCountry,
-                            allUsers     = allUsers
+                        val confidence = confidenceByEventId[event.id] ?: continue
+                        processVerifiedEventForUser(
+                            event       = event,
+                            confidence  = confidence,
+                            watchedUser = watchedUser,
+                            observers   = observers,
+                            userCoords  = userCoords,
+                            userCountry = userCountry
                         )
                     } catch (e: Exception) {
-                        logger.error("Pipeline failed for user ${watchedUser.id} event ${event.id}", e)
+                        logger.error("Pass 2 failed for user ${watchedUser.id} event ${event.id}", e)
                     }
                 }
             } catch (e: Exception) {
-                logger.error("Pipeline failed for watched user ${watchedUser.id}", e)
+                logger.error("Pass 2 failed for watched user ${watchedUser.id}", e)
             }
         }
     }
 
-    private fun processEventForWatchedUser(
+    private fun processVerifiedEventForUser(
         event: NormalizedSafetyEvent,
+        confidence: SaiaeConfidenceReport,
         watchedUser: User,
         observers: List<User>,
         userCoords: Pair<Double, Double>?,
-        userCountry: String,
-        allUsers: List<User>
+        userCountry: String
     ) {
         val isWar = event.category in warEventCategories
 
-        // ── LOCATION RELEVANCE CHECK ──────────────────────────────────────────
-        // Determine if this event is relevant to this person's location.
-        // If they have no region set, skip non-war events entirely.
-
+        // Skip if user has no region and it's not a war event
         if (watchedUser.region.isNullOrBlank() && !isWar) return
 
+        // ── LOCATION RELEVANCE ────────────────────────────────────────────────
         val distanceKm: Double
         val locationRelevance: LocationRelevance
 
         when {
-            // Event has coordinates — use Haversine distance
             event.latitude != null && event.longitude != null && userCoords != null -> {
                 distanceKm = riskEngine.haversineKm(
                     userCoords.first, userCoords.second,
@@ -139,7 +173,6 @@ class SaiaeOrchestrator(
                 }
             }
 
-            // Event has country — do country string match
             event.country != null -> {
                 val eventCountry = event.country.lowercase().trim()
                 locationRelevance = when {
@@ -150,32 +183,21 @@ class SaiaeOrchestrator(
                 distanceKm = if (locationRelevance == LocationRelevance.DISTANT) 9999.0 else 150.0
             }
 
-            // No location info on event
             else -> {
                 locationRelevance = LocationRelevance.UNKNOWN
                 distanceKm = 9999.0
             }
         }
 
-        // ── KEY FILTER: Skip DISTANT events (non-war) ─────────────────────────
-        // This is the core fix — a US flood should never appear for someone in Kenya.
-        // War events (missiles, airstrikes, armed conflict) always surface
-        // regardless of distance — they are country-level threats.
+        // Skip distant/unknown events (non-war)
         if (locationRelevance == LocationRelevance.DISTANT && !isWar) return
         if (locationRelevance == LocationRelevance.UNKNOWN && !isWar) return
-
-        // ── CONFIDENCE SCORING ────────────────────────────────────────────────
-        val confidence: SaiaeConfidenceReport =
-            confidenceReportRepo.findByNormalizedEventId(event.id!!)
-                ?: policeEngine.scoreEvent(event)
-
-        if (!confidence.minimumSourcesMet) return
 
         // ── RISK ASSESSMENT ───────────────────────────────────────────────────
         val risk = riskEngine.assess(event, confidence, distanceKm)
         if (risk.riskLevel == RiskLevel.NORMAL && !isWar) return
 
-        val sourceMatches = eventSourceMatchRepo.findAllByNormalizedEventId(event.id)
+        val sourceMatches = eventSourceMatchRepo.findAllByNormalizedEventId(event.id!!)
 
         // ── COMPOSE CARD FOR EACH OBSERVER ────────────────────────────────────
         for (observer in observers) {
@@ -226,9 +248,6 @@ class SaiaeOrchestrator(
 
     private fun extractCountry(region: String?): String {
         if (region.isNullOrBlank()) return ""
-        // "Nairobi County, Kenya" → "kenya"
-        // "Algeria" → "algeria"
-        // "New York, US" → "us"
         return if (region.contains(",")) {
             region.substringAfterLast(",").trim().lowercase()
         } else {
@@ -244,100 +263,99 @@ class SaiaeOrchestrator(
     }
 
     companion object {
-        // Comprehensive city coordinate lookup — used for proximity calculation
         private val CITY_COORDS: Map<String, Pair<Double, Double>> = mapOf(
             // Africa
-            "nairobi"      to Pair(-1.3,   36.8),
-            "lagos"        to Pair(6.5,    3.4),
-            "cairo"        to Pair(30.1,   31.2),
-            "algiers"      to Pair(36.7,   3.1),
-            "casablanca"   to Pair(33.6,  -7.6),
-            "accra"        to Pair(5.6,   -0.2),
-            "dakar"        to Pair(14.7,  -17.4),
-            "addis ababa"  to Pair(9.0,   38.7),
-            "johannesburg" to Pair(-26.2,  28.0),
-            "cape town"    to Pair(-33.9,  18.4),
-            "tunis"        to Pair(36.8,   10.2),
-            "tripoli"      to Pair(32.9,   13.2),
-            "khartoum"     to Pair(15.6,   32.5),
-            "kampala"      to Pair(0.3,    32.6),
-            "dar es salaam" to Pair(-6.8,  39.3),
+            "nairobi"        to Pair(-1.3,   36.8),
+            "lagos"          to Pair(6.5,    3.4),
+            "cairo"          to Pair(30.1,   31.2),
+            "algiers"        to Pair(36.7,   3.1),
+            "casablanca"     to Pair(33.6,  -7.6),
+            "accra"          to Pair(5.6,   -0.2),
+            "dakar"          to Pair(14.7,  -17.4),
+            "addis ababa"    to Pair(9.0,   38.7),
+            "johannesburg"   to Pair(-26.2,  28.0),
+            "cape town"      to Pair(-33.9,  18.4),
+            "tunis"          to Pair(36.8,   10.2),
+            "tripoli"        to Pair(32.9,   13.2),
+            "khartoum"       to Pair(15.6,   32.5),
+            "kampala"        to Pair(0.3,    32.6),
+            "dar es salaam"  to Pair(-6.8,   39.3),
             // Middle East
-            "dubai"        to Pair(25.2,   55.3),
-            "abu dhabi"    to Pair(24.5,   54.4),
-            "riyadh"       to Pair(24.7,   46.7),
-            "beirut"       to Pair(33.9,   35.5),
-            "amman"        to Pair(31.9,   35.9),
-            "baghdad"      to Pair(33.3,   44.4),
-            "damascus"     to Pair(33.5,   36.3),
-            "tehran"       to Pair(35.7,   51.4),
-            "tel aviv"     to Pair(32.1,   34.8),
-            "jerusalem"    to Pair(31.8,   35.2),
-            "doha"         to Pair(25.3,   51.5),
-            "muscat"       to Pair(23.6,   58.6),
-            "sanaa"        to Pair(15.4,   44.2),
-            "kuwait"       to Pair(29.4,   48.0),
+            "dubai"          to Pair(25.2,   55.3),
+            "abu dhabi"      to Pair(24.5,   54.4),
+            "riyadh"         to Pair(24.7,   46.7),
+            "beirut"         to Pair(33.9,   35.5),
+            "amman"          to Pair(31.9,   35.9),
+            "baghdad"        to Pair(33.3,   44.4),
+            "damascus"       to Pair(33.5,   36.3),
+            "tehran"         to Pair(35.7,   51.4),
+            "tel aviv"       to Pair(32.1,   34.8),
+            "jerusalem"      to Pair(31.8,   35.2),
+            "doha"           to Pair(25.3,   51.5),
+            "muscat"         to Pair(23.6,   58.6),
+            "sanaa"          to Pair(15.4,   44.2),
+            "kuwait"         to Pair(29.4,   48.0),
             // Europe
-            "paris"        to Pair(48.9,   2.3),
-            "london"       to Pair(51.5,  -0.1),
-            "berlin"       to Pair(52.5,   13.4),
-            "madrid"       to Pair(40.4,  -3.7),
-            "rome"         to Pair(41.9,   12.5),
-            "amsterdam"    to Pair(52.4,   4.9),
-            "brussels"     to Pair(50.8,   4.4),
-            "vienna"       to Pair(48.2,   16.4),
-            "zurich"       to Pair(47.4,   8.5),
-            "stockholm"    to Pair(59.3,   18.1),
-            "oslo"         to Pair(59.9,   10.7),
-            "copenhagen"   to Pair(55.7,   12.6),
-            "warsaw"       to Pair(52.2,   21.0),
-            "prague"       to Pair(50.1,   14.4),
-            "budapest"     to Pair(47.5,   19.0),
-            "bucharest"    to Pair(44.4,   26.1),
-            "athens"       to Pair(37.9,   23.7),
-            "istanbul"     to Pair(41.0,   29.0),
-            "kyiv"         to Pair(50.5,   30.5),
-            "moscow"       to Pair(55.8,   37.6),
-            "lisbon"       to Pair(38.7,  -9.1),
+            "paris"          to Pair(48.9,   2.3),
+            "london"         to Pair(51.5,  -0.1),
+            "berlin"         to Pair(52.5,   13.4),
+            "madrid"         to Pair(40.4,  -3.7),
+            "rome"           to Pair(41.9,   12.5),
+            "amsterdam"      to Pair(52.4,   4.9),
+            "brussels"       to Pair(50.8,   4.4),
+            "vienna"         to Pair(48.2,   16.4),
+            "zurich"         to Pair(47.4,   8.5),
+            "stockholm"      to Pair(59.3,   18.1),
+            "oslo"           to Pair(59.9,   10.7),
+            "copenhagen"     to Pair(55.7,   12.6),
+            "warsaw"         to Pair(52.2,   21.0),
+            "prague"         to Pair(50.1,   14.4),
+            "budapest"       to Pair(47.5,   19.0),
+            "bucharest"      to Pair(44.4,   26.1),
+            "athens"         to Pair(37.9,   23.7),
+            "istanbul"       to Pair(41.0,   29.0),
+            "kyiv"           to Pair(50.5,   30.5),
+            "moscow"         to Pair(55.8,   37.6),
+            "lisbon"         to Pair(38.7,  -9.1),
             // Asia
-            "tokyo"        to Pair(35.7,   139.7),
-            "beijing"      to Pair(39.9,   116.4),
-            "shanghai"     to Pair(31.2,   121.5),
-            "delhi"        to Pair(28.7,   77.1),
-            "mumbai"       to Pair(19.1,   72.9),
-            "karachi"      to Pair(24.9,   67.0),
-            "dhaka"        to Pair(23.8,   90.4),
-            "kabul"        to Pair(34.5,   69.2),
-            "islamabad"    to Pair(33.7,   73.1),
-            "colombo"      to Pair(6.9,    79.9),
-            "bangkok"      to Pair(13.8,   100.5),
-            "jakarta"      to Pair(-6.2,   106.8),
-            "singapore"    to Pair(1.4,    103.8),
-            "manila"       to Pair(14.6,   121.0),
-            "seoul"        to Pair(37.6,   127.0),
-            "kuala lumpur" to Pair(3.1,    101.7),
-            "ho chi minh"  to Pair(10.8,   106.7),
-            "yangon"       to Pair(16.8,   96.2),
+            "tokyo"          to Pair(35.7,   139.7),
+            "beijing"        to Pair(39.9,   116.4),
+            "shanghai"       to Pair(31.2,   121.5),
+            "delhi"          to Pair(28.7,   77.1),
+            "mumbai"         to Pair(19.1,   72.9),
+            "karachi"        to Pair(24.9,   67.0),
+            "dhaka"          to Pair(23.8,   90.4),
+            "kabul"          to Pair(34.5,   69.2),
+            "islamabad"      to Pair(33.7,   73.1),
+            "colombo"        to Pair(6.9,    79.9),
+            "bangkok"        to Pair(13.8,   100.5),
+            "jakarta"        to Pair(-6.2,   106.8),
+            "singapore"      to Pair(1.4,    103.8),
+            "manila"         to Pair(14.6,   121.0),
+            "seoul"          to Pair(37.6,   127.0),
+            "kuala lumpur"   to Pair(3.1,    101.7),
+            "ho chi minh"    to Pair(10.8,   106.7),
+            "yangon"         to Pair(16.8,   96.2),
             // Americas
-            "new york"     to Pair(40.7,  -74.0),
-            "los angeles"  to Pair(34.1,  -118.2),
-            "chicago"      to Pair(41.9,  -87.6),
-            "houston"      to Pair(29.8,  -95.4),
-            "miami"        to Pair(25.8,  -80.2),
-            "toronto"      to Pair(43.7,  -79.4),
-            "montreal"     to Pair(45.5,  -73.6),
-            "vancouver"    to Pair(49.3,  -123.1),
-            "mexico city"  to Pair(19.4,  -99.1),
-            "bogota"       to Pair(4.7,   -74.1),
-            "lima"         to Pair(-12.1, -77.0),
-            "santiago"     to Pair(-33.5, -70.7),
-            "buenos aires" to Pair(-34.6, -58.4),
-            "sao paulo"    to Pair(-23.5, -46.6),
+            "new york"       to Pair(40.7,  -74.0),
+            "los angeles"    to Pair(34.1,  -118.2),
+            "chicago"        to Pair(41.9,  -87.6),
+            "houston"        to Pair(29.8,  -95.4),
+            "miami"          to Pair(25.8,  -80.2),
+            "toronto"        to Pair(43.7,  -79.4),
+            "montreal"       to Pair(45.5,  -73.6),
+            "vancouver"      to Pair(49.3,  -123.1),
+            "mexico city"    to Pair(19.4,  -99.1),
+            "bogota"         to Pair(4.7,   -74.1),
+            "lima"           to Pair(-12.1, -77.0),
+            "santiago"       to Pair(-33.5, -70.7),
+            "buenos aires"   to Pair(-34.6, -58.4),
+            "sao paulo"      to Pair(-23.5, -46.6),
             "rio de janeiro" to Pair(-22.9, -43.2),
             // Oceania
-            "sydney"       to Pair(-33.9,  151.2),
-            "melbourne"    to Pair(-37.8,  145.0),
-            "auckland"     to Pair(-36.9,  174.8)
+            "sydney"         to Pair(-33.9,  151.2),
+            "melbourne"      to Pair(-37.8,  145.0),
+            "auckland"       to Pair(-36.9,  174.8)
         )
     }
 }
