@@ -64,34 +64,34 @@ function SettingRow({ icon, iconLib = "feather", label, value, onToggle, subtitl
   const IconComp = iconLib === "ionicons" ? Ionicons : Feather;
   const color = danger ? "#EF4444" : BRAND.primary;
   return (
-    <Pressable
-      style={({ pressed }) => [styles.row, pressed && onPress && { opacity: 0.7 }]}
-      onPress={onPress}
-      testID={testID}
-    >
-      <View style={[styles.rowIcon, { backgroundColor: `${color}15` }]}>
-        <IconComp name={icon as any} size={18} color={color} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.rowLabel, danger && { color: "#EF4444" }]}>{label}</Text>
-        {subtitle && <Text style={styles.rowSubtitle}>{subtitle}</Text>}
-      </View>
-      {onToggle !== undefined && value !== undefined ? (
-        <Switch
-          value={value}
-          onValueChange={(v) => {
-            if (Platform.OS !== "web") {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }
-            onToggle(v);
-          }}
-          trackColor={{ false: BRAND.border, true: `${BRAND.primary}80` }}
-          thumbColor={value ? BRAND.primary : BRAND.backgroundCard}
-        />
-      ) : chevron ? (
-        <Feather name="chevron-right" size={18} color={BRAND.textMuted} />
-      ) : null}
-    </Pressable>
+      <Pressable
+          style={({ pressed }) => [styles.row, pressed && onPress && { opacity: 0.7 }]}
+          onPress={onPress}
+          testID={testID}
+      >
+        <View style={[styles.rowIcon, { backgroundColor: `${color}15` }]}>
+          <IconComp name={icon as any} size={18} color={color} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.rowLabel, danger && { color: "#EF4444" }]}>{label}</Text>
+          {subtitle && <Text style={styles.rowSubtitle}>{subtitle}</Text>}
+        </View>
+        {onToggle !== undefined && value !== undefined ? (
+            <Switch
+                value={value}
+                onValueChange={(v) => {
+                  if (Platform.OS !== "web") {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  onToggle(v);
+                }}
+                trackColor={{ false: BRAND.border, true: `${BRAND.primary}80` }}
+                thumbColor={value ? BRAND.primary : BRAND.backgroundCard}
+            />
+        ) : chevron ? (
+            <Feather name="chevron-right" size={18} color={BRAND.textMuted} />
+        ) : null}
+      </Pressable>
   );
 }
 

@@ -97,6 +97,37 @@ export type ApiSafetyEvent = {
   eventTime?: string;
 };
 
+// ── SAIAE alert card types ────────────────────────────────────────────────────
+
+export type ApiAlertSource = {
+  name: string;
+  tier: string;
+  originSource?: string | null; // null = original, set = echo chain
+};
+
+export type ApiAlertCard = {
+  riskLevel: "NORMAL" | "STAY_AWARE" | "IMPORTANT_DISRUPTION";
+  floorApplied: boolean;
+  eventLabel: string;
+  confidenceTier: "HIGH" | "MODERATE" | "LOW" | "BLOCKED";
+  confidenceScore: number;
+  sentence: string;
+  sources: ApiAlertSource[];
+  conflictNote?: string | null;
+  actionLabel?: string | null;
+  footer: string;
+};
+
+export type ApiAlert = {
+  eventId: string;
+  effectiveRisk: "NORMAL" | "STAY_AWARE" | "IMPORTANT_DISRUPTION";
+  floorApplied: boolean;
+  card: ApiAlertCard;
+  renderedAt: string;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export type ApiPattern = {
   hasPattern: boolean;
   peakHours?: number[];
@@ -112,15 +143,30 @@ export type ApiSafetyPreferences = {
   urgentOvernightAlerts: boolean;
 };
 
+export type ApiNearbyEvent = {
+  eventId: string;
+  eventLabel: string;
+  sentence: string;
+  riskLevel: "NORMAL" | "STAY_AWARE" | "IMPORTANT_DISRUPTION";
+  sourcesLabel: string;   // e.g. "Confirmed by USGS & GDACS"
+  category: string;       // e.g. "EARTHQUAKE", "FLOOD"
+};
+
+export type ApiNearbyMember = {
+  memberId: string;
+  name: string;
+  region: string;
+  events: ApiNearbyEvent[];
+  isMe: boolean;
+};
+
 export const api = {
   upsertUser(payload: { id: string; name: string; region?: string; timezone?: string }): Promise<ApiUser> {
     return req("/users", { method: "POST", body: JSON.stringify(payload) });
   },
 
   getMe(): Promise<ApiUser> {
-    return req(`/users`, {
-      method: "GET"
-    });
+    return req(`/users`, { method: "GET" });
   },
 
   claimFounding(): Promise<{ success: boolean }> {
@@ -166,6 +212,11 @@ export const api = {
 
   getSafetyEvents(): Promise<ApiSafetyEvent[]> {
     return req("/safety-events");
+  },
+
+  // SAIAE — new contextual alert cards
+  getAlerts(): Promise<ApiAlert[]> {
+    return req("/v2/alerts");
   },
 
   getPatterns(userId: string): Promise<ApiPattern> {
@@ -241,6 +292,10 @@ export const api = {
 
   getShortcutToken(): Promise<{ token: string }> {
     return req("/users/me/shortcut-token");
+  },
+
+  getNearby(): Promise<ApiNearbyMember[]> {
+    return req("/v2/nearby");
   },
 
   registerPushToken(token: string, platform = "expo"): Promise<{ success: boolean }> {
