@@ -17,7 +17,7 @@ interface NormalizedSafetyEventRepository : JpaRepository<NormalizedSafetyEvent,
 
     fun findAllByStatusIn(statuses: List<EventStatus>): List<NormalizedSafetyEvent>
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("UPDATE NormalizedSafetyEvent e SET e.status = :status WHERE e.id = :id")
     fun updateStatus(@Param("id") id: UUID, @Param("status") status: EventStatus)
