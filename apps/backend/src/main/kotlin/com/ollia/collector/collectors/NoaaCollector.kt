@@ -121,8 +121,8 @@ class NoaaCollector(
                 title           = headline.take(1000),
                 description     = description?.take(5000),
                 sourceUrl       = externalId,
-                country         = "United States",   // NOAA is always US
-                city            = primaryArea,
+                country = primaryArea?.substringAfterLast(",")?.trim(),
+                city    = primaryArea?.substringBeforeLast(",")?.trim(),
                 latitude        = null,              // NOAA alerts are zone-based, no single point
                 longitude       = null,
                 eventOccurredAt = eventOccurredAt,
