@@ -6,5 +6,6 @@ data class NearbyMemberResponse(
     val memberId: UUID,
     val name:     String,
     val region:   String,
-    val events:   List<NearbyEventResponse>
+    val events:   List<NearbyEventResponse>,
+    val isMe: Boolean = false
 )

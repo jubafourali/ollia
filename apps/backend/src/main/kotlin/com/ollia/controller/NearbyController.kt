@@ -144,11 +144,12 @@ class NearbyController(
                 memberId = memberId,
                 name     = user.name,
                 region   = user.region ?: "",
-                events   = events
+                events   = events,
+                isMe     = memberId == me.id
             )
         }
             // Members with events first, then quiet members
-            .sortedByDescending { it.events.size }
+            .sortedWith(compareByDescending<NearbyMemberResponse> { it.isMe }.thenByDescending { it.events.size })
 
         return ResponseEntity.ok(result)
     }
