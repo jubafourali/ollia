@@ -33,6 +33,24 @@ class UsgsCollector(
         private const val CRITICAL_MAGNITUDE = 7.0
         private const val HIGH_MAGNITUDE = 5.0
         private const val MEDIUM_MAGNITUDE = 3.0
+
+        private val US_STATES = setOf(
+            "Alabama","Alaska","Arizona","Arkansas","California","Colorado",
+            "Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho",
+            "Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana",
+            "Maine","Maryland","Massachusetts","Michigan","Minnesota",
+            "Mississippi","Missouri","Montana","Nebraska","Nevada",
+            "New Hampshire","New Jersey","New Mexico","New York",
+            "North Carolina","North Dakota","Ohio","Oklahoma","Oregon",
+            "Pennsylvania","Rhode Island","South Carolina","South Dakota",
+            "Tennessee","Texas","Utah","Vermont","Virginia","Washington",
+            "West Virginia","Wisconsin","Wyoming",
+            "Puerto Rico","U.S. Virgin Islands",
+            "CA","AK","HI","TX","NM","NV","AZ","OR","WA","UT","CO","MT",
+            "ID","WY","ND","SD","NE","KS","OK","MN","IA","MO","AR","LA",
+            "MS","AL","TN","KY","IN","IL","WI","MI","OH","WV","VA","NC",
+            "SC","GA","FL","ME","VT","NH","MA","RI","CT","NY","NJ","PA","DE","MD"
+        )
     }
 
     override val source = SourceType.USGS
@@ -68,6 +86,7 @@ class UsgsCollector(
                 else -> Severity.LOW
             }
 
+
             val region = place.substringAfter(" of ").trim().ifEmpty { place }
             val title = "M${"%.1f".format(magnitude)} Earthquake - $place"
             val description = "Magnitude ${"%.1f".format(magnitude)} earthquake near $place"
@@ -83,7 +102,8 @@ class UsgsCollector(
                     title = title,
                     description = description,
                     sourceUrl = sourceUrl,
-                    country = region,
+                    country = extractCountry(region),
+                    city    = extractCity(region),
                     latitude = coordinates?.get(1)?.asDouble(),
                     longitude = coordinates?.get(0)?.asDouble(),
                     eventOccurredAt = Instant.ofEpochMilli(eventTimeMillis),
@@ -101,4 +121,16 @@ class UsgsCollector(
 
         return collectedSignals
     }
+
+    private fun extractCountry(region: String): String {
+        if (!region.contains(",")) return region.trim()
+        val state = region.substringAfterLast(",").trim()
+        return if (US_STATES.any { it.equals(state, ignoreCase = true) }) "United States" else state
+    }
+
+    private fun extractCity(region: String): String? {
+        if (!region.contains(",")) return null
+        return region.substringBeforeLast(",").trim()
+    }
+
 }
