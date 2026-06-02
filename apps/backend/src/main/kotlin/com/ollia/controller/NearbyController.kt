@@ -62,17 +62,15 @@ class NearbyController(
 
         if (circleIds.isEmpty()) return ResponseEntity.ok(emptyList())
 
-        // All members in those circles excluding self
         val otherMemberIds = familyMemberRepository
             .findAllByCircleIdIn(circleIds)
             .map { it.userId }
             .filter { it != me.id }
             .distinct()
 
-        if (otherMemberIds.isEmpty()) return ResponseEntity.ok(emptyList())
-
-        // Load user details for those members
-        val memberUsers = userRepository.findAllById(otherMemberIds)
+        // Include the current user themselves
+        val allMemberIds = (otherMemberIds + me.id!!).distinct()
+        val memberUsers = userRepository.findAllById(allMemberIds)
             .associateBy { it.id!! }
 
         // Load ALL verified events once
@@ -94,7 +92,7 @@ class NearbyController(
         val sourceRegistry = sourceRegistryRepo.findAll().associateBy { it.id }
 
         // Build response — one entry per circle member
-        val result = otherMemberIds.mapNotNull { memberId ->
+        val result = allMemberIds.mapNotNull { memberId ->
             val user = memberUsers[memberId] ?: return@mapNotNull null
 
             val userCoords = approximateCoords(user.region)
