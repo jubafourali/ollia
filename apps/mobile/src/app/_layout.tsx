@@ -21,50 +21,55 @@ import { FoundingModal } from "@/components/FoundingModal";
 import i18n, { mapLocaleToSupported, LANGUAGE_STORAGE_KEY } from "@/i18n";
 import Purchases, {STOREKIT_VERSION} from 'react-native-purchases';
 
-// Import to register background tasks at module scope (TaskManager.defineTask)
 import "@/services/backgroundActivity";
 import {initInstallDate, triggerReviewAfter7Days} from "@/utils/reviewPrompt";
 
 SplashScreen.preventAutoHideAsync();
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+const ONBOARDING_COMPLETE_KEY = "@ollia_onboarding_complete";
 
 const tokenCache =
     Platform.OS === "web"
         ? undefined
         : {
           async getToken(key: string) {
-            try {
-              return await SecureStore.getItemAsync(key);
-            } catch {
-              return null;
-            }
+            try { return await SecureStore.getItemAsync(key); } catch { return null; }
           },
           async saveToken(key: string, value: string) {
-            try {
-              await SecureStore.setItemAsync(key, value);
-            } catch {}
+            try { await SecureStore.setItemAsync(key, value); } catch {}
           },
         };
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { isSignedIn, isLoaded, userId } = useAuth();  // add userId here
+  const { isSignedIn, isLoaded, userId } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const [authReady, setAuthReady] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
 
-  // RevenueCat identity sync
   useEffect(() => {
-    if (isSignedIn && userId) {
-      Purchases.logIn(userId);
-    }
+    if (isSignedIn && userId) Purchases.logIn(userId);
   }, [isSignedIn, userId]);
+
+  useEffect(() => {
+    if (!isSignedIn) { setOnboardingComplete(null); return; }
+    (async () => {
+      try {
+        const flag = await AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY);
+        setOnboardingComplete(flag === "true");
+      } catch {
+        setOnboardingComplete(true); // fail open — don't trap user
+      }
+    })();
+  }, [isSignedIn, segments]);
 
   useEffect(() => {
     if (!isLoaded) return;
 
-    const inAuth = segments[0] === "(auth)";
-    const inInvite = segments[0] === "invite";
+    const inAuth        = segments[0] === "(auth)";
+    const inOnboarding  = segments[0] === "onboarding";
+    const inInvite      = segments[0] === "invite";
     const inPremiumRedirect =
         segments[0] === "premium-success" || segments[0] === "premium-cancel";
 
@@ -76,11 +81,17 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (!isSignedIn && !inAuth) {
       router.replace("/(auth)/sign-in");
     } else if (isSignedIn && inAuth) {
-      router.replace("/(tabs)");
+      if (onboardingComplete === null) return;
+      if (onboardingComplete) router.replace("/(tabs)");
+      else                    router.replace("/onboarding/hook");
+    } else if (isSignedIn && !inAuth && !inOnboarding) {
+      if (onboardingComplete === false && segments[0] === "(tabs)") {
+        router.replace("/onboarding/hook");
+      }
     }
 
     setAuthReady(true);
-  }, [isSignedIn, isLoaded, segments]);
+  }, [isSignedIn, isLoaded, segments, onboardingComplete]);
 
   if (!isLoaded || !authReady) return <View style={{ flex: 1, backgroundColor: "#F0E2C4" }} />;
 
@@ -92,72 +103,39 @@ function RootLayoutNav() {
       <AuthGate>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-              name="member/[id]"
-              options={{ headerShown: false, animation: "slide_from_right" }}
-          />
-          <Stack.Screen
-              name="join"
-              options={{ headerShown: false, animation: "slide_from_bottom" }}
-          />
-          <Stack.Screen
-              name="invite"
-              options={{ headerShown: false, animation: "fade" }}
-          />
-          <Stack.Screen
-              name="premium-success"
-              options={{ headerShown: false, animation: "fade" }}
-          />
-          <Stack.Screen
-              name="premium-cancel"
-              options={{ headerShown: false, animation: "fade" }}
-          />
+          <Stack.Screen name="member/[id]" options={{ headerShown: false, animation: "slide_from_right" }} />
+          <Stack.Screen name="join" options={{ headerShown: false, animation: "slide_from_bottom" }} />
+          <Stack.Screen name="invite" options={{ headerShown: false, animation: "fade" }} />
+          <Stack.Screen name="premium-success" options={{ headerShown: false, animation: "fade" }} />
+          <Stack.Screen name="premium-cancel" options={{ headerShown: false, animation: "fade" }} />
         </Stack>
-        {/* Overlays on top of any screen when a founding member hasn't claimed yet */}
         <FoundingModal />
       </AuthGate>
   );
 }
 
-/**
- * SplashGate — keeps the native splash visible until Clerk auth and i18n are loaded.
- * Must be inside ClerkProvider so it can read useAuth().
- */
-function SplashGate({
-                      fontsReady,
-                      i18nReady,
-                      children,
-                    }: {
-  fontsReady: boolean;
-  i18nReady: boolean;
-  children: React.ReactNode;
+function SplashGate({ fontsReady, i18nReady, children }: {
+  fontsReady: boolean; i18nReady: boolean; children: React.ReactNode;
 }) {
   const { isLoaded } = useAuth();
   const splashHidden = useRef(false);
-
   useEffect(() => {
     if (fontsReady && isLoaded && i18nReady && !splashHidden.current) {
       splashHidden.current = true;
       SplashScreen.hideAsync();
     }
   }, [fontsReady, isLoaded, i18nReady]);
-
   if (!fontsReady || !isLoaded || !i18nReady) return null;
-
   return <>{children}</>;
 }
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
   });
-
   const [i18nReady, setI18nReady] = useState(false);
-
   const fontsReady = fontsLoaded || !!fontError;
 
   useEffect(() => {
@@ -165,27 +143,21 @@ export default function RootLayout() {
       try {
         const stored = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
         let lang: string;
-        if (stored) {
-          lang = stored;
-        } else {
+        if (stored) lang = stored;
+        else {
           const deviceLocale = Localization.getLocales()[0]?.languageCode ?? "en";
           lang = mapLocaleToSupported(deviceLocale);
         }
         await i18n.changeLanguage(lang);
-        // Apply RTL for Arabic
         const shouldBeRTL = lang === "ar";
-        if (I18nManager.isRTL !== shouldBeRTL) {
-          I18nManager.forceRTL(shouldBeRTL);
-        }
+        if (I18nManager.isRTL !== shouldBeRTL) I18nManager.forceRTL(shouldBeRTL);
       } catch {
-        // Fallback to English on any error
         await i18n.changeLanguage("en");
-      } finally {
-        setI18nReady(true);
-      }
+      } finally { setI18nReady(true); }
     }
     initLanguage();
   }, []);
+
   useEffect(() => {
     if (Platform.OS === 'ios') {
       Purchases.configure({
@@ -193,15 +165,13 @@ export default function RootLayout() {
         storeKitVersion: STOREKIT_VERSION.STOREKIT_2,
       });
     } else if (Platform.OS === 'android') {
-      Purchases.configure({
-        apiKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '',
-      });
+      Purchases.configure({ apiKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '' });
     }
   }, []);
 
   useEffect(() => {
     initInstallDate();
-    triggerReviewAfter7Days()
+    triggerReviewAfter7Days();
   }, []);
 
   return (
