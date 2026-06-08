@@ -200,31 +200,32 @@ class NearbyController(
         val matchesByEventId = sourceMatchRepo.findAllByNormalizedEventIdIn(verifiedEventIds)
             .groupBy { it.normalizedEventId }
 
-        val regionCoords  = approximateCoords(trimmed)
+        // ── Country-only matching (temporary) ─────────────────────────────────
+        // Coordinate/city-radius matching is disabled for now — we surface every
+        // verified event in the user's country. The distance logic is preserved in
+        // computeDistance()/approximateCoords()/CITY_COORDS for when we re-enable it.
+        // val regionCoords  = approximateCoords(trimmed)
         val regionCountry = extractCountry(trimmed)
 
         val events = verifiedEvents.mapNotNull { event ->
             val confidence = confidenceByEventId[event.id] ?: return@mapNotNull null
 
-            // ── Geographic relevance check ────────────────────────────────────
-            val distanceKm = computeDistance(event, regionCoords, regionCountry)
-                ?: return@mapNotNull null // not relevant to this region — skip
+            // ── Country relevance check ───────────────────────────────────────
+            // Relevant if the event is in the same country (war events stay global).
+            val isWar = event.category in WAR_CATEGORIES
+            val eventCountry = event.country?.lowercase()?.trim()
+            val sameCountry = !eventCountry.isNullOrBlank() && regionCountry.isNotBlank() &&
+                    (eventCountry.contains(regionCountry) || regionCountry.contains(eventCountry))
+            if (!sameCountry && !isWar) return@mapNotNull null // not in this country — skip
 
-            val relevance = when {
-                distanceKm <= 50  -> LocationRelevance.SAME_CITY
-                distanceKm <= 300 -> LocationRelevance.SAME_COUNTRY
-                distanceKm <= 500 -> LocationRelevance.BORDER_REGION
-                else              -> LocationRelevance.DISTANT
-            }
+            val relevance = if (sameCountry) LocationRelevance.SAME_COUNTRY
+                            else LocationRelevance.DISTANT
 
             // ── Risk assessment + war floor ───────────────────────────────────
-            val risk = riskEngine.assess(event, confidence, distanceKm)
-            val isWar = event.category in WAR_CATEGORIES
-            val warFloored = isWar && relevance in setOf(
-                LocationRelevance.SAME_CITY,
-                LocationRelevance.SAME_COUNTRY,
-                LocationRelevance.BORDER_REGION,
-            )
+            // Assess at distance 0 (at-source / full strength) so a country-relevant
+            // event isn't decayed below the visibility floor by proximity.
+            val risk = riskEngine.assess(event, confidence, 0.0)
+            val warFloored = isWar && sameCountry
             val effectiveRisk = if (warFloored) RiskLevel.IMPORTANT_DISRUPTION else risk.riskLevel
             if (effectiveRisk == RiskLevel.NORMAL) return@mapNotNull null
 
@@ -264,7 +265,11 @@ class NearbyController(
     /**
      * Returns distance in km if the event is relevant to the user, null if not.
      * Relevant = same country OR within 500km when coordinates available.
+     *
+     * Currently unused — getRegion() uses country-only matching for now. Kept so the
+     * coordinate/radius matching can be re-enabled without rewriting it.
      */
+    @Suppress("unused")
     private fun computeDistance(
         event: NormalizedSafetyEvent,
         userCoords: Pair<Double, Double>?,
@@ -314,6 +319,7 @@ class NearbyController(
         }
     }
 
+    @Suppress("unused") // Kept for when coordinate-based matching is re-enabled (see getRegion).
     private fun approximateCoords(region: String?): Pair<Double, Double>? {
         if (region.isNullOrBlank()) return null
         return CITY_COORDS.entries.firstOrNull {
