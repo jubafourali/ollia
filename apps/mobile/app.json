@@ -108,6 +108,13 @@
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ollia needs access to your photos so you can set a profile picture for your family circle.",
+          "cameraPermission": "Ollia needs access to your camera so you can take a profile picture for your family circle."
+        }
       ]
     ],
     "extra": {

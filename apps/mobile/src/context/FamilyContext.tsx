@@ -87,6 +87,7 @@ type FamilyContextType = {
   respondToCheckIn: (requestId: string, response: "fine" | "help") => void;
   sendHeartbeat: () => void;
   setMyProfile: (profile: MyProfile) => Promise<void>;
+  updateMyAvatar: (url: string) => Promise<void>;
   pendingCheckIn: CheckInRequest | null;
   refreshCircle: () => Promise<void>;
   reloadCircleFromStorage: () => Promise<void>;
@@ -777,6 +778,32 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       [setupCircle, startHeartbeat, startRefresh, refreshPatterns]
   );
 
+  const updateMyAvatar = useCallback(
+      async (url: string) => {
+        // Keep the ref in sync so setMyProfile (e.g. onboarding "Continue") sends it.
+        avatarRef.current = url;
+        // Reflect immediately in the local circle so "me" shows the new photo.
+        setMembers((prev) =>
+            prev.map((m) => (m.isMe ? { ...m, avatarUrl: url } : m))
+        );
+        const devId = deviceIdRef.current;
+        // Not registered yet (onboarding) — persisted on Continue via setMyProfile.
+        if (!devId || !myProfile) return;
+        try {
+          await api.upsertUser({
+            id: devId,
+            name: myProfile.name,
+            region: myProfile.region,
+            timezone: myProfile.timezone,
+            avatarUrl: url,
+          });
+        } catch (e) {
+          console.warn("avatar upsert failed:", e);
+        }
+      },
+      [myProfile]
+  );
+
   const setTravelMode = useCallback(
       async (on: boolean, destination?: string) => {
         const devId = deviceIdRef.current;
@@ -931,6 +958,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
             respondToCheckIn,
             sendHeartbeat,
             setMyProfile,
+            updateMyAvatar,
             pendingCheckIn,
             refreshCircle,
             reloadCircleFromStorage,

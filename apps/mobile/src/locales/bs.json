@@ -1,4 +1,13 @@
 {
+  "avatar": {
+    "sheetTitle": "Profilna fotografija",
+    "takePhoto": "Slikaj",
+    "chooseLibrary": "Odaberi iz galerije",
+    "permTitle": "Potrebna dozvola",
+    "permBody": "Molimo dozvolite pristup u postavkama da dodate fotografiju.",
+    "errorTitle": "Učitavanje nije uspjelo",
+    "errorBody": "Nešto je pošlo po zlu. Pokušajte ponovo."
+  },
   "common": {
     "save": "Sačuvaj",
     "saving": "Čuvanje…",

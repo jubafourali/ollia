@@ -1,4 +1,13 @@
 {
+  "avatar": {
+    "sheetTitle": "Photo de profil",
+    "takePhoto": "Prendre une photo",
+    "chooseLibrary": "Choisir dans la galerie",
+    "permTitle": "Autorisation requise",
+    "permBody": "Veuillez autoriser l'accès dans les réglages pour ajouter une photo.",
+    "errorTitle": "Échec du téléchargement",
+    "errorBody": "Une erreur s'est produite. Veuillez réessayer."
+  },
   "common": {
     "save": "Enregistrer",
     "saving": "Enregistrement…",

@@ -1,4 +1,13 @@
 {
+  "avatar": {
+    "sheetTitle": "Profile photo",
+    "takePhoto": "Take photo",
+    "chooseLibrary": "Choose from library",
+    "permTitle": "Permission needed",
+    "permBody": "Please allow access in Settings to add a photo.",
+    "errorTitle": "Couldn't upload photo",
+    "errorBody": "Something went wrong. Please try again."
+  },
   "common": {
     "save": "Save",
     "saving": "Saving…",

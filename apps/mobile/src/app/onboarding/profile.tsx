@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
+import { AvatarPicker } from "@/components/AvatarPicker";
 import { CityPicker } from "@/components/CityPicker";
 import { OnboardingContainer, PrimaryButton } from "./_components";
 
@@ -47,6 +48,11 @@ export default function ProfileScreen() {
                         Your circle sees your name, and your city helps Ollia know which
                         events are actually near you.
                     </Text>
+
+                    <View style={styles.avatarWrap}>
+                        <AvatarPicker name={name || "?"} size={92} />
+                        <Text style={styles.avatarCaption}>Add a photo</Text>
+                    </View>
 
                     <Text style={styles.label}>Your name</Text>
                     <TextInput
@@ -101,7 +107,11 @@ const styles = StyleSheet.create({
     },
     subtitle: {
         fontSize: 15, fontFamily: "Inter_400Regular", color: BRAND.textSecondary,
-        lineHeight: 22, marginBottom: 28,
+        lineHeight: 22, marginBottom: 24,
+    },
+    avatarWrap: { alignItems: "center", marginBottom: 24, gap: 8 },
+    avatarCaption: {
+        fontSize: 13, fontFamily: "Inter_500Medium", color: BRAND.textSecondary,
     },
     label: {
         fontSize: 13, fontFamily: "Inter_600SemiBold", color: BRAND.textSecondary,

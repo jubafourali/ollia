@@ -8,6 +8,7 @@ import {
   AppState,
   AppStateStatus,
   I18nManager,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -30,6 +31,7 @@ import * as BackgroundFetch from "expo-background-fetch";
 
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
+import { AvatarPicker } from "@/components/AvatarPicker";
 import { CityPicker } from "@/components/CityPicker";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { SkyHeader, sheetStyle } from "@/components/SkyScreen";
@@ -563,6 +565,7 @@ export default function SettingsScreen() {
       >
       <Text style={styles.sectionTitle}>{t("settings.myProfile")}</Text>
       <View style={[styles.section, { padding: 16, gap: 14 }]}>
+        <AvatarPicker name={editName || myProfile?.name || "?"} size={92} />
         <View style={profileStyles.field}>
           <Text style={profileStyles.label}>{t("settings.yourName")}</Text>
           <TextInput
@@ -1101,7 +1104,14 @@ export default function SettingsScreen() {
                 {i > 0 && <View style={styles.divider} />}
                 <View style={[styles.memberRow, m.isMe && styles.memberRowMe]}>
                   <View style={[styles.memberInitial, m.isMe && styles.memberInitialMe]}>
-                    <Text style={styles.memberInitialText}>{m.avatar}</Text>
+                    {m.avatarUrl ? (
+                      <Image
+                        source={{ uri: m.avatarUrl }}
+                        style={{ width: 36, height: 36, borderRadius: 18 }}
+                      />
+                    ) : (
+                      <Text style={styles.memberInitialText}>{m.avatar}</Text>
+                    )}
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
