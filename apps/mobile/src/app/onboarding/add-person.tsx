@@ -73,7 +73,7 @@ export default function AddPersonScreen() {
     const canSubmit = nameText.trim().length > 0 && !submitting;
 
     return (
-        <OnboardingContainer step={4}>
+        <OnboardingContainer step={6} onBack={() => router.back()}>
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}

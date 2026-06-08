@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useEffect } from "react";
 import {
+    Dimensions,
     Platform,
     Pressable,
     StyleSheet,
@@ -9,6 +10,7 @@ import {
     View,
     ViewStyle,
 } from "react-native";
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from "react-native-svg";
 import Animated, {
     Easing,
     useAnimatedStyle,
@@ -18,46 +20,71 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BRAND from "@/constants/colors";
 
+const { width: SW, height: SH } = Dimensions.get("window");
+
 // ── Progress indicator ────────────────────────────────────────────────────────
 
 export function OnboardingProgress({ step, total }: { step: number; total: number }) {
     return (
-        <View style={progressStyles.wrap}>
-            <Text style={progressStyles.text}>
-                {step} of {total}
-            </Text>
+        <View style={progressStyles.row}>
+            {Array.from({ length: total }).map((_, i) => (
+                <View
+                    key={i}
+                    style={[
+                        progressStyles.pip,
+                        i === step - 1 && progressStyles.pipActive,
+                        i < step - 1 && progressStyles.pipDone,
+                    ]}
+                />
+            ))}
         </View>
     );
 }
 
 const progressStyles = StyleSheet.create({
-    wrap: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 4 },
-    text: {
-        fontSize: 12,
-        fontFamily: "Inter_500Medium",
-        color: BRAND.textMuted,
-        letterSpacing: 0.4,
-    },
+    row: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1 },
+    pip: { height: 6, width: 6, borderRadius: 3, backgroundColor: BRAND.borderLight },
+    pipActive: { width: 22, backgroundColor: BRAND.primary },
+    pipDone: { backgroundColor: `${BRAND.primary}66` },
 });
 
-// ── Container with fade-in motion ────────────────────────────────────────────
+// ── Warm gradient backdrop — cohesive with the app, premium feel ─────────────
+
+function GradientBackdrop() {
+    return (
+        <Svg style={StyleSheet.absoluteFill} width={SW} height={SH} pointerEvents="none">
+            <Defs>
+                <SvgLinearGradient id="ob_bg" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0"    stopColor="#FCEFD9" />
+                    <Stop offset="0.45" stopColor={BRAND.background} />
+                    <Stop offset="1"    stopColor={BRAND.backgroundCard} />
+                </SvgLinearGradient>
+            </Defs>
+            <Rect width={SW} height={SH} fill="url(#ob_bg)" />
+        </Svg>
+    );
+}
+
+// ── Container with gradient + progress + fade-in motion ──────────────────────
 
 export function OnboardingContainer({
                                         children,
                                         step,
-                                        total = 5,
+                                        total = 8,
+                                        onBack,
                                     }: {
     children: React.ReactNode;
     step: number;
     total?: number;
+    onBack?: () => void;
 }) {
     const insets = useSafeAreaInsets();
     const opacity = useSharedValue(0);
-    const translateY = useSharedValue(12);
+    const translateY = useSharedValue(14);
 
     useEffect(() => {
-        opacity.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.cubic) });
-        translateY.value = withTiming(0, { duration: 350, easing: Easing.out(Easing.cubic) });
+        opacity.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) });
+        translateY.value = withTiming(0, { duration: 380, easing: Easing.out(Easing.cubic) });
     }, []);
 
     const animStyle = useAnimatedStyle(() => ({
@@ -66,8 +93,18 @@ export function OnboardingContainer({
     }));
 
     return (
-        <View style={[containerStyles.root, { paddingTop: insets.top }]}>
-            <OnboardingProgress step={step} total={total} />
+        <View style={containerStyles.root}>
+            <GradientBackdrop />
+            <View style={[containerStyles.header, { paddingTop: insets.top + 10 }]}>
+                {onBack ? (
+                    <Pressable onPress={onBack} hitSlop={12} style={containerStyles.back}>
+                        <Feather name="chevron-left" size={20} color={BRAND.textSecondary} />
+                    </Pressable>
+                ) : (
+                    <View style={containerStyles.back} />
+                )}
+                <OnboardingProgress step={step} total={total} />
+            </View>
             <Animated.View style={[containerStyles.body, animStyle]}>
                 {children}
             </Animated.View>
@@ -77,6 +114,14 @@ export function OnboardingContainer({
 
 const containerStyles = StyleSheet.create({
     root: { flex: 1, backgroundColor: BRAND.background },
+    header: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        paddingHorizontal: 24,
+        paddingBottom: 4,
+    },
+    back: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
     body: { flex: 1 },
 });
 

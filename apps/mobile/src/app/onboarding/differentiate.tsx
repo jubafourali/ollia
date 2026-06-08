@@ -11,7 +11,7 @@ export default function DifferentiateScreen() {
     const insets = useSafeAreaInsets();
 
     return (
-        <OnboardingContainer step={2}>
+        <OnboardingContainer step={2} onBack={() => router.back()}>
             <View style={styles.content}>
                 <View style={styles.illustration}>
                     <ReassuranceIllustration size={240} />

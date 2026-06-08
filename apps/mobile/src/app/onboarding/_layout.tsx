@@ -15,6 +15,8 @@ export default function OnboardingLayout() {
         >
             <Stack.Screen name="hook" />
             <Stack.Screen name="differentiate" />
+            <Stack.Screen name="profile" />
+            <Stack.Screen name="permissions" />
             <Stack.Screen name="relation" />
             <Stack.Screen name="add-person" />
             <Stack.Screen name="invite" />

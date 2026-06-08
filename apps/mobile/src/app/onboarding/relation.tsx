@@ -65,7 +65,7 @@ export default function RelationScreen() {
     const fullWidth = RELATIONS.filter((r) => r.fullWidth);
 
     return (
-        <OnboardingContainer step={3}>
+        <OnboardingContainer step={5} onBack={() => router.back()}>
             <View style={styles.content}>
                 <View style={styles.header}>
                     <Text style={styles.title}>Who would you want peace of mind about?</Text>

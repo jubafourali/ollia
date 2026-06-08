@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     Platform,
     Share,
@@ -26,8 +26,9 @@ type StoredPerson = { name: string; relation: string; emoji?: string };
 
 export default function InviteOnboardingScreen() {
     const insets = useSafeAreaInsets();
-    const { inviteCode, myProfile } = useFamilyContext();
+    const { inviteCode, myProfile, addMember } = useFamilyContext();
     const [person, setPerson] = useState<StoredPerson | null>(null);
+    const addedRef = useRef(false);
 
     useEffect(() => {
         (async () => {
@@ -37,6 +38,22 @@ export default function InviteOnboardingScreen() {
             } catch {}
         })();
     }, []);
+
+    // Actually add the person to the circle (once) as a pending invite, so the
+    // home screen isn't empty after onboarding.
+    const commitMember = () => {
+        if (addedRef.current || !person) return;
+        addedRef.current = true;
+        addMember({
+            userId: "",
+            name: person.name,
+            relation: person.relation,
+            avatar: person.name[0]?.toUpperCase() ?? "?",
+            avatarUrl: null,
+            region: "Invited",
+            pending: true,
+        });
+    };
 
     const buildLink = (): string => {
         const ownerName = encodeURIComponent(myProfile?.name || "Someone");
@@ -53,16 +70,20 @@ export default function InviteOnboardingScreen() {
             });
         } catch {}
         // Whether or not the user completed share, proceed forward
+        commitMember();
         router.push("/onboarding/aha");
     };
 
-    const handleSkip = () => router.push("/onboarding/aha");
+    const handleSkip = () => {
+        commitMember();
+        router.push("/onboarding/aha");
+    };
 
     const personName  = person?.name     ?? "your person";
     const personEmoji = person?.emoji    ?? "💛";
 
     return (
-        <OnboardingContainer step={5}>
+        <OnboardingContainer step={7} onBack={() => router.back()}>
             <View style={styles.content}>
                 <View style={styles.header}>
                     <Text style={styles.title}>Stay quietly reassured about each other</Text>

@@ -44,7 +44,7 @@ export default function AhaScreen() {
     const personEmoji = person?.emoji ?? "☕";
 
     return (
-        <OnboardingContainer step={5}>
+        <OnboardingContainer step={8}>
             <View style={styles.content}>
                 <Text style={styles.sectionLabel}>Your Circle</Text>
 
