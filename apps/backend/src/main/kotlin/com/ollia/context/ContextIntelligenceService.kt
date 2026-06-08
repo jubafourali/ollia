@@ -131,6 +131,27 @@ class ContextIntelligenceService(
         )
     }
 
+    /**
+     * Region-centric calm sentence — used when *browsing a place* rather than watching a
+     * specific person (the "Nearby" region feed). Same reassurance-first tone and the same
+     * confidence/location wording as [buildSentence], but without the personal-activity
+     * clause, since no individual is in scope.
+     */
+    fun regionalSentence(
+        event: NormalizedSafetyEvent,
+        confidence: SaiaeConfidenceReport,
+        locationRelevance: LocationRelevance,
+    ): String {
+        val noun      = eventNoun[event.category] ?: "a safety event"
+        val where     = locationPhrase(locationRelevance, event.country)
+        val eventText = eventClause(confidence.tier, noun, where)
+        val tail = if (event.category in warEvents)
+            " Stay aware and follow local guidance."
+        else
+            " No action needed unless local authorities advise otherwise."
+        return (eventText + tail).trim()
+    }
+
     private fun classifyUserStatus(lastSeen: Instant?, now: Instant): UserActivityStatus {
         if (lastSeen == null) return UserActivityStatus.SILENT
         val hoursAgo = Duration.between(lastSeen, now).toHours()

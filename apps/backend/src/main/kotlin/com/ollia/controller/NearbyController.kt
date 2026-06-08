@@ -2,6 +2,7 @@ package com.ollia.controller
 
 import com.ollia.dto.NearbyEventResponse
 import com.ollia.dto.NearbyMemberResponse
+import com.ollia.dto.NearbyRegionResponse
 import com.ollia.entity.EventStatus
 import com.ollia.entity.NormalizedSafetyEvent
 import com.ollia.entity.LocationRelevance
@@ -163,6 +164,99 @@ class NearbyController(
             .sortedWith(compareByDescending<NearbyMemberResponse> { it.isMe }.thenByDescending { it.events.size })
 
         return ResponseEntity.ok(result)
+    }
+
+    /**
+     * GET /api/v2/nearby/region?region=Ubud,+Indonesia
+     *
+     * Region-scoped feed for the "Nearby" screen — answers "what's happening around
+     * *this place* right now?" for an arbitrary region the user is browsing (typed,
+     * searched, or their own location), independent of who is in their circle.
+     *
+     * Runs the same verified-event → geographic-relevance → risk → source pipeline as
+     * [getNearby], but resolves location from the query string and builds a
+     * region-centric (not person-centric) calm sentence. Returns a server-computed
+     * worst-risk and smart-summary so the banner and feed render from one source.
+     */
+    @GetMapping("/region")
+    fun getRegion(@RequestParam region: String): ResponseEntity<NearbyRegionResponse> {
+        currentUserService.getCurrentUser() // require an authenticated caller
+        val trimmed = region.trim()
+        if (trimmed.isBlank()) {
+            return ResponseEntity.ok(NearbyRegionResponse(trimmed, "NORMAL", calmAllClear(trimmed), emptyList()))
+        }
+
+        val verifiedEvents = normalizedRepo.findAllByStatus(EventStatus.VERIFIED)
+        if (verifiedEvents.isEmpty()) {
+            return ResponseEntity.ok(NearbyRegionResponse(trimmed, "NORMAL", calmAllClear(trimmed), emptyList()))
+        }
+
+        // Pre-load confidence, source matches, and the registry once — scoped to the
+        // verified event set (same approach as getNearby; no full-table scans).
+        val verifiedEventIds = verifiedEvents.mapNotNull { it.id }
+        val confidenceByEventId = confidenceReportRepo.findAllByNormalizedEventIdIn(verifiedEventIds)
+            .associateBy { it.normalizedEventId }
+        val sourceRegistry = sourceRegistryRepo.findAll().associateBy { it.id }
+        val matchesByEventId = sourceMatchRepo.findAllByNormalizedEventIdIn(verifiedEventIds)
+            .groupBy { it.normalizedEventId }
+
+        val regionCoords  = approximateCoords(trimmed)
+        val regionCountry = extractCountry(trimmed)
+
+        val events = verifiedEvents.mapNotNull { event ->
+            val confidence = confidenceByEventId[event.id] ?: return@mapNotNull null
+
+            // ── Geographic relevance check ────────────────────────────────────
+            val distanceKm = computeDistance(event, regionCoords, regionCountry)
+                ?: return@mapNotNull null // not relevant to this region — skip
+
+            val relevance = when {
+                distanceKm <= 50  -> LocationRelevance.SAME_CITY
+                distanceKm <= 300 -> LocationRelevance.SAME_COUNTRY
+                distanceKm <= 500 -> LocationRelevance.BORDER_REGION
+                else              -> LocationRelevance.DISTANT
+            }
+
+            // ── Risk assessment + war floor ───────────────────────────────────
+            val risk = riskEngine.assess(event, confidence, distanceKm)
+            val isWar = event.category in WAR_CATEGORIES
+            val warFloored = isWar && relevance in setOf(
+                LocationRelevance.SAME_CITY,
+                LocationRelevance.SAME_COUNTRY,
+                LocationRelevance.BORDER_REGION,
+            )
+            val effectiveRisk = if (warFloored) RiskLevel.IMPORTANT_DISRUPTION else risk.riskLevel
+            if (effectiveRisk == RiskLevel.NORMAL) return@mapNotNull null
+
+            // ── Region-centric calm sentence ──────────────────────────────────
+            val sentence = try {
+                contextEngine.regionalSentence(event, confidence, relevance)
+            } catch (e: Exception) {
+                return@mapNotNull null
+            }
+
+            val sourceIds = matchesByEventId[event.id!!].orEmpty().map { it.sourceId }
+            NearbyEventResponse(
+                eventId      = event.id!!,
+                eventLabel   = eventLabel(event.category),
+                sentence     = sentence,
+                riskLevel    = effectiveRisk.name,
+                sourcesLabel = buildSourcesLabel(sourceIds, sourceRegistry),
+                category     = event.category.name,
+            )
+        }
+            .sortedByDescending { riskOrdinal(it.riskLevel) }
+            .take(20)
+
+        val worstRisk = events.maxByOrNull { riskOrdinal(it.riskLevel) }?.riskLevel ?: "NORMAL"
+        val summary   = events.firstOrNull()?.sentence ?: calmAllClear(trimmed)
+
+        return ResponseEntity.ok(NearbyRegionResponse(trimmed, worstRisk, summary, events))
+    }
+
+    private fun calmAllClear(region: String): String {
+        val place = region.substringBefore(",").trim().ifBlank { "this area" }
+        return "Things look calm around $place. Nothing needs your attention right now."
     }
 
     // ── Geographic matching ───────────────────────────────────────────────────

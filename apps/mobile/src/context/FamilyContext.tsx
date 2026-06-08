@@ -11,7 +11,7 @@ import React, {
   useState,
 } from "react";
 import { AppState, AppStateStatus, Linking, Platform } from "react-native";
-import { api, ApiCircleMember, ApiSafetyEvent, ApiAlert, ApiPattern, setAuthTokenGetter } from "@/utils/api";
+import { api, ApiCircleMember, ApiSafetyEvent, ApiAlert, ApiPattern, ApiNearbyRegion, setAuthTokenGetter } from "@/utils/api";
 import {
   registerBackgroundActivity,
   unregisterBackgroundActivity,
@@ -76,6 +76,7 @@ type FamilyContextType = {
   isLoading: boolean;
   safetyEvents: ApiSafetyEvent[];
   alerts: ApiAlert[];
+  nearbyRegion: ApiNearbyRegion | null;
   patterns: ApiPattern | null;
   alertPrefs: AlertPrefs;
   shouldShowFounding: boolean;
@@ -93,6 +94,7 @@ type FamilyContextType = {
   upgradePlan: (plan: "monthly" | "annual") => Promise<void>;
   syncSubscription: () => Promise<void>;
   refreshSafetyEvents: () => Promise<void>;
+  refreshNearby: (region?: string) => Promise<void>;
   setAlertPref: (source: keyof AlertPrefs, enabled: boolean) => Promise<void>;
   bgRefreshDisabled: boolean;
   locationPermissionMissing: boolean;
@@ -190,6 +192,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [travelDestination, setTravelDestinationState] = useState("");
   const [safetyEvents, setSafetyEvents] = useState<ApiSafetyEvent[]>([]);
   const [alerts, setAlerts] = useState<ApiAlert[]>([]);
+  const [nearbyRegion, setNearbyRegion] = useState<ApiNearbyRegion | null>(null);
+  const nearbyRegionRef = useRef("");   // region currently in view
+  const nearbySeededRef = useRef("");   // last auto-seeded location (vs a user pick)
+  const nearbyReqRef = useRef(0);       // discards out-of-order responses
   const [patterns, setPatterns] = useState<ApiPattern | null>(null);
   const [alertPrefs, setAlertPrefsState] = useState<AlertPrefs>({ usgs: true, noaa: true, gdacs: true });
   const [isLoading, setIsLoading] = useState(true);
@@ -311,6 +317,22 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Region-scoped Nearby feed — fetched, cached, and refreshed centrally, exactly
+  // like `alerts`. Passing a region switches the tracked region; omitting it refetches
+  // the one currently in view (used by the periodic safety tick & pull-to-refresh).
+  const refreshNearby = useCallback(async (region?: string) => {
+    if (region !== undefined) nearbyRegionRef.current = region.trim();
+    const target = nearbyRegionRef.current;
+    if (!target) return;
+    const reqId = ++nearbyReqRef.current;
+    try {
+      const data = await api.getNearbyRegion(target);
+      if (reqId === nearbyReqRef.current) setNearbyRegion(data);
+    } catch (e) {
+      console.warn("Nearby region failed:", e);
+    }
+  }, []);
+
   const refreshPatterns = useCallback(async (uid: string) => {
     if (!uid) return;
     try {
@@ -385,10 +407,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   const startSafetyRefresh = useCallback(() => {
     if (safetyRef.current) clearInterval(safetyRef.current);
-    const tick = () => { refreshSafetyEvents(); refreshAlerts(); };
+    const tick = () => { refreshSafetyEvents(); refreshAlerts(); refreshNearby(); };
     tick();
     safetyRef.current = setInterval(tick, SAFETY_REFRESH_MS);
-  }, [refreshSafetyEvents, refreshAlerts]);
+  }, [refreshSafetyEvents, refreshAlerts, refreshNearby]);
 
   const syncSubscription = useCallback(async () => {
     try {
@@ -832,6 +854,20 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       ? travelDestination
       : (myProfile?.region ?? "");
 
+  // Seed the Nearby region feed from the user's active location as soon as it's known,
+  // so the periodic safety tick keeps it fresh even before the Nearby tab is opened.
+  // Follows profile/travel changes while the feed is still showing an auto-seeded
+  // location, but never overrides a region the user explicitly picked in the screen.
+  useEffect(() => {
+    const loc = activeLocation.trim();
+    if (!loc) return;
+    const tracked = nearbyRegionRef.current;
+    if (tracked && tracked !== nearbySeededRef.current) return; // user picked their own
+    if (loc === tracked) return; // already showing it
+    nearbySeededRef.current = loc;
+    refreshNearby(loc);
+  }, [activeLocation, refreshNearby]);
+
   const toCountry = (location: string): string =>
       location.includes(",")
           ? location.split(",").pop()?.trim().toLowerCase() ?? ""
@@ -884,6 +920,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
             travelDestination,
             safetyEvents: filteredSafetyEvents,
             alerts,
+            nearbyRegion,
             patterns,
             alertPrefs,
             shouldShowFounding,
@@ -901,6 +938,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
             upgradePlan,
             syncSubscription,
             refreshSafetyEvents,
+            refreshNearby,
             setAlertPref,
             bgRefreshDisabled,
             locationPermissionMissing,

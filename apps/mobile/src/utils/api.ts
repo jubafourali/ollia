@@ -161,6 +161,13 @@ export type ApiNearbyMember = {
   isMe: boolean;
 };
 
+export type ApiNearbyRegion = {
+  region: string;
+  worstRisk: "NORMAL" | "STAY_AWARE" | "IMPORTANT_DISRUPTION";
+  summary: string;        // calm smart-summary sentence for the safety banner
+  events: ApiNearbyEvent[];
+};
+
 export const api = {
   upsertUser(payload: { id: string; name: string; region?: string; timezone?: string; avatarUrl?: string }): Promise<ApiUser> {
     return req("/users", { method: "POST", body: JSON.stringify(payload) });
@@ -297,6 +304,11 @@ export const api = {
 
   getNearby(): Promise<ApiNearbyMember[]> {
     return req("/v2/nearby");
+  },
+
+  // Region-scoped safety feed — "what's happening around this place right now?"
+  getNearbyRegion(region: string): Promise<ApiNearbyRegion> {
+    return req(`/v2/nearby/region?region=${encodeURIComponent(region)}`);
   },
 
   registerPushToken(token: string, platform = "expo"): Promise<{ success: boolean }> {
