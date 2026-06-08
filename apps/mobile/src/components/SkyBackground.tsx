@@ -71,31 +71,31 @@ export const SKY: Record<Phase, SkyTheme> = {
     dawn: {
         stops: [[0,"#191447"],[0.32,"#3e2a60"],[0.55,"#7c3a6e"],[0.74,"#c25a6a"],[0.86,"#ef9a72"],[0.95,"#f2cf9e"],[1,CREAM]],
         glow:"#e87a8a", glowOp:0.30, star:0.3,  starTint:"#ffe0ec",
-        body:"sun", bodyColor:"#ffd9a8", bodyGlow:"#f6a07a", bodyX:0.5, bodyY:0.30,
+        body:"none", bodyColor:"#ffd9a8", bodyGlow:"#f6a07a", bodyX:0.5, bodyY:0.30,
         mood:"A new day is breaking",
     },
     morning: {
         stops: [[0,"#2f63ac"],[0.34,"#5a8acc"],[0.56,"#9ac0e0"],[0.74,"#f0c088"],[0.87,"#f6dcae"],[0.95,"#f3e3c4"],[1,CREAM]],
         glow:"#ffd9a0", glowOp:0.26, star:0,    starTint:"#ffffff",
-        body:"sun", bodyColor:"#fff3cf", bodyGlow:"#ffe49a", bodyX:0.7, bodyY:0.19,
+        body:"none", bodyColor:"#fff3cf", bodyGlow:"#ffe49a", bodyX:0.7, bodyY:0.19,
         mood:"Morning light is here",
     },
     day: {
         stops: [[0,"#2f74c8"],[0.34,"#4f97d8"],[0.6,"#86bce8"],[0.8,"#bcdcf0"],[0.9,"#dfe7df"],[0.96,"#ece2cc"],[1,CREAM]],
         glow:"#dcebf6", glowOp:0.24, star:0,    starTint:"#ffffff",
-        body:"sun", bodyColor:"#fffbe6", bodyGlow:"#fff0b0", bodyX:0.72, bodyY:0.15,
+        body:"none", bodyColor:"#fffbe6", bodyGlow:"#fff0b0", bodyX:0.72, bodyY:0.15,
         mood:"A bright, open day",
     },
     golden: {
         stops: [[0,"#1f3f72"],[0.32,"#7a4a72"],[0.54,"#c4683a"],[0.73,"#f0913e"],[0.86,"#ffc266"],[0.95,"#f4dca6"],[1,CREAM]],
         glow:"#ff9a40", glowOp:0.34, star:0.12, starTint:"#ffe9c0",
-        body:"sun", bodyColor:"#ffcf6a", bodyGlow:"#ff9a3a", bodyX:0.3, bodyY:0.34,
+        body:"none", bodyColor:"#ffcf6a", bodyGlow:"#ff9a3a", bodyX:0.3, bodyY:0.34,
         mood:"Golden hour",
     },
     dusk: {
         stops: [[0,"#17143f"],[0.32,"#3e2360"],[0.54,"#6e2c6e"],[0.73,"#b04a78"],[0.85,"#e58a76"],[0.94,"#eac49e"],[1,CREAM]],
         glow:"#a44a8c", glowOp:0.34, star:0.55, starTint:"#ffd9ec",
-        body:"sun", bodyColor:"#ffb070", bodyGlow:"#d96a5a", bodyX:0.5, bodyY:0.32,
+        body:"none", bodyColor:"#ffb070", bodyGlow:"#d96a5a", bodyX:0.5, bodyY:0.32,
         mood:"The day is winding down",
     },
 };
