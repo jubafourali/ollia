@@ -66,6 +66,10 @@ class ReferenceApiController(
             user.timezone = request.timezone
             dirty = true
         }
+        if (!request.avatarUrl.isNullOrBlank()) {
+            user.avatarUrl = request.avatarUrl
+            dirty = true
+        }
         if (dirty) userRepository.save(user)
         return user.toApiResponse(clerkId)
     }
@@ -216,6 +220,7 @@ class ReferenceApiController(
                 userId = memberUser.clerkId,
                 name = memberUser.name,
                 region = memberUser.region,
+                avatarUrl = memberUser.avatarUrl,
                 relation = member.relation,
                 lastCheckInAt = memberUser.lastCheckInAt?.toString(),
                 lastSeen = memberUser.lastSeenAt?.toString(),

@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/clerk-expo";
 import * as WebBrowser from "expo-web-browser";
 import { router } from "expo-router";
 import React, {
@@ -32,6 +32,7 @@ export type FamilyMember = {
   name: string;
   relation: string;
   avatar: string;
+  avatarUrl?: string | null;
   status: ActivityStatus;
   lastSeen: Date;
   lastCheckInAt: Date | null;
@@ -158,6 +159,7 @@ function apiMemberToLocal(m: ApiCircleMember, meId: string): FamilyMember {
     name: m.name,
     relation: m.relation,
     avatar: m.name[0]?.toUpperCase() ?? "?",
+    avatarUrl: m.avatarUrl ?? null,
     status: getStatusFromLastSeen(statusReference),
     lastSeen,
     lastCheckInAt,
@@ -172,6 +174,9 @@ function apiMemberToLocal(m: ApiCircleMember, meId: string): FamilyMember {
 
 export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const { userId, getToken, isLoaded: authLoaded } = useAuth();
+  const { user: clerkUser } = useUser();
+  const avatarRef = useRef<string | null>(null);
+  useEffect(() => { avatarRef.current = clerkUser?.imageUrl ?? null; }, [clerkUser?.imageUrl]);
   const [deviceId, setDeviceId] = useState<string>("");
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [checkInRequests, setCheckInRequests] = useState<CheckInRequest[]>([]);
@@ -553,6 +558,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
             name: profile.name,
             region: profile.region,
             timezone: profile.timezone,
+            avatarUrl: avatarRef.current ?? undefined,
           });
           setIsRegistered(true);
         } catch (e) {
@@ -732,6 +738,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
             name: profile.name,
             region: profile.region,
             timezone: profile.timezone,
+            avatarUrl: avatarRef.current ?? undefined,
           });
           setIsRegistered(true);
         } catch (e) {

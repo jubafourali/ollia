@@ -9,6 +9,7 @@ object SourceRegistryMapping {
         SourceType.NOAA             -> "noaa"
         SourceType.GDACS            -> "gdacs"
         SourceType.REUTERS          -> "reuters"
+        SourceType.AP               -> "ap"
         SourceType.BBC              -> "bbc"
         SourceType.GDELT            -> "gdelt"
         SourceType.NEWSDATA         -> "newsdata"

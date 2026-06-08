@@ -63,6 +63,7 @@ export type ApiCircleMember = {
   userId: string;
   name: string;
   region?: string;
+  avatarUrl?: string | null;
   relation: string;
   lastCheckInAt?: string | null;
   lastSeen?: string;
@@ -161,7 +162,7 @@ export type ApiNearbyMember = {
 };
 
 export const api = {
-  upsertUser(payload: { id: string; name: string; region?: string; timezone?: string }): Promise<ApiUser> {
+  upsertUser(payload: { id: string; name: string; region?: string; timezone?: string; avatarUrl?: string }): Promise<ApiUser> {
     return req("/users", { method: "POST", body: JSON.stringify(payload) });
   },
 

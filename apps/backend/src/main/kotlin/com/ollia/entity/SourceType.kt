@@ -18,6 +18,8 @@ enum class SourceType(
 
     REUTERS(90, SourceKind.NEWS, true),
 
+    AP(90, SourceKind.NEWS, true),
+
     BBC(88, SourceKind.NEWS, true),
 
     // ── Added for SAIAE v1 multi-source coverage ──────────────────────────────

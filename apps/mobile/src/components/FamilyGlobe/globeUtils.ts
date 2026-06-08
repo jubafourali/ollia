@@ -222,6 +222,7 @@ export function resolveMembers(members: GlobeMember[], meRegion?: string): Resol
       status: m.status, lastCheckInAt: m.lastCheckInAt, lastSeen: m.lastSeen,
       isMe: m.isMe, lat: coords[0], lng: coords[1],
       pinColor: m.status === "inactive" ? "#9ca3af" : getPinColor(m.id),
+      avatarUrl: m.avatarUrl,
     });
   }
   return pins;

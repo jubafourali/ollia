@@ -8,6 +8,7 @@ export type GlobeMember = {
   lastSeen: Date;
   isMe?: boolean;
   pending?: boolean;
+  avatarUrl?: string | null;
 };
 
 export type ResolvedPin = {
@@ -22,4 +23,5 @@ export type ResolvedPin = {
   lat: number;
   lng: number;
   pinColor: string;
+  avatarUrl?: string | null;
 };

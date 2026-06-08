@@ -2,7 +2,7 @@ import React, {
     useCallback, useEffect, useMemo, useRef, useState,
 } from "react";
 import {
-    Animated, Dimensions, Easing,
+    Animated, Dimensions, Easing, Image,
     Pressable, ScrollView, StyleSheet, Text, View,
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -322,12 +322,18 @@ function MemberCard({ pin, selected, onPress }: {
             {/* PresenceToken + name (replaces letter avatar) */}
             <View style={{ flexDirection:"row", alignItems:"center", gap:14, marginBottom:"auto" as any }}>
                 <View style={{ overflow:"hidden", borderRadius:22, borderWidth:1.5, borderColor:color+"88" }}>
-                    <PresenceToken relation={pin.relation} pinColor={color} size={44} showRing={false} />
-                    {/* Soft frost on card token too — consistent feel */}
-                    <View style={{
-                        ...StyleSheet.absoluteFillObject,
-                        backgroundColor:"rgba(255,248,235,0.40)",
-                    }} />
+                    {pin.avatarUrl ? (
+                        <Image source={{ uri: pin.avatarUrl }} style={{ width:44, height:44, borderRadius:22 }} />
+                    ) : (
+                        <>
+                            <PresenceToken relation={pin.relation} pinColor={color} size={44} showRing={false} />
+                            {/* Soft frost on card token too — consistent feel */}
+                            <View style={{
+                                ...StyleSheet.absoluteFillObject,
+                                backgroundColor:"rgba(255,248,235,0.40)",
+                            }} />
+                        </>
+                    )}
                 </View>
                 <View style={{ flex:1 }}>
                     <Text style={{ fontSize:26, fontFamily:"Inter_700Bold", color:theme.text, letterSpacing:-0.5 }}>
@@ -514,10 +520,13 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
                     const theme  = CARD_BG[phase];
                     const color  = STATUS_PIN_COLOR[selPin.status] ?? "#9ca3af";
                     const isOvd  = selPin.status==="away"||selPin.status==="inactive";
-                    const pinEvs = events.filter(e => !e.memberId||e.memberId===selPin.id);
-                    const olliaNote = isOvd
+                    // Prefer the backend's vetted calm sentence for THIS person (the
+                    // SAIAE sentence names them); fall back to a calm default otherwise.
+                    const pinEvs = events.filter(e => !e.sentence || (!!selPin.name && e.sentence.includes(selPin.name)));
+                    const memberAlert = events.find(e => e.sentence && !!selPin.name && e.sentence.includes(selPin.name));
+                    const olliaNote = memberAlert?.sentence ?? (isOvd
                         ? `Ollia hasn't noticed anything unusual near ${selPin.region.split(",")[0]}. Things seem calm.`
-                        : `${selPin.name}'s area is quiet right now. Nothing unusual nearby.`;
+                        : `${selPin.name}'s area is quiet right now. Nothing unusual nearby.`);
                     return (
                         <>
                             <View style={{ width:38,height:4,borderRadius:2,backgroundColor:"#E0D0B8",alignSelf:"center",marginBottom:18 }} />
@@ -531,8 +540,14 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
                             {/* Mini sky card header */}
                             <View style={{ flexDirection:"row",alignItems:"center",gap:14,padding:16,borderRadius:18,backgroundColor:theme.bg,marginBottom:16 }}>
                                 <View style={{ overflow:"hidden", borderRadius:28, borderWidth:1.5, borderColor:color+"88" }}>
-                                    <PresenceToken relation={selPin.relation} pinColor={color} size={52} showRing={false} />
-                                    <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor:"rgba(255,248,235,0.42)" }} />
+                                    {selPin.avatarUrl ? (
+                                        <Image source={{ uri: selPin.avatarUrl }} style={{ width:52, height:52, borderRadius:26 }} />
+                                    ) : (
+                                        <>
+                                            <PresenceToken relation={selPin.relation} pinColor={color} size={52} showRing={false} />
+                                            <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor:"rgba(255,248,235,0.42)" }} />
+                                        </>
+                                    )}
                                 </View>
                                 <View style={{ flex:1 }}>
                                     <Text style={{ fontSize:18,fontFamily:"Inter_700Bold",color:theme.text }}>{selPin.name}</Text>

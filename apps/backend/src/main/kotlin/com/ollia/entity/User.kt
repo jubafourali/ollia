@@ -22,6 +22,9 @@ class User(
 
     var region: String? = null,
 
+    @Column(name = "avatar_url", length = 1000)
+    var avatarUrl: String? = null,
+
     @Column(nullable = false)
     var travelMode: Boolean = false,
 

@@ -9,7 +9,8 @@ data class UpsertUserRequest(
     val id: String,
     val name: String,
     val region: String? = null,
-    val timezone: String? = null
+    val timezone: String? = null,
+    val avatarUrl: String? = null
 )
 
 // POST /api/users — response, PATCH /api/users/{userId}/travel — response
@@ -58,6 +59,7 @@ data class CircleMemberResponse(
     val userId: String,
     val name: String,
     val region: String? = null,
+    val avatarUrl: String? = null,
     val relation: String,
     val lastCheckInAt: String? = null,
     val lastSeen: String? = null,

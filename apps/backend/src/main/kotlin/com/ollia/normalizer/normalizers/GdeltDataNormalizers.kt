@@ -20,7 +20,7 @@ class GdeltNormalizer : SafetySignalNormalizer {
         val severity = raw.severityHint ?: Severity.LOW
         return NormalizedSafetyEvent(
             rawSignalId = raw.id!!,
-            source      = raw.source,
+            source      = TrustedDomains.attribute(raw.source, raw.sourceUrl),
             category    = raw.category ?: SafetyCategory.OTHER,
             severity    = severity,
             title       = raw.title ?: "Security event reported",
