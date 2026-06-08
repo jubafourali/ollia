@@ -24,8 +24,9 @@ class NormalizerOrchestrator(
     @Scheduled(fixedRate = 60_000)
     @Transactional
     fun normalize() {
-        // TODO this should go in batches or by category or country ...
-        val unprocessed = rawRepository.findAllUnprocessed()
+        // Bounded batch — a backlog drains over successive 60s ticks instead of
+        // loading every unprocessed signal into one transaction.
+        val unprocessed = rawRepository.findTop500ByProcessedFalseOrderByCollectedAtAsc()
         if (unprocessed.isEmpty()) return
 
         logger.info("Normalizing ${unprocessed.size} raw signals")

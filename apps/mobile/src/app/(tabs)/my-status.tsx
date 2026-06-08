@@ -28,6 +28,7 @@ import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
 import { requestLocationPermission, hasBackgroundLocationPermission } from "@/services/backgroundActivity";
 import { CityPicker } from "@/components/CityPicker";
+import { SkyHeader, sheetStyle } from "@/components/SkyScreen";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { getCheckInLabel } from "@/utils/checkInLabel";
 
@@ -168,7 +169,6 @@ export default function MyStatusScreen() {
     opacity: ringOpacity.value,
   }));
 
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
 
   const handleHeartbeat = () => {
     if (Platform.OS !== "web") {
@@ -212,21 +212,20 @@ export default function MyStatusScreen() {
   const watchers = members.filter((m) => !m.isMe);
 
   return (
-    <ScrollView
-      style={[styles.container, { paddingTop: topInset }]}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          tintColor={BRAND.primary}
-        />
-      }
-    >
-      <Text style={styles.title}>{t("myStatus.title")}</Text>
-      <Text style={styles.subtitle}>{t("myStatus.subtitle")}</Text>
-
+    <View style={styles.container}>
+      <SkyHeader title={t("myStatus.title")} subtitle={t("myStatus.subtitle")} />
+      <ScrollView
+        style={sheetStyle}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={BRAND.primary}
+          />
+        }
+      >
       <View style={styles.heroSection}>
         <Pressable onPress={handleHeartbeat}>
           <View style={styles.heartWrapper}>
@@ -495,30 +494,20 @@ export default function MyStatusScreen() {
           setShowUpgrade(false);
         }}
       />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BRAND.background,
+    backgroundColor: "transparent",
   },
   content: {
     paddingHorizontal: 20,
+    paddingTop: 24,
     paddingBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-    color: BRAND.text,
-    marginBottom: 2,
-  },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    color: BRAND.textSecondary,
-    marginBottom: 32,
   },
   heroSection: {
     alignItems: "center",

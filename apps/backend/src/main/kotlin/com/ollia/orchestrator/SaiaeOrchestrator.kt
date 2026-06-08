@@ -13,10 +13,13 @@ import com.ollia.repository.NormalizedSafetyEventRepository
 import com.ollia.repository.UserRepository
 import com.ollia.saiae.composer.CalmOutputComposerService
 import com.ollia.saiae.context.ContextIntelligenceService
+import com.ollia.saiae.correlation.EventCorrelationService
 import com.ollia.saiae.police.PoliceEngineService
+import com.ollia.entity.SaiaeSourceRegistry
 import com.ollia.saiae.repository.SaiaeConfidenceReportRepository
 import com.ollia.saiae.repository.SaiaeContextReportRepository
 import com.ollia.saiae.repository.SaiaeEventSourceMatchRepository
+import com.ollia.saiae.repository.SaiaeSourceRegistryRepository
 import com.ollia.saiae.risk.RiskAssessmentService
 import jakarta.transaction.Transactional
 import org.slf4j.LoggerFactory
@@ -47,9 +50,11 @@ class SaiaeOrchestrator(
     private val confidenceReportRepo: SaiaeConfidenceReportRepository,
     private val contextReportRepo: SaiaeContextReportRepository,
     private val eventSourceMatchRepo: SaiaeEventSourceMatchRepository,
+    private val sourceRegistryRepo: SaiaeSourceRegistryRepository,
     private val userRepository: UserRepository,
     private val familyMemberRepository: FamilyMemberRepository,
     private val familyCircleRepository: FamilyCircleRepository,
+    private val correlationService: EventCorrelationService,
     private val policeEngine: PoliceEngineService,
     private val riskEngine: RiskAssessmentService,
     private val contextEngine: ContextIntelligenceService,
@@ -66,52 +71,52 @@ class SaiaeOrchestrator(
     @Scheduled(fixedRate = 120_000)
     @Transactional
     fun runPipeline() {
-        val allEvents = normalizedRepo.findAllByStatusIn(
-            listOf(EventStatus.PENDING_VERIFICATION, EventStatus.VERIFIED)
-        )
-        if (allEvents.isEmpty()) return
-
-        val allUsers = userRepository.findAll()
-        if (allUsers.isEmpty()) return
-
-        logger.info("SAIAE pipeline: ${allEvents.size} events, ${allUsers.size} users")
-
-        // ── PASS 1: GLOBAL VERIFICATION ──────────────────────────────────────
-        // Score every PENDING_VERIFICATION event independently of any user.
-        // This promotes events to VERIFIED or REJECTED globally.
-        val pendingEvents = allEvents.filter { it.status == EventStatus.PENDING_VERIFICATION }
+        // ── PASS 1: CORRELATION + GLOBAL VERIFICATION ────────────────────────
+        // Correlation clusters sibling reports into canonical events (multi-source).
+        // Verification is global and runs regardless of whether any user is nearby.
+        val toScore = correlationService.correlate()
         var verified = 0
         var rejected = 0
-        for (event in pendingEvents) {
+        for (event in toScore) {
             try {
-                val existing = confidenceReportRepo.findByNormalizedEventId(event.id!!)
-                if (existing != null) continue // already scored
                 val report = policeEngine.scoreEvent(event)
-                if (report.minimumSourcesMet) verified++ else rejected++
+                if (report.minimumSourcesMet) {
+                    verified++
+                    // Persist a global, user-independent base risk (distance 0 = at-source
+                    // intrinsic severity) for tuning/analytics. Per-user *effective* risk is
+                    // computed in Pass 2 and stored per observer in saiae_context_report.
+                    val baseRisk = riskEngine.assess(event, report, distanceKm = 0.0)
+                    normalizedRepo.updateRisk(
+                        event.id!!, baseRisk.riskLevel.name, baseRisk.finalScore, baseRisk.floorApplied
+                    )
+                } else {
+                    rejected++
+                }
             } catch (e: Exception) {
                 logger.error("Police Engine failed for event ${event.id}", e)
             }
         }
-        if (pendingEvents.isNotEmpty()) {
-            logger.info("Pass 1 complete: ${pendingEvents.size} scored, $verified verified, $rejected rejected")
+        if (toScore.isNotEmpty()) {
+            logger.info("Pass 1: ${toScore.size} canonical events scored, $verified verified, $rejected rejected")
         }
 
         // ── PASS 2: PER-USER RELEVANCE AND CARD COMPOSITION ──────────────────
-        // Only work with VERIFIED events from this point forward.
-        // Re-fetch so we pick up the newly verified events from Pass 1.
+        // Only VERIFIED canonical events from here on (MERGED/REJECTED are inert).
+        val allUsers = userRepository.findAll()
+        if (allUsers.isEmpty()) return
+
         val verifiedEvents = normalizedRepo.findAllByStatusIn(listOf(EventStatus.VERIFIED))
         if (verifiedEvents.isEmpty()) {
             logger.info("Pass 2: no verified events to surface")
             return
         }
 
-        // Pre-load all confidence reports to avoid N+1 queries in Pass 2.
-        // SaiaeConfidenceReportRepository only exposes findAll() for bulk load —
-        // filter in-memory to the verified event set (small set at any given time).
-        val verifiedEventIds = verifiedEvents.map { it.id!! }.toSet()
-        val confidenceByEventId = confidenceReportRepo.findAll()
-            .filter { it.normalizedEventId in verifiedEventIds }
+        // Pre-load confidence reports + the (small, static) source registry once,
+        // scoped to the verified event set — no full-table scans, no per-compose lookups.
+        val verifiedEventIds = verifiedEvents.mapNotNull { it.id }
+        val confidenceByEventId = confidenceReportRepo.findAllByNormalizedEventIdIn(verifiedEventIds)
             .associateBy { it.normalizedEventId }
+        val registry = sourceRegistryRepo.findAll().associateBy { it.id }
 
         for (watchedUser in allUsers) {
             try {
@@ -130,7 +135,8 @@ class SaiaeOrchestrator(
                             watchedUser = watchedUser,
                             observers   = observers,
                             userCoords  = userCoords,
-                            userCountry = userCountry
+                            userCountry = userCountry,
+                            registry    = registry
                         )
                     } catch (e: Exception) {
                         logger.error("Pass 2 failed for user ${watchedUser.id} event ${event.id}", e)
@@ -148,7 +154,8 @@ class SaiaeOrchestrator(
         watchedUser: User,
         observers: List<User>,
         userCoords: Pair<Double, Double>?,
-        userCountry: String
+        userCountry: String,
+        registry: Map<String, SaiaeSourceRegistry>
     ) {
         val isWar = event.category in warEventCategories
 
@@ -203,11 +210,13 @@ class SaiaeOrchestrator(
         for (observer in observers) {
             try {
                 val context = contextEngine.compute(
-                    memberName = watchedUser.name,
-                    event      = event,
-                    risk       = risk,
-                    confidence = confidence,
-                    user       = watchedUser
+                    memberName        = watchedUser.name,
+                    event             = event,
+                    risk              = risk,
+                    confidence        = confidence,
+                    user              = watchedUser,
+                    locationRelevance = locationRelevance,
+                    distanceKm        = distanceKm,
                 )
 
                 contextReportRepo.upsert(
@@ -227,7 +236,8 @@ class SaiaeOrchestrator(
                     event          = event,
                     context        = context,
                     confidence     = confidence,
-                    sourceMatches  = sourceMatches
+                    sourceMatches  = sourceMatches,
+                    registry       = registry
                 )
             } catch (e: Exception) {
                 logger.error("Compose failed for observer ${observer.id}", e)

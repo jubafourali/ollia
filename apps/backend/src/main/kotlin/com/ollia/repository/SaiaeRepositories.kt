@@ -18,10 +18,12 @@ interface SaiaeSourceRegistryRepository : JpaRepository<SaiaeSourceRegistry, Str
 
 interface SaiaeEventSourceMatchRepository : JpaRepository<SaiaeEventSourceMatch, UUID> {
     fun findAllByNormalizedEventId(normalizedEventId: UUID): List<SaiaeEventSourceMatch>
+    fun findAllByNormalizedEventIdIn(normalizedEventIds: Collection<UUID>): List<SaiaeEventSourceMatch>
 }
 
 interface SaiaeConfidenceReportRepository : JpaRepository<SaiaeConfidenceReport, UUID> {
     fun findByNormalizedEventId(normalizedEventId: UUID): SaiaeConfidenceReport?
+    fun findAllByNormalizedEventIdIn(normalizedEventIds: Collection<UUID>): List<SaiaeConfidenceReport>
 }
 
 interface SaiaeContextReportRepository : JpaRepository<SaiaeContextReport, UUID> {
@@ -103,5 +105,16 @@ interface SaiaePushLogRepository : JpaRepository<SaiaePushLog, UUID> {
         @Param("eventType") eventType: String,
         @Param("city") city: String?,
         @Param("since") since: Instant
+    ): SaiaePushLog?
+
+    @Query("""
+        SELECT * FROM saiae_push_log
+        WHERE user_id = :userId AND normalized_event_id = :eventId
+        ORDER BY sent_at DESC
+        LIMIT 1
+    """, nativeQuery = true)
+    fun findLatestForEvent(
+        @Param("userId") userId: UUID,
+        @Param("eventId") eventId: UUID
     ): SaiaePushLog?
 }

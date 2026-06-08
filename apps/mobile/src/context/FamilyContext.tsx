@@ -11,7 +11,7 @@ import React, {
   useState,
 } from "react";
 import { AppState, AppStateStatus, Linking, Platform } from "react-native";
-import { api, ApiCircleMember, ApiSafetyEvent, ApiPattern, setAuthTokenGetter } from "@/utils/api";
+import { api, ApiCircleMember, ApiSafetyEvent, ApiAlert, ApiPattern, setAuthTokenGetter } from "@/utils/api";
 import {
   registerBackgroundActivity,
   unregisterBackgroundActivity,
@@ -74,6 +74,7 @@ type FamilyContextType = {
   travelDestination: string;
   isLoading: boolean;
   safetyEvents: ApiSafetyEvent[];
+  alerts: ApiAlert[];
   patterns: ApiPattern | null;
   alertPrefs: AlertPrefs;
   shouldShowFounding: boolean;
@@ -183,6 +184,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const [travelMode, setTravelModeState] = useState(false);
   const [travelDestination, setTravelDestinationState] = useState("");
   const [safetyEvents, setSafetyEvents] = useState<ApiSafetyEvent[]>([]);
+  const [alerts, setAlerts] = useState<ApiAlert[]>([]);
   const [patterns, setPatterns] = useState<ApiPattern | null>(null);
   const [alertPrefs, setAlertPrefsState] = useState<AlertPrefs>({ usgs: true, noaa: true, gdacs: true });
   const [isLoading, setIsLoading] = useState(true);
@@ -295,6 +297,15 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // SAIAE calm alert cards — the verified, contextual, family-facing output.
+  const refreshAlerts = useCallback(async () => {
+    try {
+      setAlerts(await api.getAlerts());
+    } catch (e) {
+      console.warn("Alerts failed:", e);
+    }
+  }, []);
+
   const refreshPatterns = useCallback(async (uid: string) => {
     if (!uid) return;
     try {
@@ -369,9 +380,10 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
 
   const startSafetyRefresh = useCallback(() => {
     if (safetyRef.current) clearInterval(safetyRef.current);
-    refreshSafetyEvents();
-    safetyRef.current = setInterval(refreshSafetyEvents, SAFETY_REFRESH_MS);
-  }, [refreshSafetyEvents]);
+    const tick = () => { refreshSafetyEvents(); refreshAlerts(); };
+    tick();
+    safetyRef.current = setInterval(tick, SAFETY_REFRESH_MS);
+  }, [refreshSafetyEvents, refreshAlerts]);
 
   const syncSubscription = useCallback(async () => {
     try {
@@ -427,10 +439,27 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Handle notification action buttons (e.g. "I'm okay 💛" from nudge notification)
+    // Show safety/nudge pushes as a banner even when the app is foregrounded.
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+
+    // Handle notification taps + action buttons.
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
       if (response.actionIdentifier === "IM_OKAY") {
         sendHeartbeatToServer(deviceIdRef.current);
+        return;
+      }
+      // Safety alert tap → open the family/home screen showing the calm cards.
+      const data = response.notification.request.content.data as { type?: string } | undefined;
+      if (data?.type === "safety_alert") {
+        refreshAlerts();
+        router.push("/(tabs)");
       }
     });
 
@@ -847,6 +876,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
             travelMode,
             travelDestination,
             safetyEvents: filteredSafetyEvents,
+            alerts,
             patterns,
             alertPrefs,
             shouldShowFounding,

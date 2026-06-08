@@ -1,4 +1,3 @@
-import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
@@ -6,34 +5,43 @@ import { Platform, StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import BRAND from "@/constants/colors";
+import { SkyBackground, usePhase } from "@/components/SkyBackground";
+import { useFamilyContext } from "@/context/FamilyContext";
 
 export default function TabLayout() {
     const { t } = useTranslation();
-    const isIOS = Platform.OS === "ios";
     const isWeb = Platform.OS === "web";
 
+    // Shared time-of-day sky behind every tab, driven by the user's region.
+    const { myProfile, travelMode, travelDestination } = useFamilyContext();
+    const meRegion = travelMode && travelDestination
+        ? travelDestination
+        : myProfile?.region ?? "";
+    const phase = usePhase(meRegion);
+
     return (
-        <Tabs
-            screenOptions={{
-                tabBarActiveTintColor: BRAND.primary,
-                tabBarInactiveTintColor: BRAND.textMuted,
-                headerShown: false,
-                tabBarStyle: {
-                    position: "absolute",
-                    backgroundColor: isIOS ? "transparent" : BRAND.backgroundCard,
-                    borderTopWidth: isWeb ? 1 : 0,
-                    borderTopColor: BRAND.borderLight,
-                    elevation: 0,
-                    ...(isWeb ? { height: 84 } : {}),
-                },
-                tabBarBackground: () =>
-                    isIOS ? (
-                        <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
-                    ) : (
-                        <View style={[StyleSheet.absoluteFill, { backgroundColor: BRAND.backgroundCard }]} />
+        <View style={{ flex: 1, backgroundColor: BRAND.background }}>
+            {/* One sky for the whole app — sits behind the (transparent) tab scenes */}
+            <SkyBackground phase={phase} />
+
+            <Tabs
+                screenOptions={{
+                    tabBarActiveTintColor: BRAND.primary,
+                    tabBarInactiveTintColor: BRAND.textMuted,
+                    headerShown: false,
+                    sceneStyle: { backgroundColor: "transparent" },
+                    tabBarStyle: {
+                        position: "absolute",
+                        backgroundColor: BRAND.background,
+                        borderTopWidth: 0,
+                        elevation: 0,
+                        ...(isWeb ? { height: 84 } : {}),
+                    },
+                    tabBarBackground: () => (
+                        <View style={[StyleSheet.absoluteFill, { backgroundColor: BRAND.background }]} />
                     ),
-            }}
-        >
+                }}
+            >
             <Tabs.Screen
                 name="index"
                 options={{
@@ -70,6 +78,7 @@ export default function TabLayout() {
                     ),
                 }}
             />
-        </Tabs>
+            </Tabs>
+        </View>
     );
 }

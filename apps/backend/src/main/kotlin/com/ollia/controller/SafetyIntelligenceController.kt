@@ -60,21 +60,26 @@ class SafetyIntelligenceController(
 
         if (memberUserIds.isEmpty()) return ResponseEntity.ok(emptyList())
 
-        // Load cached alert cards for those members
-        val cards = alertCacheRepo
-            .findAllByUserIdIn(memberUserIds)
-            .filter { cache ->
-                // Only surface VERIFIED events that aren't expired or blocked
-                val event = normalizedRepo.findById(cache.normalizedEventId).orElse(null)
-                event != null && event.status == EventStatus.VERIFIED
-            }
+        // Load cached alert cards for those members.
+        val cards = alertCacheRepo.findAllByUserIdIn(memberUserIds)
+
+        // Batch-load the referenced events once, then keep only VERIFIED ones
+        // (no per-card findById — that was an N+1 over the whole feed).
+        val verifiedEventIds = normalizedRepo
+            .findAllById(cards.map { it.normalizedEventId }.distinct())
+            .filter { it.status == EventStatus.VERIFIED }
+            .mapNotNull { it.id }
+            .toSet()
+
+        val response = cards
+            .filter { it.normalizedEventId in verifiedEventIds }
             .sortedWith(
                 compareByDescending<SaiaeCircleAlertCache> { riskOrdinal(it.effectiveRisk) }
                     .thenByDescending { it.renderedAt }
             )
             .map { it.toResponse() }
 
-        return ResponseEntity.ok(cards)
+        return ResponseEntity.ok(response)
     }
 
     @GetMapping("/{eventId}")

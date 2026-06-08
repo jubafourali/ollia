@@ -1,19 +1,17 @@
 package com.ollia.saiae.context
 
 import com.ollia.entity.LocationRelevance
-import com.ollia.entity.RiskLevel
-import com.ollia.entity.UserActivityStatus
 import com.ollia.entity.NormalizedSafetyEvent
+import com.ollia.entity.RiskLevel
 import com.ollia.entity.SafetyCategory
 import com.ollia.entity.SaiaeConfidenceReport
 import com.ollia.entity.User
-import com.ollia.repository.ActivitySignalRepository
+import com.ollia.entity.UserActivityStatus
 import com.ollia.saiae.risk.RiskAssessment
-import com.ollia.saiae.risk.RiskAssessmentService
 import org.springframework.stereotype.Service
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-
 
 data class ContextResult(
     val effectiveRisk:     RiskLevel,
@@ -25,47 +23,71 @@ data class ContextResult(
     val distanceKm:        Double
 )
 
+/**
+ * Context Intelligence — answers "should I worry about *my* person right now?".
+ *
+ * It combines the verified event (+ confidence + risk + location relevance, all resolved
+ * upstream) with what we know about the watched person — their last check-in / passive
+ * activity — to produce ONE calm, reassurance-first sentence.
+ *
+ * Product philosophy is load-bearing here: copy must reduce anxiety, never amplify it.
+ * Dependency-free and clock-injectable so the wording is fully unit-tested.
+ */
 @Service
 class ContextIntelligenceService(
-    private val activitySignalRepository: ActivitySignalRepository,
-    private val riskAssessmentService: RiskAssessmentService
+    private val clock: Clock = Clock.systemUTC()
 ) {
-    // War events that bypass activity suppression and always surface
     private val warEvents = setOf(
         SafetyCategory.MISSILE_ATTACK,
         SafetyCategory.ARMED_CONFLICT,
         SafetyCategory.WAR
     )
 
-    // Human-readable event nouns for sentence construction
     private val eventNoun: Map<SafetyCategory, String> = mapOf(
-        SafetyCategory.MISSILE_ATTACK    to "a missile attack",
-        SafetyCategory.ARMED_CONFLICT    to "armed conflict",
-        SafetyCategory.WAR               to "armed conflict",
-        SafetyCategory.TERRORISM         to "a security incident",
-        SafetyCategory.EXPLOSION         to "an explosion",
-        SafetyCategory.ACTIVE_SHOOTER    to "an active shooting",
-        SafetyCategory.VIOLENCE          to "a security incident",
-        SafetyCategory.PROTEST           to "protest activity",
-        SafetyCategory.RIOT              to "a riot",
-        SafetyCategory.CIVIL_UNREST      to "civil unrest",
-        SafetyCategory.CURFEW            to "a curfew",
-        SafetyCategory.EARTHQUAKE        to "an earthquake",
-        SafetyCategory.FLOOD             to "a flood",
-        SafetyCategory.WILDFIRE          to "a wildfire",
-        SafetyCategory.HURRICANE        to "a hurricane",
-        SafetyCategory.TORNADO           to "a tornado",
-        SafetyCategory.EXTREME_WEATHER   to "severe weather",
-        SafetyCategory.TSUNAMI           to "a tsunami",
-        SafetyCategory.VOLCANO           to "volcanic activity",
+        SafetyCategory.MISSILE_ATTACK       to "a missile attack",
+        SafetyCategory.ARMED_CONFLICT       to "armed conflict",
+        SafetyCategory.WAR                  to "armed conflict",
+        SafetyCategory.TERRORISM            to "a security incident",
+        SafetyCategory.EXPLOSION            to "an explosion",
+        SafetyCategory.ACTIVE_SHOOTER       to "a security incident",
+        SafetyCategory.VIOLENCE             to "a security incident",
+        SafetyCategory.KIDNAPPING           to "a security incident",
+        SafetyCategory.PROTEST              to "protest activity",
+        SafetyCategory.RIOT                 to "unrest",
+        SafetyCategory.CIVIL_UNREST         to "civil unrest",
+        SafetyCategory.CURFEW               to "a curfew",
+        SafetyCategory.BORDER_TENSION       to "a border closure",
+        SafetyCategory.EARTHQUAKE           to "an earthquake",
+        SafetyCategory.FLOOD                to "flooding",
+        SafetyCategory.WILDFIRE             to "a wildfire",
+        SafetyCategory.HURRICANE            to "a hurricane",
+        SafetyCategory.TORNADO              to "a tornado",
+        SafetyCategory.STORM                to "a storm",
+        SafetyCategory.EXTREME_WEATHER      to "severe weather",
+        SafetyCategory.TSUNAMI              to "a tsunami warning",
+        SafetyCategory.VOLCANO              to "volcanic activity",
+        SafetyCategory.DROUGHT              to "drought conditions",
+        SafetyCategory.LANDSLIDE            to "a landslide",
+        SafetyCategory.AVALANCHE            to "an avalanche",
         SafetyCategory.TRANSPORT_DISRUPTION to "a transport disruption",
-        SafetyCategory.BLACKOUT          to "a power outage",
-        SafetyCategory.INTERNET_OUTAGE   to "an internet disruption",
-        SafetyCategory.AIRPORT_DISRUPTION to "an airport disruption",
-        SafetyCategory.HEALTH_ALERT      to "a health emergency",
-        SafetyCategory.EPIDEMIC          to "an epidemic alert",
-        SafetyCategory.PANDEMIC          to "a pandemic alert",
-        SafetyCategory.BORDER_TENSION    to "a border closure",
+        SafetyCategory.AIRPORT_DISRUPTION   to "an airport disruption",
+        SafetyCategory.MASS_CANCELLATION    to "widespread cancellations",
+        SafetyCategory.PORT_DISRUPTION      to "a port disruption",
+        SafetyCategory.BLACKOUT             to "a power outage",
+        SafetyCategory.INTERNET_OUTAGE      to "an internet disruption",
+        SafetyCategory.WATER_SHORTAGE       to "a water shortage",
+        SafetyCategory.HEALTH_ALERT         to "a health advisory",
+        SafetyCategory.EPIDEMIC             to "a health advisory",
+        SafetyCategory.PANDEMIC             to "a health advisory",
+        SafetyCategory.FOOD_CONTAMINATION   to "a food safety advisory",
+        SafetyCategory.GOVERNMENT_ADVISORY  to "an official advisory",
+        SafetyCategory.STATE_OF_EMERGENCY   to "a state of emergency",
+        SafetyCategory.EVACUATION_ORDER     to "an evacuation notice",
+        SafetyCategory.TRAVEL_RESTRICTION   to "a travel restriction",
+        SafetyCategory.VISA_DISRUPTION      to "a visa disruption",
+        SafetyCategory.HIGH_CRIME_ALERT     to "a local safety advisory",
+        SafetyCategory.SCAM_ALERT           to "a scam advisory",
+        SafetyCategory.TOURIST_TARGETING    to "a local safety advisory",
     )
 
     fun compute(
@@ -73,33 +95,30 @@ class ContextIntelligenceService(
         event: NormalizedSafetyEvent,
         risk: RiskAssessment,
         confidence: SaiaeConfidenceReport,
-        user: User
+        user: User,
+        locationRelevance: LocationRelevance,
+        distanceKm: Double,
     ): ContextResult {
-        val now = Instant.now()
-        val userStatus = classifyUserStatus(user, now)
-        val (locationRelevance, distanceKm) = classifyLocation(user, event)
+        val now = Instant.now(clock)
+        val lastSeen = listOfNotNull(user.lastCheckInAt, user.lastPassiveSignalAt).maxOrNull()
+        val userStatus = classifyUserStatus(lastSeen, now)
 
-        // War event floor — applies for same country or border region only
-        val isWarEvent = event.category in warEvents
-        val floorApplied = isWarEvent &&
-                risk.riskLevel != RiskLevel.IMPORTANT_DISRUPTION &&
-                locationRelevance in setOf(
-            LocationRelevance.SAME_CITY,
-            LocationRelevance.SAME_COUNTRY,
-            LocationRelevance.BORDER_REGION
-        )
+        // War floor — a nearby armed-conflict event is always important enough to surface,
+        // which (via strict push gating below) is also what makes it pushable.
+        val isWar = event.category in warEvents
+        val floorApplied = isWar &&
+            risk.riskLevel != RiskLevel.IMPORTANT_DISRUPTION &&
+            locationRelevance in setOf(
+                LocationRelevance.SAME_CITY,
+                LocationRelevance.SAME_COUNTRY,
+                LocationRelevance.BORDER_REGION,
+            )
         val effectiveRisk = if (floorApplied) RiskLevel.IMPORTANT_DISRUPTION else risk.riskLevel
 
-        // Push eligibility
-        val pushEligible = when {
-            effectiveRisk == RiskLevel.IMPORTANT_DISRUPTION                                     -> true
-            isWarEvent && effectiveRisk != RiskLevel.NORMAL                                      -> true
-            effectiveRisk == RiskLevel.STAY_AWARE && userStatus == UserActivityStatus.SILENT &&
-                    locationRelevance in setOf(LocationRelevance.SAME_CITY, LocationRelevance.SAME_COUNTRY) -> true
-            else -> false
-        }
+        // Strict gate: push ONLY for IMPORTANT_DISRUPTION. "When in doubt, don't push."
+        val pushEligible = effectiveRisk == RiskLevel.IMPORTANT_DISRUPTION
 
-        val sentence = buildSentence(memberName, event, confidence, userStatus, locationRelevance, now)
+        val sentence = buildSentence(memberName, event, confidence, userStatus, locationRelevance, lastSeen, now)
 
         return ContextResult(
             effectiveRisk     = effectiveRisk,
@@ -108,180 +127,94 @@ class ContextIntelligenceService(
             locationRelevance = locationRelevance,
             calmSentence      = sentence,
             pushEligible      = pushEligible,
-            distanceKm        = distanceKm
+            distanceKm        = distanceKm,
         )
     }
 
-    // ─── User Status ───────────────────────────────────────────────────────────
-
-    private fun classifyUserStatus(user: User, now: Instant): UserActivityStatus {
-        val lastSignal = listOfNotNull(user.lastCheckInAt, user.lastPassiveSignalAt).maxOrNull()
-            ?: return UserActivityStatus.SILENT
-        val hoursAgo = Duration.between(lastSignal, now).toHours()
+    private fun classifyUserStatus(lastSeen: Instant?, now: Instant): UserActivityStatus {
+        if (lastSeen == null) return UserActivityStatus.SILENT
+        val hoursAgo = Duration.between(lastSeen, now).toHours()
         return when {
-            hoursAgo <= 3  -> UserActivityStatus.ACTIVE
-            hoursAgo <= 8  -> UserActivityStatus.QUIET
-            else           -> UserActivityStatus.SILENT
+            hoursAgo <= 3 -> UserActivityStatus.ACTIVE
+            hoursAgo <= 8 -> UserActivityStatus.QUIET
+            else          -> UserActivityStatus.SILENT
         }
     }
 
-    // ─── Location Relevance ────────────────────────────────────────────────────
-
-    private fun classifyLocation(user: User, event: NormalizedSafetyEvent): Pair<LocationRelevance, Double> {
-        val userRegion = user.region ?: return Pair(LocationRelevance.UNKNOWN, 0.0)
-
-        // Same city check
-        val eventCity = event.city
-        if (eventCity != null && userRegion.contains(eventCity, ignoreCase = true)) {
-            return Pair(LocationRelevance.SAME_CITY, 0.0)
-        }
-
-        // Same country check
-        val eventCountry = event.country
-        if (eventCountry != null && userRegion.contains(eventCountry, ignoreCase = true)) {
-            return Pair(LocationRelevance.SAME_COUNTRY, 0.0)
-        }
-
-        // Border region check (needs coordinates)
-        if (event.latitude != null && event.longitude != null) {
-            val userCoords = approximateUserCoords(userRegion)
-            if (userCoords != null) {
-                val dist = riskAssessmentService.haversineKm(
-                    userCoords.first, userCoords.second,
-                    event.latitude, event.longitude
-                )
-                if (dist <= 200.0) {
-                    return Pair(LocationRelevance.BORDER_REGION, dist)
-                }
-                return Pair(LocationRelevance.DISTANT, dist)
-            }
-        }
-
-        return Pair(LocationRelevance.DISTANT, 999.0)
-    }
-
-    /**
-     * Approximate lat/lon from a region string using a small lookup of
-     * major cities. For unknown regions returns null (treated as DISTANT).
-     * In production this can be replaced with a geocoding service or a
-     * comprehensive city DB.
-     */
-    private fun approximateUserCoords(region: String): Pair<Double, Double>? {
-        val r = region.lowercase()
-        return CITY_COORDS.entries.firstOrNull { r.contains(it.key) }?.value
-    }
-
-    // ─── Sentence Construction ─────────────────────────────────────────────────
+    // ─── Sentence construction — calm, reassurance-first ────────────────────────
 
     private fun buildSentence(
         name: String,
         event: NormalizedSafetyEvent,
         confidence: SaiaeConfidenceReport,
-        userStatus: UserActivityStatus,
+        status: UserActivityStatus,
         location: LocationRelevance,
-        now: Instant
+        lastSeen: Instant?,
+        now: Instant,
     ): String {
-        val noun     = eventNoun[event.category] ?: "a safety event"
-        val prefix   = confidencePrefix(confidence)
-        val actPhrase = activityPhrase(userStatus, now)
-        val isWar    = event.category in warEvents
-        val isInternet = event.category == SafetyCategory.INTERNET_OUTAGE
+        val noun      = eventNoun[event.category] ?: "a safety event"
+        val where     = locationPhrase(location, event.country)
+        val eventText = eventClause(confidence.tier, noun, where)
+        val person    = personClause(name, status, lastSeen, now)
+        val isWar     = event.category in warEvents
+        val internet  = if (event.category == SafetyCategory.INTERNET_OUTAGE)
+            " Their activity signals may be limited right now." else ""
 
-        // War events: always lead with the event if user is silent
-        if (isWar) {
-            return when (userStatus) {
-                UserActivityStatus.SILENT ->
-                    "${prefix.capitalize()}${noun} has been reported near $name's location. $actPhrase You may want to reach out directly."
-                UserActivityStatus.ACTIVE ->
-                    "$name was last active recently. $actPhrase ${prefix.capitalize()}${noun} has been reported in the area."
-                else ->
-                    "$name was last active a few hours ago. ${prefix.capitalize()}${noun} has been reported nearby."
-            }
+        val core = when (status) {
+            // Recently seen → lead with reassurance, close with reassurance.
+            UserActivityStatus.ACTIVE ->
+                "$person $eventText Nothing right now suggests $name is affected."
+
+            // Seen a while ago → state calmly, person first (or event first for war).
+            UserActivityStatus.QUIET ->
+                if (isWar) "$eventText $person"
+                else       "$person $eventText"
+
+            // Not seen recently → event first, then a gentle, supportive nudge.
+            UserActivityStatus.SILENT ->
+                if (isWar) "$eventText $person A message could help you both feel at ease."
+                else       "$eventText $person Reaching out could help you check in."
         }
-
-        // Standard: lead with person, then activity, then event
-        val checkinClause = checkinClause(name, userStatus, now, event.latestCheckIn)
-        val locationClause = locationClause(location, event.country)
-        val internetSuffix = if (isInternet) " Activity signals may be limited." else ""
-
-        return "$checkinClause $actPhrase ${prefix.capitalize()}${noun} has been reported${locationClause}.${internetSuffix}".trim()
+        return (core + internet).trim()
     }
 
-    private fun confidencePrefix(confidence: SaiaeConfidenceReport): String = when (confidence.tier) {
-        "HIGH"       -> ""
-        "MODERATE"   -> "Reports of "
-        "LOW"        -> "Unconfirmed reports of "
-        else         -> "Conflicting reports of "  // CONFLICTING state
+    /** Confidence framing — never doubles the verb ("reports of … has been reported"). */
+    private fun eventClause(tier: String, noun: String, where: String): String = when (tier) {
+        "HIGH"     -> "${noun.cap()} has been reported$where."
+        "MODERATE" -> "Reports indicate $noun$where."
+        "LOW"      -> "There are early, unconfirmed reports of $noun$where."
+        else       -> "Sources are still confirming reports of $noun$where."
     }
 
-    private fun activityPhrase(status: UserActivityStatus, now: Instant): String = when (status) {
-        UserActivityStatus.ACTIVE -> "Normal activity detected."
-        UserActivityStatus.QUIET  -> "Activity lower than usual."
-        UserActivityStatus.SILENT -> "No activity detected."
-    }
-
-    private fun checkinClause(name: String, status: UserActivityStatus, now: Instant, lastSeen: Instant?): String {
-        if (lastSeen == null) return "$name's last check-in is unknown."
-        val hoursAgo = Duration.between(lastSeen, now).toHours()
-        val timeLabel = when {
-            hoursAgo < 1  -> "less than an hour ago"
-            hoursAgo == 1L -> "1 hour ago"
-            hoursAgo < 24  -> "$hoursAgo hours ago"
-            else           -> "${hoursAgo / 24} day(s) ago"
+    private fun personClause(name: String, status: UserActivityStatus, lastSeen: Instant?, now: Instant): String {
+        if (lastSeen == null) return "We don't have a recent check-in from $name yet."
+        val t = timeLabel(lastSeen, now)
+        return when (status) {
+            UserActivityStatus.ACTIVE -> "$name checked in $t and appears unaffected."
+            UserActivityStatus.QUIET  -> "$name was last active $t."
+            UserActivityStatus.SILENT -> "$name was last active $t."
         }
-        return "$name checked in $timeLabel."
     }
 
-    private fun locationClause(location: LocationRelevance, country: String?): String = when (location) {
+    private fun locationPhrase(location: LocationRelevance, country: String?): String = when (location) {
         LocationRelevance.SAME_CITY     -> " nearby"
-        LocationRelevance.SAME_COUNTRY  -> " in their country"
-        LocationRelevance.BORDER_REGION -> " near the region"
-        LocationRelevance.DISTANT       -> if (country != null) " in $country" else " in another region"
+        LocationRelevance.SAME_COUNTRY  -> if (!country.isNullOrBlank()) " in $country" else " in their country"
+        LocationRelevance.BORDER_REGION -> " in the wider region"
+        LocationRelevance.DISTANT       -> if (!country.isNullOrBlank()) " in $country" else " in another region"
         LocationRelevance.UNKNOWN       -> " nearby"
     }
 
-    private val NormalizedSafetyEvent.latestCheckIn: Instant?
-        get() = eventOccurredAt ?: normalizedAt
-
-    private fun String.capitalize() = replaceFirstChar { it.uppercase() }
-
-    companion object {
-        // Major city approximate coordinates for proximity checks
-        private val CITY_COORDS: Map<String, Pair<Double, Double>> = mapOf(
-            "dubai"        to Pair(25.2, 55.3),
-            "abu dhabi"    to Pair(24.5, 54.4),
-            "riyadh"       to Pair(24.7, 46.7),
-            "beirut"       to Pair(33.9, 35.5),
-            "amman"        to Pair(31.9, 35.9),
-            "cairo"        to Pair(30.1, 31.2),
-            "algiers"      to Pair(36.7, 3.1),
-            "paris"        to Pair(48.9, 2.3),
-            "london"       to Pair(51.5, -0.1),
-            "berlin"       to Pair(52.5, 13.4),
-            "madrid"       to Pair(40.4, -3.7),
-            "rome"         to Pair(41.9, 12.5),
-            "new york"     to Pair(40.7, -74.0),
-            "los angeles"  to Pair(34.1, -118.2),
-            "toronto"      to Pair(43.7, -79.4),
-            "sydney"       to Pair(-33.9, 151.2),
-            "tokyo"        to Pair(35.7, 139.7),
-            "beijing"      to Pair(39.9, 116.4),
-            "mumbai"       to Pair(19.1, 72.9),
-            "nairobi"      to Pair(-1.3, 36.8),
-            "lagos"        to Pair(6.5, 3.4),
-            "casablanca"   to Pair(33.6, -7.6),
-            "istanbul"     to Pair(41.0, 29.0),
-            "kyiv"         to Pair(50.5, 30.5),
-            "moscow"       to Pair(55.8, 37.6),
-            "tehran"       to Pair(35.7, 51.4),
-            "karachi"      to Pair(24.9, 67.0),
-            "dhaka"        to Pair(23.8, 90.4),
-            "jakarta"      to Pair(-6.2, 106.8),
-            "manila"       to Pair(14.6, 121.0),
-            "bogota"       to Pair(4.7, -74.1),
-            "lima"         to Pair(-12.1, -77.0),
-            "buenos aires" to Pair(-34.6, -58.4),
-            "sao paulo"    to Pair(-23.5, -46.6)
-        )
+    private fun timeLabel(lastSeen: Instant, now: Instant): String {
+        val mins = Duration.between(lastSeen, now).toMinutes().coerceAtLeast(0)
+        return when {
+            mins < 2     -> "just now"
+            mins < 60    -> "$mins minutes ago"
+            mins < 120   -> "an hour ago"
+            mins < 1440  -> "${mins / 60} hours ago"
+            mins < 2880  -> "yesterday"
+            else         -> "${mins / 1440} days ago"
+        }
     }
+
+    private fun String.cap() = replaceFirstChar { it.uppercase() }
 }

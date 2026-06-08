@@ -18,7 +18,8 @@ import java.util.UUID
         Index(name = "idx_event_category", columnList = "category"),
         Index(name = "idx_event_status",   columnList = "status"),
         Index(name = "idx_norm_event_risk",    columnList = "risk_level"),
-        Index(name = "idx_norm_event_expires", columnList = "expires_at")
+        Index(name = "idx_norm_event_expires", columnList = "expires_at"),
+        Index(name = "idx_norm_event_canonical", columnList = "canonical_event_id")
     ]
 )
 class NormalizedSafetyEvent(
@@ -75,5 +76,10 @@ class NormalizedSafetyEvent(
     var floorApplied: Boolean = false,
 
     @Column(name = "expires_at")
-    var expiresAt: Instant? = null
+    var expiresAt: Instant? = null,
+
+    // When this event was folded into a sibling by the correlation step (status = MERGED),
+    // points at the surviving canonical event. Null for canonical events.
+    @Column(name = "canonical_event_id")
+    var canonicalEventId: UUID? = null
 )

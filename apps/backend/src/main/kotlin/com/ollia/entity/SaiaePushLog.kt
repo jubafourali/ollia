@@ -20,6 +20,11 @@ class SaiaePushLog(
     @Column(nullable = false)
     val userId: UUID,
 
+    // The specific event this push was about — used for per-event dedup.
+    // Nullable for legacy rows written before correlation existed.
+    @Column(name = "normalized_event_id")
+    val normalizedEventId: UUID? = null,
+
     @Column(nullable = false)
     val eventType: String,
 

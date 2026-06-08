@@ -28,7 +28,11 @@ class PushNotificationService(
         body: String,
         categoryId: String? = null,
         userId: UUID? = null,
-        notificationType: String = "generic"
+        notificationType: String = "generic",
+        // Deep-link / routing payload delivered to the app. Default preserves the
+        // legacy check-in behaviour for existing callers (nudges/escalations).
+        data: Map<String, Any> = mapOf("type" to "checkin"),
+        sound: String = "default"
     ) {
         var status = "sent"
         var errorMessage: String? = null
@@ -39,10 +43,10 @@ class PushNotificationService(
             // (registered via Notifications.setNotificationCategoryAsync).
             val payload = buildMap<String, Any> {
                 put("to", expoPushToken)
-                put("sound", "default")
+                put("sound", sound)
                 put("title", title)
                 put("body", body)
-                put("data", mapOf("type" to "checkin"))
+                put("data", data)
                 if (categoryId != null) {
                     put("categoryId", categoryId)
                 }

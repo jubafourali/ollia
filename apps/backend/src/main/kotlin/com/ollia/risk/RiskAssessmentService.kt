@@ -6,11 +6,29 @@ import com.ollia.entity.SafetyCategory
 import com.ollia.entity.SaiaeConfidenceReport
 import com.ollia.entity.Severity
 import org.springframework.stereotype.Service
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * Per-event-type weighting profile.
+ *
+ * @param severityMult  How strongly the source's physical severity drives risk
+ *                       (earthquakes high — magnitude already captures danger).
+ * @param densityMult   How strongly urban population density matters
+ *                       (protests/violence high — a city event affects more people).
+ * @param distMult       **Distance reach.** Higher = the event stays relevant over a
+ *                       *wider* radius (storms, advisories). Lower = the event decays
+ *                       fast with distance, i.e. it is hyper-local (protests, shootings,
+ *                       explosions). The proximity factor uses `1 - dist / (R * distMult)`,
+ *                       so a smaller distMult makes proximity a sharper discriminator.
+ * @param minScore       Optional floor: high-stakes types (evacuation, war) should never
+ *                       silently fall below this once they are geographically relevant.
+ * @param noDecay        Persistent events (war, evacuation, pandemic) don't age out.
+ * @param shallowDist    War-class events use a much wider base radius (800·distMult km).
+ */
 data class EventTypeConfig(
     val severityMult: Double,
     val densityMult:  Double,
@@ -27,38 +45,71 @@ data class RiskAssessment(
 )
 
 @Service
-class RiskAssessmentService {
+class RiskAssessmentService(
+    // Injectable for deterministic age-penalty testing; defaults to system UTC in prod.
+    private val clock: Clock = Clock.systemUTC()
+) {
 
+    // Every SafetyCategory has an explicit profile — no category may silently fall
+    // through to a low-weight default (that previously under-scored EVACUATION_ORDER,
+    // STATE_OF_EMERGENCY, STORM, etc.). `distMult` follows the semantics documented on
+    // EventTypeConfig: small = hyper-local, large = wide-area reach.
     private val configs: Map<SafetyCategory, EventTypeConfig> = mapOf(
-        SafetyCategory.MISSILE_ATTACK    to EventTypeConfig(2.0, 0.6, 2.0, 70,   true,  true),
-        SafetyCategory.ARMED_CONFLICT    to EventTypeConfig(1.8, 0.8, 1.7, 60,   true,  true),
-        SafetyCategory.WAR               to EventTypeConfig(1.8, 0.8, 1.7, 60,   true,  true),
-        SafetyCategory.TERRORISM         to EventTypeConfig(1.7, 1.2, 1.6, 55,   false, false),
-        SafetyCategory.EXPLOSION         to EventTypeConfig(1.5, 1.3, 1.5, 50,   false, false),
-        SafetyCategory.ACTIVE_SHOOTER    to EventTypeConfig(1.6, 1.4, 1.8, 55,   false, false),
-        SafetyCategory.VIOLENCE          to EventTypeConfig(1.5, 1.3, 1.6, 50,   false, false),
-        SafetyCategory.BORDER_TENSION    to EventTypeConfig(0.7, 0.8, 0.5, 40,   false, false),
-        SafetyCategory.PROTEST           to EventTypeConfig(0.8, 1.3, 1.3, null, false, false),
-        SafetyCategory.RIOT              to EventTypeConfig(1.2, 1.4, 1.5, null, false, false),
-        SafetyCategory.CIVIL_UNREST      to EventTypeConfig(1.0, 1.2, 1.2, null, false, false),
-        SafetyCategory.CURFEW            to EventTypeConfig(1.0, 0.9, 0.7, 40,   false, false),
-        SafetyCategory.EARTHQUAKE        to EventTypeConfig(1.2, 1.1, 1.0, null, false, false),
-        SafetyCategory.FLOOD             to EventTypeConfig(1.0, 1.2, 0.9, null, false, false),
-        SafetyCategory.WILDFIRE          to EventTypeConfig(1.1, 0.9, 1.2, null, false, false),
-        SafetyCategory.HURRICANE         to EventTypeConfig(1.1, 1.0, 0.8, null, false, false),
-        SafetyCategory.TORNADO           to EventTypeConfig(1.1, 1.0, 0.8, null, false, false),
-        SafetyCategory.EXTREME_WEATHER   to EventTypeConfig(1.0, 1.0, 0.8, null, false, false),
-        SafetyCategory.TSUNAMI           to EventTypeConfig(1.5, 0.8, 0.7, null, false, false),
-        SafetyCategory.VOLCANO           to EventTypeConfig(1.3, 0.7, 0.6, null, false, false),
-        SafetyCategory.TRANSPORT_DISRUPTION to EventTypeConfig(0.7, 1.1, 1.4, null, false, false),
-        SafetyCategory.BLACKOUT          to EventTypeConfig(0.6, 1.0, 0.5, null, false, false),
-        SafetyCategory.INTERNET_OUTAGE   to EventTypeConfig(0.5, 1.0, 0.4, null, false, false),
-        SafetyCategory.AIRPORT_DISRUPTION to EventTypeConfig(0.5, 0.8, 0.6, null, false, false),
-        SafetyCategory.HEALTH_ALERT      to EventTypeConfig(1.0, 1.2, 0.5, 40,   false, false),
-        SafetyCategory.EPIDEMIC          to EventTypeConfig(0.9, 1.2, 0.5, 40,   false, false),
-        SafetyCategory.PANDEMIC          to EventTypeConfig(1.1, 1.2, 0.4, 50,   false, false),
+        // ── Conflict & security ──────────────────────────────────────────────
+        SafetyCategory.MISSILE_ATTACK    to EventTypeConfig(2.0, 0.6, 2.0, 70,   noDecay = true,  shallowDist = true),
+        SafetyCategory.ARMED_CONFLICT    to EventTypeConfig(1.8, 0.8, 1.7, 60,   noDecay = true,  shallowDist = true),
+        SafetyCategory.WAR               to EventTypeConfig(1.8, 0.8, 1.7, 60,   noDecay = true,  shallowDist = true),
+        SafetyCategory.TERRORISM         to EventTypeConfig(1.7, 1.2, 0.7, 55,   noDecay = false, shallowDist = false),
+        SafetyCategory.EXPLOSION         to EventTypeConfig(1.5, 1.3, 0.6, 50,   noDecay = false, shallowDist = false),
+        SafetyCategory.ACTIVE_SHOOTER    to EventTypeConfig(1.6, 1.4, 0.5, 55,   noDecay = false, shallowDist = false),
+        SafetyCategory.VIOLENCE          to EventTypeConfig(1.4, 1.3, 0.6, null, noDecay = false, shallowDist = false),
+        SafetyCategory.KIDNAPPING        to EventTypeConfig(1.4, 1.2, 0.5, 45,   noDecay = false, shallowDist = false),
+        SafetyCategory.BORDER_TENSION    to EventTypeConfig(0.9, 0.8, 1.5, 40,   noDecay = false, shallowDist = false),
+        SafetyCategory.PROTEST           to EventTypeConfig(0.8, 1.3, 0.5, null, noDecay = false, shallowDist = false),
+        SafetyCategory.RIOT              to EventTypeConfig(1.2, 1.4, 0.6, 40,   noDecay = false, shallowDist = false),
+        SafetyCategory.CIVIL_UNREST      to EventTypeConfig(1.0, 1.2, 0.8, null, noDecay = false, shallowDist = false),
+        SafetyCategory.CURFEW            to EventTypeConfig(1.0, 0.9, 1.2, 40,   noDecay = false, shallowDist = false),
+        // ── Natural disasters ────────────────────────────────────────────────
+        SafetyCategory.EARTHQUAKE        to EventTypeConfig(1.2, 1.1, 1.0, null, noDecay = false, shallowDist = false),
+        SafetyCategory.FLOOD             to EventTypeConfig(1.0, 1.2, 1.5, null, noDecay = false, shallowDist = false),
+        SafetyCategory.WILDFIRE          to EventTypeConfig(1.1, 0.9, 1.3, null, noDecay = false, shallowDist = false),
+        SafetyCategory.HURRICANE         to EventTypeConfig(1.1, 1.0, 2.0, 40,   noDecay = false, shallowDist = false),
+        SafetyCategory.TORNADO           to EventTypeConfig(1.2, 1.0, 0.7, null, noDecay = false, shallowDist = false),
+        SafetyCategory.STORM             to EventTypeConfig(0.9, 1.0, 1.6, null, noDecay = false, shallowDist = false),
+        SafetyCategory.EXTREME_WEATHER   to EventTypeConfig(1.0, 1.0, 1.5, null, noDecay = false, shallowDist = false),
+        SafetyCategory.TSUNAMI           to EventTypeConfig(1.6, 0.9, 1.2, 50,   noDecay = false, shallowDist = false),
+        SafetyCategory.VOLCANO           to EventTypeConfig(1.3, 0.7, 0.9, 40,   noDecay = false, shallowDist = false),
+        SafetyCategory.DROUGHT           to EventTypeConfig(0.5, 0.8, 2.0, null, noDecay = true,  shallowDist = false),
+        SafetyCategory.LANDSLIDE         to EventTypeConfig(1.2, 0.9, 0.6, null, noDecay = false, shallowDist = false),
+        SafetyCategory.AVALANCHE         to EventTypeConfig(1.2, 0.6, 0.6, null, noDecay = false, shallowDist = false),
+        // ── Public health ────────────────────────────────────────────────────
+        SafetyCategory.HEALTH_ALERT      to EventTypeConfig(1.0, 1.2, 1.0, 40,   noDecay = false, shallowDist = false),
+        SafetyCategory.EPIDEMIC          to EventTypeConfig(1.0, 1.2, 1.5, 45,   noDecay = false, shallowDist = false),
+        SafetyCategory.PANDEMIC          to EventTypeConfig(1.1, 1.2, 2.0, 50,   noDecay = true,  shallowDist = false),
+        SafetyCategory.FOOD_CONTAMINATION to EventTypeConfig(0.7, 1.0, 1.0, null, noDecay = false, shallowDist = false),
+        // ── Infrastructure & transport ───────────────────────────────────────
+        SafetyCategory.TRANSPORT_DISRUPTION to EventTypeConfig(0.6, 1.1, 1.0, null, noDecay = false, shallowDist = false),
+        SafetyCategory.AIRPORT_DISRUPTION   to EventTypeConfig(0.5, 0.8, 0.8, null, noDecay = false, shallowDist = false),
+        SafetyCategory.MASS_CANCELLATION    to EventTypeConfig(0.5, 1.0, 1.0, null, noDecay = false, shallowDist = false),
+        SafetyCategory.PORT_DISRUPTION      to EventTypeConfig(0.5, 0.8, 0.9, null, noDecay = false, shallowDist = false),
+        SafetyCategory.BLACKOUT          to EventTypeConfig(0.7, 1.0, 1.2, null, noDecay = false, shallowDist = false),
+        SafetyCategory.INTERNET_OUTAGE   to EventTypeConfig(0.5, 1.0, 1.4, null, noDecay = false, shallowDist = false),
+        SafetyCategory.WATER_SHORTAGE    to EventTypeConfig(0.6, 1.0, 1.3, null, noDecay = false, shallowDist = false),
+        // ── Government / geopolitical ────────────────────────────────────────
+        SafetyCategory.GOVERNMENT_ADVISORY to EventTypeConfig(1.0, 1.0, 1.5, 40,  noDecay = false, shallowDist = false),
+        SafetyCategory.STATE_OF_EMERGENCY  to EventTypeConfig(1.4, 1.1, 1.5, 60,  noDecay = true,  shallowDist = false),
+        SafetyCategory.EVACUATION_ORDER    to EventTypeConfig(1.8, 1.0, 1.2, 70,  noDecay = true,  shallowDist = false),
+        SafetyCategory.TRAVEL_RESTRICTION  to EventTypeConfig(0.8, 0.9, 1.5, 35,  noDecay = false, shallowDist = false),
+        SafetyCategory.VISA_DISRUPTION     to EventTypeConfig(0.4, 0.8, 1.5, null, noDecay = false, shallowDist = false),
+        // ── Crime & local safety ─────────────────────────────────────────────
+        SafetyCategory.HIGH_CRIME_ALERT    to EventTypeConfig(0.9, 1.2, 0.8, null, noDecay = false, shallowDist = false),
+        SafetyCategory.SCAM_ALERT          to EventTypeConfig(0.4, 1.0, 1.5, null, noDecay = false, shallowDist = false),
+        SafetyCategory.TOURIST_TARGETING   to EventTypeConfig(0.7, 1.1, 0.8, null, noDecay = false, shallowDist = false),
+        // ── Fallback ─────────────────────────────────────────────────────────
+        SafetyCategory.OTHER               to EventTypeConfig(0.7, 1.0, 1.0, null, noDecay = false, shallowDist = false),
     )
 
+    // Safety net only — every category above is explicit, so this should be unreachable.
     private val defaultConfig = EventTypeConfig(0.8, 1.0, 0.8, null, false, false)
 
     val warEventCategories = setOf(
@@ -75,7 +126,7 @@ class RiskAssessmentService {
     ): RiskAssessment {
         val cfg = configs[event.category] ?: defaultConfig
         val severityRaw = severityToRaw(event.severity)
-        val now = Instant.now()
+        val now = Instant.now(clock)
 
         val proximityFactor = if (cfg.shallowDist) {
             max(0.25, 1.0 - distanceKm / (800.0 * cfg.distMult))
@@ -89,23 +140,30 @@ class RiskAssessmentService {
         val agePenalty    = if (cfg.noDecay) 0.0 else min(ageMinutes / 720.0, 1.0) * 30.0
         val confMult      = confidence.score / 100.0
 
-        var finalScore = ((severityScore + densityBoost - agePenalty) * confMult)
+        val computedScore = ((severityScore + densityBoost - agePenalty) * confMult)
             .toInt().coerceIn(0, 95)
 
+        // High-stakes types have a floor so a relevant event can't fall to silence.
+        var finalScore = computedScore
+        var floorApplied = false
         if (cfg.minScore != null) {
-            finalScore = max(finalScore, (cfg.minScore * confMult).toInt())
+            val floored = (cfg.minScore * confMult).toInt()
+            if (floored > finalScore) {
+                finalScore = floored
+                floorApplied = true
+            }
         }
 
         val riskLevel = when {
-            finalScore >= 65 -> RiskLevel.IMPORTANT_DISRUPTION
-            finalScore >= 35 -> RiskLevel.STAY_AWARE
-            else             -> RiskLevel.NORMAL
+            finalScore >= 65 -> RiskLevel.IMPORTANT_DISRUPTION   // push to circle
+            finalScore >= 35 -> RiskLevel.STAY_AWARE             // quiet in-app, no push
+            else             -> RiskLevel.NORMAL                 // silently ignored
         }
 
         return RiskAssessment(
             riskLevel    = riskLevel,
             finalScore   = finalScore,
-            floorApplied = false
+            floorApplied = floorApplied
         )
     }
 

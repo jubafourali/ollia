@@ -29,10 +29,12 @@ spring:
       pool:
         size: 5
 clerk:
-  secret-key: ${CLERK_SECRET_KEY:sk_test_rmM3vga9XaLFQVKbz9UOGOUy4c5juGD1ebXgUHJdNh}
+  # Secret — must be provided via env. No fallback is committed.
+  secret-key: ${CLERK_SECRET_KEY:}
 
 revenuecat:
-  webhook-secret: ${REVENUECAT_WEBHOOK_SECRET:test_RwsQEgOzKHVTQMrEBgyhcPOxYaI}
+  # Secret — must be provided via env. No fallback is committed.
+  webhook-secret: ${REVENUECAT_WEBHOOK_SECRET:}
 
 stripe:
   secret-key: ${STRIPE_SECRET_KEY:}
@@ -49,4 +51,5 @@ management:
       exposure:
         include: health
 newsdata:
-  api-key: ${NEWSDATA_API_KEY:pub_ffd8defed2b04436bdfadf661ba8d23f}
+  # Secret — must be provided via env. Collector skips gracefully when blank.
+  api-key: ${NEWSDATA_API_KEY:}

@@ -39,10 +39,17 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 
     runtimeOnly("org.postgresql:postgresql")
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 }
 
 kotlin {
     compilerOptions {
         freeCompilerArgs.addAll("-Xjsr305=strict")
     }
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }

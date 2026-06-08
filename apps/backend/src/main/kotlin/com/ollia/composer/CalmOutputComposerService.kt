@@ -7,19 +7,18 @@ import com.ollia.entity.SafetyCategory
 import com.ollia.entity.SaiaeConfidenceReport
 import com.ollia.entity.SaiaeEventSourceMatch
 import com.ollia.entity.SaiaePushLog
+import com.ollia.entity.SaiaeSourceRegistry
 import com.ollia.entity.User
 import com.ollia.repository.PushTokenRepository
 import com.ollia.saiae.context.ContextResult
 import com.ollia.saiae.repository.SaiaeCircleAlertCacheRepository
 import com.ollia.saiae.repository.SaiaePushLogRepository
-import com.ollia.saiae.repository.SaiaeSourceRegistryRepository
 import com.ollia.service.PushNotificationService
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
-import java.time.temporal.ChronoUnit
-import java.util.UUID
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
 
 @Service
 class CalmOutputComposerService(
@@ -27,7 +26,6 @@ class CalmOutputComposerService(
     private val pushTokenRepository: PushTokenRepository,
     private val pushLogRepo: SaiaePushLogRepository,
     private val alertCacheRepo: SaiaeCircleAlertCacheRepository,
-    private val sourceRegistryRepo: SaiaeSourceRegistryRepository,
     private val objectMapper: ObjectMapper
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -49,13 +47,14 @@ class CalmOutputComposerService(
         event: NormalizedSafetyEvent,
         context: ContextResult,
         confidence: SaiaeConfidenceReport,
-        sourceMatches: List<SaiaeEventSourceMatch>
+        sourceMatches: List<SaiaeEventSourceMatch>,
+        registry: Map<String, SaiaeSourceRegistry>
     ) {
         val effectiveRisk = context.effectiveRisk
         val sentence = context.calmSentence
 
         // ─── Build card payload ───────────────────────────────────────────────
-        val sourceList = buildSourceList(sourceMatches)
+        val sourceList = buildSourceList(sourceMatches, registry)
         val actionLabel = actionLabel(effectiveRisk, event.category, watchedUser.name)
         val footer = buildFooter(sourceList)
 
@@ -73,11 +72,12 @@ class CalmOutputComposerService(
         )
 
         // ─── Build push payload (null if not push eligible) ───────────────────
+        // Calm, non-alarmist lock-screen copy: a gentle title + the reassuring sentence.
+        // We deliberately do NOT put a scary event label in the title.
         val push: Map<String, String>? = if (context.pushEligible) {
-            val title = truncate("${watchedUser.name} — ${eventLabel(event.category)}", 50)
-            val body  = truncate(sentence, 100)
-            val sound = if (effectiveRisk == RiskLevel.IMPORTANT_DISRUPTION) "alert" else "default"
-            mapOf("title" to title, "body" to body, "sound" to sound)
+            val title = truncate("Update about ${watchedUser.name}", 50)
+            val body  = truncate(sentence, 120)
+            mapOf("title" to title, "body" to body)
         } else null
 
         // ─── Upsert cache ─────────────────────────────────────────────────────
@@ -112,42 +112,45 @@ class CalmOutputComposerService(
         pushBody: String
     ) {
         val token = pushTokenRepository.findByUserId(observer.id!!) ?: return
-        val city = event.city ?: event.country
-        val since = Instant.now().minus(6, ChronoUnit.HOURS)
-        val lastPush = pushLogRepo.findLatestInWindow(
-            userId    = observer.id,
-            eventType = event.category.name,
-            city      = city,
-            since     = since
-        )
 
+        // Dedup per (observer, event): one push per event unless it genuinely escalates.
+        val lastPush = pushLogRepo.findLatestForEvent(observer.id, event.id!!)
         val shouldSend = lastPush == null || shouldEscalate(lastPush, context, confidence)
         if (!shouldSend) {
             logger.debug("Push suppressed (dedup) for user ${observer.id} event ${event.id}")
             return
         }
 
-        val sound = if (context.effectiveRisk == RiskLevel.IMPORTANT_DISRUPTION) "alert" else "default"
-        pushNotificationService.sendPushNotification(
-            expoPushToken    = token.token,
-            title            = pushTitle,
-            body             = pushBody,
-            categoryId       = "SAFETY_ALERT",
-            userId           = observer.id,
-            notificationType = "saiae_${event.category.name.lowercase()}"
-        )
-
+        // Record the dedup claim inside the transaction, then dispatch the (blocking)
+        // Expo call only AFTER the transaction commits — so a slow network call never
+        // holds a DB connection open, and a rolled-back pipeline never "sends".
         pushLogRepo.save(SaiaePushLog(
-            userId = observer.id,
-            eventType = event.category.name,
-            city = city,
-            riskLevelAtSend = context.effectiveRisk.name,
-            confidenceAtSend = confidence.score,
-            userStatusAtSend = context.userStatus.name
-        )
-        )
+            userId            = observer.id,
+            normalizedEventId = event.id,
+            eventType         = event.category.name,
+            city              = event.city ?: event.country,
+            riskLevelAtSend   = context.effectiveRisk.name,
+            confidenceAtSend  = confidence.score,
+            userStatusAtSend  = context.userStatus.name,
+        ))
 
-        logger.info("Push sent to observer ${observer.id} for event ${event.id} (${event.category})")
+        val expoToken  = token.token
+        val observerId = observer.id
+        val eventId    = event.id
+        val category   = event.category.name
+        afterCommit {
+            pushNotificationService.sendPushNotification(
+                expoPushToken    = expoToken,
+                title            = pushTitle,
+                body             = pushBody,
+                categoryId       = "SAFETY_ALERT",
+                userId           = observerId,
+                notificationType = "saiae_${category.lowercase()}",
+                // Carry the event id so the app can deep-link straight to the alert card.
+                data             = mapOf("type" to "safety_alert", "eventId" to eventId.toString()),
+            )
+            logger.info("Push sent to observer $observerId for event $eventId ($category)")
+        }
     }
 
     /**
@@ -162,20 +165,26 @@ class CalmOutputComposerService(
         context: ContextResult,
         confidence: SaiaeConfidenceReport
     ): Boolean {
-        val riskIncreased = riskOrdinal(context.effectiveRisk.name) > riskOrdinal(last.riskLevelAtSend)
-        val becameSilent  = context.userStatus.name == "SILENT" && last.userStatusAtSend != "SILENT"
-        val tierImproved  = tierOrdinal(confidence.tier) > tierOrdinal(last.confidenceAtSend)
-        return riskIncreased || becameSilent || tierImproved
+        val riskIncreased  = riskOrdinal(context.effectiveRisk.name) > riskOrdinal(last.riskLevelAtSend)
+        val becameSilent   = context.userStatus.name == "SILENT" && last.userStatusAtSend != "SILENT"
+        // Compare score-to-score (both Int); the previous tier-name-vs-score bug is gone.
+        val confidenceRose = confidence.score >= last.confidenceAtSend + 10
+        return riskIncreased || becameSilent || confidenceRose
     }
 
     private fun riskOrdinal(level: String) = when (level) {
         "IMPORTANT_DISRUPTION" -> 2; "STAY_AWARE" -> 1; else -> 0
     }
-    private fun tierOrdinal(tier: String) = when (tier) {
-        "HIGH" -> 3; "MODERATE" -> 2; "LOW" -> 1; else -> 0
-    }
-    private fun tierOrdinal(score: Int) = when {
-        score >= 75 -> 3; score >= 50 -> 2; score >= 40 -> 1; else -> 0
+
+    /** Run [action] after the current transaction commits (or immediately if none is active). */
+    private fun afterCommit(action: () -> Unit) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
+                override fun afterCommit() = action()
+            })
+        } else {
+            action()
+        }
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -218,8 +227,10 @@ class CalmOutputComposerService(
         else                                     -> "Got it"
     }
 
-    private fun buildSourceList(matches: List<SaiaeEventSourceMatch>): List<Map<String, String?>> {
-        val registry = sourceRegistryRepo.findAll().associateBy { it.id }
+    private fun buildSourceList(
+        matches: List<SaiaeEventSourceMatch>,
+        registry: Map<String, SaiaeSourceRegistry>
+    ): List<Map<String, String?>> {
         return matches.map { match ->
             val src    = registry[match.sourceId]
             val origin = match.originSourceId?.let { registry[it] }
@@ -232,8 +243,8 @@ class CalmOutputComposerService(
     }
 
     private fun buildConflictNote(confidence: SaiaeConfidenceReport): String? = when (confidence.conflictType) {
-        "EXISTENCE" -> "⚠ Conflicting reports — sources disagree on whether this event occurred."
-        "DETAIL"    -> "Some details disputed — casualty count or timing may vary across sources."
+        "EXISTENCE" -> "Sources are still confirming whether this is happening."
+        "DETAIL"    -> "Some details are still being confirmed across sources."
         else        -> null
     }
 
@@ -242,5 +253,14 @@ class CalmOutputComposerService(
         return "Sources: $names · Ollia surfaces alerts, does not assert outcomes."
     }
 
-    private fun truncate(s: String, max: Int) = if (s.length > max) s.take(max - 1) + "…" else s
+    /** Word- and emoji-safe truncation: never splits a surrogate pair or mid-word. */
+    private fun truncate(s: String, max: Int): String {
+        if (s.length <= max) return s
+        var cut = (max - 1).coerceIn(0, s.length)
+        if (cut in 1 until s.length && Character.isLowSurrogate(s[cut])) cut--  // don't split an emoji
+        val slice = s.substring(0, cut)
+        val lastSpace = slice.lastIndexOf(' ')
+        val safe = if (lastSpace >= max / 2) slice.substring(0, lastSpace) else slice
+        return safe.trimEnd() + "…"
+    }
 }

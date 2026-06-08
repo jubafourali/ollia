@@ -101,7 +101,7 @@ export type ApiSafetyEvent = {
 
 export type ApiAlertSource = {
   name: string;
-  tier: string;
+  tier?: string | null;
   originSource?: string | null; // null = original, set = echo chain
 };
 

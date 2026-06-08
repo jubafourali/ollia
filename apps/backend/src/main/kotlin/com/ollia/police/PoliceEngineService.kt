@@ -7,7 +7,6 @@ import com.ollia.entity.SafetyCategory
 import com.ollia.entity.SaiaeConfidenceReport
 import com.ollia.entity.SaiaeEventSourceMatch
 import com.ollia.entity.SaiaeSourceRegistry
-import com.ollia.entity.SourceType
 import com.ollia.repository.NormalizedSafetyEventRepository
 import com.ollia.saiae.repository.SaiaeConfidenceReportRepository
 import com.ollia.saiae.repository.SaiaeEventSourceMatchRepository
@@ -51,18 +50,9 @@ class PoliceEngineService(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    // Sources that are news aggregators — require 2 independent confirmations
-    private val newsOnlySources = setOf("gdelt", "newsdata", "bbc", "local_media")
-
-    // Sources that are instruments or authoritative — single source allowed
-    private val instrumentSources     = setOf("usgs", "noaa", "gdacs")
-    private val authoritativeSources  = setOf("government", "police")
-
-    private val corrobBonus = mapOf(
-        1 to intArrayOf(14, 7, 2),
-        2 to intArrayOf(9, 4, 1),
-        3 to intArrayOf(3, 1, 0)
-    )
+    // Trust weights, tiers, instrument/authoritative flags and echo-chain
+    // (typicallyRepublishes) all live in the saiae_source_registry table — there is
+    // no hardcoded duplicate here. The scoring model is ConfidenceCalculator.
 
     private val ttlHours: Map<SafetyCategory, Long?> = mapOf(
         SafetyCategory.MISSILE_ATTACK     to null,
@@ -89,26 +79,31 @@ class PoliceEngineService(
         SafetyCategory.BORDER_TENSION     to 48,
         SafetyCategory.HEALTH_ALERT       to 72,
         SafetyCategory.EPIDEMIC           to 72,
-        SafetyCategory.PANDEMIC           to 72
+        SafetyCategory.PANDEMIC           to 72,
+        // Standing government advisories — re-emitted daily, kept alive ~1.5 days.
+        SafetyCategory.GOVERNMENT_ADVISORY to 36,
+        SafetyCategory.TRAVEL_RESTRICTION  to 48
     )
     private val defaultTtlHours = 24L
 
     @Transactional
     fun scoreEvent(event: NormalizedSafetyEvent): SaiaeConfidenceReport {
 
-        // ── P0 FIX 2: GEOGRAPHIC VALIDATION ───────────────────────────────────
-        // Events with no country are unverifiable geographically.
-        // Block them immediately — we can't know who they're relevant to.
-        if (event.country.isNullOrBlank() && !isInstrumentSource(event.source)) {
+        val registry = sourceRegistryRepo.findAll().associateBy { it.id }
+
+        // ── GEOGRAPHIC VALIDATION ─────────────────────────────────────────────
+        // Events with no country are unverifiable geographically — unless they come
+        // from a physical instrument (USGS/NOAA/GDACS), which is inherently self-locating.
+        val ownIsInstrument = registry[SourceRegistryMapping.registryId(event.source)]?.isInstrument == true
+        if (event.country.isNullOrBlank() && !ownIsInstrument) {
             logger.debug("Blocking event ${event.id} — no country information")
             return blockEvent(event.id!!, "No country information")
         }
 
-        val registry = sourceRegistryRepo.findAll().associateBy { it.id }
         val existingMatches = eventSourceMatchRepo.findAllByNormalizedEventId(event.id!!)
 
         val matches: List<SaiaeEventSourceMatch> = if (existingMatches.isEmpty()) {
-            val sourceId = mapSourceTypeToRegistryId(event.source)
+            val sourceId = SourceRegistryMapping.registryId(event.source)
             val match = SaiaeEventSourceMatch(
                 normalizedEventId = event.id,
                 sourceId          = sourceId,
@@ -156,99 +151,54 @@ class PoliceEngineService(
     ): SaiaeConfidenceReport {
 
         val eventId = event.id!!
-        val origins = matches.filter { it.originSourceId == null }
-        val originSources = origins.mapNotNull { registry[it.sourceId] }
-        val originIds = originSources.map { it.id }.toSet()
 
-        // ── INSTRUMENT EXCEPTION ───────────────────────────────────────────────
-        // USGS / NOAA / GDACS: physical measurement, single source = 88%, trusted.
-        val hasInstrument = originSources.any { it.id in instrumentSources }
-        if (hasInstrument) {
-            return SaiaeConfidenceReport(
-                normalizedEventId  = eventId,
-                score              = 88,
-                tier               = ConfidenceTier.HIGH.name,
-                independentOrigins = originSources.size,
-                conflictingReports = false,
-                minimumSourcesMet  = true
-            )
+        // Independent origins only:
+        //  • drop republishers (originSourceId != null — they echo another source)
+        //  • collapse same-source duplicates (an "echo chain" of N articles = 1 origin)
+        val independentProfiles: List<SourceProfile> = matches
+            .filter { it.originSourceId == null }
+            .mapNotNull { registry[it.sourceId] }
+            .distinctBy { it.id }
+            .map { it.toProfile() }
+
+        if (independentProfiles.isEmpty()) {
+            return blockEvent(eventId, "No recognized source")
         }
 
-        // ── AUTHORITATIVE STANDALONE ───────────────────────────────────────────
-        // Government / Police alone: trusted, never blocked, solo floor applies.
-        val isAuthSolo = originSources.size == 1 && originSources[0].id in authoritativeSources
+        // Cross-source conflict detection (title-based here; the correlation step will
+        // pass full cluster context once multi-source clustering lands).
+        val (existence, detail, note) = detectConflict(event, independentProfiles.size)
 
-        // ── P0 FIX 1: TWO-SOURCE GATE FOR NEWS EVENTS ─────────────────────────
-        // If the only origins are news aggregators (GDELT, NewsData, BBC, local),
-        // require at least 2 independent origins before surfacing.
-        // A single news article claiming "explosion" must be corroborated.
-        val allOriginsAreNewsOnly = originIds.isNotEmpty() && originIds.all { it in newsOnlySources }
-        if (allOriginsAreNewsOnly && originSources.size < 2) {
-            logger.debug("Blocking event $eventId — single news source (${originIds.first()}) requires corroboration")
-            return blockEvent(eventId, "Single news source — awaiting corroboration")
-        }
-
-        // Standard 2-source gate for non-authoritative, non-instrument events
-        val hasT12 = originSources.any { it.tier <= 2 }
-        val totalSources = matches.size
-        if (!isAuthSolo && (totalSources < 2 || !hasT12)) {
-            return blockEvent(eventId, "Insufficient source confirmation")
-        }
-
-        // ── BASE SCORE ─────────────────────────────────────────────────────────
-        val sorted = originSources.sortedWith(compareBy({ it.tier }, { -it.baseWeight }))
-        var base = (sorted[0].baseWeight * 1.4).toInt().coerceIn(45, 68)
-        if (isAuthSolo && sorted[0].soloFloor != null) {
-            base = maxOf(base, sorted[0].soloFloor!!)
-        }
-
-        // ── CORROBORATION BONUSES ──────────────────────────────────────────────
-        val tierCount = mutableMapOf<Int, Int>()
-        var corroboration = 0
-        for (src in sorted.drop(1)) {
-            val idx = minOf(tierCount.getOrDefault(src.tier, 0), 2)
-            corroboration += corrobBonus[src.tier]?.getOrElse(idx) { 0 } ?: 0
-            tierCount[src.tier] = (tierCount.getOrDefault(src.tier, 0)) + 1
-        }
-
-        var score = base + corroboration
-
-        // ── P0 FIX 3: CONFLICT DETECTION ──────────────────────────────────────
-        // Compare severity between independent T1/T2 sources for the same event.
-        // If they significantly disagree → detail conflict (−6).
-        // If a source explicitly contradicts the event occurred → existence conflict (−25, cap 65).
-        val conflictResult = detectConflict(event, originSources)
-        val hasExistenceConflict = conflictResult.first
-        val hasDetailConflict    = conflictResult.second
-        val conflictNote         = conflictResult.third
-
-        if (hasExistenceConflict) { score = minOf(65, score - 25) }
-        if (hasDetailConflict)    { score = maxOf(0, score - 6) }
-
-        score = minOf(95, maxOf(0, score))
-
-        val tier = when {
-            score >= 75 -> ConfidenceTier.HIGH
-            score >= 50 -> ConfidenceTier.MODERATE
-            score >= 40 -> ConfidenceTier.LOW
-            else        -> ConfidenceTier.BLOCKED
-        }
+        val outcome = ConfidenceCalculator.score(
+            origins           = independentProfiles,
+            existenceConflict = existence,
+            detailConflict    = detail,
+        )
 
         return SaiaeConfidenceReport(
             normalizedEventId  = eventId,
-            score              = score,
-            tier               = tier.name,
-            independentOrigins = originSources.size,
-            conflictingReports = hasExistenceConflict || hasDetailConflict,
+            score              = outcome.score,
+            tier               = outcome.tier.name,
+            independentOrigins = outcome.independentOrigins,
+            conflictingReports = existence || detail,
             conflictType       = when {
-                hasExistenceConflict -> "EXISTENCE"
-                hasDetailConflict    -> "DETAIL"
-                else                 -> null
+                existence -> "EXISTENCE"
+                detail    -> "DETAIL"
+                else      -> null
             },
-            conflictNote       = conflictNote,
-            minimumSourcesMet  = tier != ConfidenceTier.BLOCKED
+            conflictNote       = note,
+            minimumSourcesMet  = outcome.minimumSourcesMet,
         )
     }
+
+    private fun SaiaeSourceRegistry.toProfile() = SourceProfile(
+        id              = id,
+        tier            = tier,
+        baseWeight      = baseWeight,
+        isInstrument    = isInstrument,
+        isAuthoritative = isAuthoritative,
+        soloFloor       = soloFloor,
+    )
 
     /**
      * Detect conflicts between independent sources for the same event.
@@ -265,10 +215,10 @@ class PoliceEngineService(
      */
     private fun detectConflict(
         event: NormalizedSafetyEvent,
-        originSources: List<SaiaeSourceRegistry>
+        independentOriginCount: Int
     ): Triple<Boolean, Boolean, String?> {
 
-        if (originSources.size < 2) return Triple(false, false, null)
+        if (independentOriginCount < 2) return Triple(false, false, null)
 
         val title = event.title.lowercase()
 
@@ -301,9 +251,6 @@ class PoliceEngineService(
         )
     }
 
-    private fun isInstrumentSource(source: SourceType): Boolean =
-        mapSourceTypeToRegistryId(source) in instrumentSources
-
     private fun setExpiry(event: NormalizedSafetyEvent) {
         val ttl = ttlHours.getOrDefault(event.category, defaultTtlHours) ?: return
         val base = event.eventOccurredAt ?: event.normalizedAt
@@ -312,19 +259,6 @@ class PoliceEngineService(
             event.expiresAt = expiresAt
             normalizedRepo.save(event)
         }
-    }
-
-    private fun mapSourceTypeToRegistryId(sourceType: SourceType): String = when (sourceType) {
-        SourceType.USGS             -> "usgs"
-        SourceType.NOAA             -> "noaa"
-        SourceType.GDACS            -> "gdacs"
-        SourceType.REUTERS          -> "reuters"
-        SourceType.BBC              -> "bbc"
-        SourceType.GDELT            -> "gdelt"
-        SourceType.NEWSDATA         -> "newsdata"
-        SourceType.GOVERNMENT_ALERT -> "government"
-        SourceType.POLICE_FEED      -> "police"
-        else                        -> "local_media"
     }
 
     @Scheduled(fixedRate = 900_000)

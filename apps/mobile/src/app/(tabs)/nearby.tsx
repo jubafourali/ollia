@@ -17,6 +17,7 @@ import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
 import { api } from "@/utils/api";
 import type { ApiNearbyMember } from "@/utils/api";
+import { SkyHeader, sheetStyle } from "@/components/SkyScreen";
 
 // ── Risk config ───────────────────────────────────────────────────────────────
 
@@ -242,8 +243,6 @@ export default function NearbyScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    const topInset = Platform.OS === "web" ? 67 : insets.top;
-
     const fetchNearby = useCallback(async () => {
         try {
             const data = await api.getNearby();
@@ -265,18 +264,15 @@ export default function NearbyScreen() {
     }, [fetchNearby, refreshAlerts]);
 
     return (
-        <View style={[styles.container, { paddingTop: topInset }]}>
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.title}>Nearby</Text>
-                <Text style={styles.subtitle}>
-                    {loading ? "Checking..." : "What's happening around your circle"}
-                </Text>
-            </View>
+        <View style={styles.container}>
+            <SkyHeader
+                title="Nearby"
+                subtitle={loading ? "Checking..." : "What's happening around your circle"}
+            />
 
             <ScrollView
-                style={styles.scroll}
-                contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
+                style={sheetStyle}
+                contentContainerStyle={[styles.content, { paddingTop: 24, paddingBottom: insets.bottom + 100 }]}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
@@ -315,7 +311,7 @@ export default function NearbyScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-    container:  { flex: 1, backgroundColor: BRAND.background },
+    container:  { flex: 1, backgroundColor: "transparent" },
     header: {
         flexDirection: "column", paddingHorizontal: 20, paddingBottom: 12,
     },

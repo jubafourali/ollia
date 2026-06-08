@@ -32,6 +32,7 @@ import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
 import { CityPicker } from "@/components/CityPicker";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { SkyHeader, sheetStyle } from "@/components/SkyScreen";
 import { api } from "@/utils/api";
 import i18n, { SUPPORTED_LANGUAGES, LANGUAGE_STORAGE_KEY, type LanguageCode } from "@/i18n";
 import {
@@ -396,8 +397,6 @@ export default function SettingsScreen() {
     return () => sub.remove();
   }, []);
 
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-
   const profileDirty =
     editName.trim() !== (myProfile?.name ?? "") ||
     editCity.trim() !== (myProfile?.region ?? "") ||
@@ -555,13 +554,13 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: topInset }, Platform.OS === "web" && { paddingBottom: 34 }]}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text style={styles.title}>{t("settings.title")}</Text>
-
+    <View style={styles.container}>
+      <SkyHeader title={t("settings.title")} />
+      <ScrollView
+        style={sheetStyle}
+        contentContainerStyle={[styles.content, Platform.OS === "web" && { paddingBottom: 34 }]}
+        showsVerticalScrollIndicator={false}
+      >
       <Text style={styles.sectionTitle}>{t("settings.myProfile")}</Text>
       <View style={[styles.section, { padding: 16, gap: 14 }]}>
         <View style={profileStyles.field}>
@@ -1387,7 +1386,8 @@ export default function SettingsScreen() {
           <Text>{t("settings.privacyPolicy")}</Text>
         </Pressable>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -1711,17 +1711,12 @@ const permStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BRAND.background,
+    backgroundColor: "transparent",
   },
   content: {
     paddingHorizontal: 20,
+    paddingTop: 24,
     paddingBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-    color: BRAND.text,
-    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 12,

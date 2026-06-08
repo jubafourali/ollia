@@ -21,6 +21,9 @@ interface RawSafetySignalRepository: JpaRepository<RawSafetyEvent, UUID> {
     @Query("SELECT e FROM RawSafetyEvent e WHERE e.processed = false ORDER BY e.collectedAt ASC")
     fun findAllUnprocessed(): List<RawSafetyEvent>
 
+    /** Bounded batch — prevents an unbounded single-transaction backlog under load. */
+    fun findTop500ByProcessedFalseOrderByCollectedAtAsc(): List<RawSafetyEvent>
+
     @Modifying
     @Transactional
     @Query("UPDATE RawSafetyEvent e SET e.processed = true WHERE e.id = :id")

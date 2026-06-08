@@ -22,6 +22,19 @@ interface NormalizedSafetyEventRepository : JpaRepository<NormalizedSafetyEvent,
     @Query("UPDATE NormalizedSafetyEvent e SET e.status = :status WHERE e.id = :id")
     fun updateStatus(@Param("id") id: UUID, @Param("status") status: EventStatus)
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query("""
+        UPDATE NormalizedSafetyEvent e
+        SET e.status = :status, e.canonicalEventId = :canonicalId
+        WHERE e.id = :id
+    """)
+    fun markMerged(
+        @Param("id") id: UUID,
+        @Param("canonicalId") canonicalId: UUID,
+        @Param("status") status: EventStatus
+    )
+
     @Modifying
     @Transactional
     @Query("""

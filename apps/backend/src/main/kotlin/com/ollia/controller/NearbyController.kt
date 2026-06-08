@@ -4,6 +4,7 @@ import com.ollia.dto.NearbyEventResponse
 import com.ollia.dto.NearbyMemberResponse
 import com.ollia.entity.EventStatus
 import com.ollia.entity.NormalizedSafetyEvent
+import com.ollia.entity.LocationRelevance
 import com.ollia.entity.RiskLevel
 import com.ollia.entity.SafetyCategory
 import com.ollia.repository.FamilyCircleRepository
@@ -86,10 +87,14 @@ class NearbyController(
             )
         }
 
-        // Pre-load confidence reports and source registry
-        val confidenceByEventId = confidenceReportRepo.findAll()
+        // Pre-load confidence, source matches, and the registry once — scoped to the
+        // verified event set. No full-table scans, no per-event source-match queries.
+        val verifiedEventIds = verifiedEvents.mapNotNull { it.id }
+        val confidenceByEventId = confidenceReportRepo.findAllByNormalizedEventIdIn(verifiedEventIds)
             .associateBy { it.normalizedEventId }
         val sourceRegistry = sourceRegistryRepo.findAll().associateBy { it.id }
+        val matchesByEventId = sourceMatchRepo.findAllByNormalizedEventIdIn(verifiedEventIds)
+            .groupBy { it.normalizedEventId }
 
         // Build response — one entry per circle member
         val result = allMemberIds.mapNotNull { memberId ->
@@ -110,22 +115,28 @@ class NearbyController(
                 if (risk.riskLevel == RiskLevel.NORMAL) return@mapNotNull null
 
                 // ── Build sentence ────────────────────────────────────────────
+                val relevance = when {
+                    distanceKm <= 50  -> LocationRelevance.SAME_CITY
+                    distanceKm <= 300 -> LocationRelevance.SAME_COUNTRY
+                    distanceKm <= 500 -> LocationRelevance.BORDER_REGION
+                    else              -> LocationRelevance.DISTANT
+                }
                 val context = try {
                     contextEngine.compute(
-                        memberName = user.name,
-                        event      = event,
-                        risk       = risk,
-                        confidence = confidence,
-                        user       = user
+                        memberName        = user.name,
+                        event             = event,
+                        risk              = risk,
+                        confidence        = confidence,
+                        user              = user,
+                        locationRelevance = relevance,
+                        distanceKm        = distanceKm,
                     )
                 } catch (e: Exception) {
                     return@mapNotNull null
                 }
 
                 // ── Source label ──────────────────────────────────────────────
-                val sourceIds = sourceMatchRepo
-                    .findAllByNormalizedEventId(event.id!!)
-                    .map { it.sourceId }
+                val sourceIds = matchesByEventId[event.id!!].orEmpty().map { it.sourceId }
                 val sourcesLabel = buildSourcesLabel(sourceIds, sourceRegistry)
 
                 NearbyEventResponse(
