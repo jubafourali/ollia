@@ -122,16 +122,17 @@ class RiskAssessmentService(
         event: NormalizedSafetyEvent,
         confidence: SaiaeConfidenceReport,
         distanceKm: Double,
+        proximityKnown: Boolean = true,
         populationDensity: Double = estimateDensity(event.city ?: event.country)
     ): RiskAssessment {
         val cfg = configs[event.category] ?: defaultConfig
         val severityRaw = severityToRaw(event.severity)
         val now = Instant.now(clock)
 
-        val proximityFactor = if (cfg.shallowDist) {
-            max(0.25, 1.0 - distanceKm / (800.0 * cfg.distMult))
-        } else {
-            max(0.0, 1.0 - distanceKm / (200.0 * cfg.distMult))
+        val proximityFactor = when {
+            !proximityKnown -> 1.0
+            cfg.shallowDist -> max(0.25, 1.0 - distanceKm / (800.0 * cfg.distMult))
+            else            -> max(0.0,  1.0 - distanceKm / (200.0 * cfg.distMult))
         }
 
         val severityScore = (severityRaw / 10.0) * 100.0 * cfg.severityMult * proximityFactor

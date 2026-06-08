@@ -108,19 +108,18 @@ class NearbyController(
                 val confidence = confidenceByEventId[event.id] ?: return@mapNotNull null
 
                 // ── Geographic relevance check ────────────────────────────────
-                val distanceKm = computeDistance(event, userCoords, userCountry)
-                    ?: return@mapNotNull null // not relevant — skip
+                val match = computeDistance(event, userCoords, userCountry) ?: return@mapNotNull null
 
                 // ── Risk assessment ───────────────────────────────────────────
-                val risk = riskEngine.assess(event, confidence, distanceKm)
+                val risk  = riskEngine.assess(event, confidence, match.distanceKm, proximityKnown = match.proximityKnown)
                 if (risk.riskLevel == RiskLevel.NORMAL) return@mapNotNull null
 
                 // ── Build sentence ────────────────────────────────────────────
                 val relevance = when {
-                    distanceKm <= 50  -> LocationRelevance.SAME_CITY
-                    distanceKm <= 300 -> LocationRelevance.SAME_COUNTRY
-                    distanceKm <= 500 -> LocationRelevance.BORDER_REGION
-                    else              -> LocationRelevance.DISTANT
+                    match.distanceKm <= 50  -> LocationRelevance.SAME_CITY
+                    match.distanceKm <= 300 -> LocationRelevance.SAME_COUNTRY
+                    match.distanceKm <= 500 -> LocationRelevance.BORDER_REGION
+                    else                    -> LocationRelevance.DISTANT
                 }
                 val context = try {
                     contextEngine.compute(
@@ -130,7 +129,7 @@ class NearbyController(
                         confidence        = confidence,
                         user              = user,
                         locationRelevance = relevance,
-                        distanceKm        = distanceKm,
+                        distanceKm        = match.distanceKm,
                     )
                 } catch (e: Exception) {
                     return@mapNotNull null
@@ -269,36 +268,62 @@ class NearbyController(
      * Currently unused — getRegion() uses country-only matching for now. Kept so the
      * coordinate/radius matching can be re-enabled without rewriting it.
      */
-    @Suppress("unused")
+//    @Suppress("unused")
+//    private fun computeDistance(
+//        event: NormalizedSafetyEvent,
+//        userCoords: Pair<Double, Double>?,
+//        userCountry: String
+//    ): Double? {
+//        val isWar = event.category in WAR_CATEGORIES
+//
+//        return when {
+//            // Have coordinates for both
+//            event.latitude != null && event.longitude != null && userCoords != null -> {
+//                val dist = haversineKm(
+//                    userCoords.first, userCoords.second,
+//                    event.latitude, event.longitude
+//                )
+//                if (dist <= 500.0 || isWar) dist else null
+//            }
+//
+//            // Country-only matching
+//            event.country != null && userCountry.isNotBlank() -> {
+//                val eventCountry = event.country.lowercase().trim()
+//                val sameCountry = eventCountry.contains(userCountry) ||
+//                        userCountry.contains(eventCountry)
+//                if (sameCountry || isWar) 150.0 else null
+//            }
+//
+//            // War events surface globally even without location data
+//            isWar -> 500.0
+//
+//            else -> null
+//        }
+//    }
+
+    private data class GeoMatch(val distanceKm: Double, val proximityKnown: Boolean)
+
     private fun computeDistance(
         event: NormalizedSafetyEvent,
         userCoords: Pair<Double, Double>?,
         userCountry: String
-    ): Double? {
+    ): GeoMatch? {
         val isWar = event.category in WAR_CATEGORIES
-
         return when {
-            // Have coordinates for both
+            // Real coordinates → real distance
             event.latitude != null && event.longitude != null && userCoords != null -> {
-                val dist = haversineKm(
-                    userCoords.first, userCoords.second,
-                    event.latitude, event.longitude
-                )
-                if (dist <= 500.0 || isWar) dist else null
+                val dist = haversineKm(userCoords.first, userCoords.second, event.latitude, event.longitude)
+                if (dist <= 500.0 || isWar) GeoMatch(dist, proximityKnown = true) else null
             }
-
-            // Country-only matching
+            // Same country, no coords → 150 for the label, but distance is NOT measured
             event.country != null && userCountry.isNotBlank() -> {
-                val eventCountry = event.country.lowercase().trim()
-                val sameCountry = eventCountry.contains(userCountry) ||
-                        userCountry.contains(eventCountry)
-                if (sameCountry || isWar) 150.0 else null
+                val ec = event.country.lowercase().trim()
+                val same = ec.contains(userCountry) || userCountry.contains(ec)
+                if (same || isWar) GeoMatch(150.0, proximityKnown = false) else null
             }
-
-            // War events surface globally even without location data
-            isWar -> 500.0
-
-            else -> null
+            // War with no location → surface globally
+            isWar -> GeoMatch(500.0, proximityKnown = false)
+            else  -> null
         }
     }
 
