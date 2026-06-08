@@ -55,7 +55,8 @@ class GovernmentAdvisoryCollector(
 
         val response = try {
             webClient.get()
-                .uri("https://www.travel-advisory.info/api")
+                // Apex host only — their TLS cert does not cover the www. subdomain.
+                .uri("https://travel-advisory.info/api")
                 .header("User-Agent", "OlliaApp/1.0 (safety@ollia.app)")
                 .retrieve()
                 .bodyToMono(JsonNode::class.java)
