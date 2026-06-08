@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@clerk/clerk-expo";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -19,7 +20,11 @@ type StoredPerson = { name: string; relation: string; emoji?: string };
 
 export default function AhaScreen() {
     const insets = useSafeAreaInsets();
+    const { userId } = useAuth();
     const [person, setPerson] = useState<StoredPerson | null>(null);
+
+    const markComplete = () =>
+        AsyncStorage.setItem(`${ONBOARDING_COMPLETE_KEY}:${userId}`, "true");
 
     useEffect(() => {
         (async () => {
@@ -31,12 +36,12 @@ export default function AhaScreen() {
     }, []);
 
     const finishOnboarding = async () => {
-        await AsyncStorage.setItem(ONBOARDING_COMPLETE_KEY, "true");
+        await markComplete();
         router.replace("/(tabs)");
     };
 
     const goAddAnother = async () => {
-        await AsyncStorage.setItem(ONBOARDING_COMPLETE_KEY, "true");
+        await markComplete();
         router.replace("/(tabs)");
     };
 

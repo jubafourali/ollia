@@ -53,16 +53,17 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }, [isSignedIn, userId]);
 
   useEffect(() => {
-    if (!isSignedIn) { setOnboardingComplete(null); return; }
+    if (!isSignedIn || !userId) { setOnboardingComplete(null); return; }
     (async () => {
       try {
-        const flag = await AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY);
+        // Per-user key — a new account on the same device sees onboarding.
+        const flag = await AsyncStorage.getItem(`${ONBOARDING_COMPLETE_KEY}:${userId}`);
         setOnboardingComplete(flag === "true");
       } catch {
         setOnboardingComplete(true); // fail open — don't trap user
       }
     })();
-  }, [isSignedIn, segments]);
+  }, [isSignedIn, userId, segments]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -84,10 +85,12 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       if (onboardingComplete === null) return;
       if (onboardingComplete) router.replace("/(tabs)");
       else                    router.replace("/onboarding/hook");
-    } else if (isSignedIn && !inAuth && !inOnboarding) {
-      if (onboardingComplete === false && segments[0] === "(tabs)") {
-        router.replace("/onboarding/hook");
-      }
+    } else if (isSignedIn && userId && !inAuth && !inOnboarding && segments[0] === "(tabs)") {
+      // Re-read fresh from storage — the React state can still be stale right after
+      // completing onboarding, which previously bounced the user back into it.
+      AsyncStorage.getItem(`${ONBOARDING_COMPLETE_KEY}:${userId}`)
+        .then((flag) => { if (flag !== "true") router.replace("/onboarding/hook"); })
+        .catch(() => {});
     }
 
     setAuthReady(true);

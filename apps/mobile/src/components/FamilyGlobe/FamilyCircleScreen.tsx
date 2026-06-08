@@ -372,6 +372,7 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
     const bdOp      = useRef(new Animated.Value(0)).current;
 
     const pins   = useMemo(() => resolveMembers(members, meRegion), [members, meRegion]);
+    const pendingMembers = useMemo(() => members.filter(m => m.pending && !m.isMe), [members]);
     const selPin = pins.find(p => p.id === selId) ?? null;
     const hasAlert = events.some(e => e.severity === "high");
     const { text: subText, color: subColor } = heroSubtext(pins, hasAlert);
@@ -447,6 +448,59 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
                                 onPress={() => openSheet(pin)}
                             />
                         ))}
+                    </View>
+                )}
+
+                {/* Pending invites — so the circle never looks empty while waiting */}
+                {pendingMembers.length > 0 && (
+                    <View style={{ paddingHorizontal:20, paddingTop: pins.length>0?6:16, gap:12 }}>
+                        {pins.length === 0 && (
+                            <Text style={{ fontSize:13, fontFamily:"Inter_600SemiBold", color:"rgba(255,255,255,0.7)", letterSpacing:0.3, marginBottom:2 }}>
+                                Waiting to connect
+                            </Text>
+                        )}
+                        {pendingMembers.map(m => (
+                            <Pressable key={m.id} onPress={onInvite} style={{
+                                flexDirection:"row", alignItems:"center", gap:14,
+                                backgroundColor:"#FFFFFF", borderRadius:18, padding:16,
+                                borderWidth:1, borderColor:"#F0E8D8",
+                                shadowColor:"#000", shadowOffset:{width:0,height:2}, shadowOpacity:0.06, shadowRadius:8, elevation:2,
+                            }}>
+                                <View style={{ width:48, height:48, borderRadius:24, backgroundColor:"#F0E2C4", borderWidth:1.5, borderColor:"#E0CFA8", alignItems:"center", justifyContent:"center" }}>
+                                    <Text style={{ fontSize:18, fontFamily:"Inter_700Bold", color:"#9C7B2E" }}>{m.name[0]?.toUpperCase() ?? "?"}</Text>
+                                </View>
+                                <View style={{ flex:1 }}>
+                                    <Text style={{ fontSize:16, fontFamily:"Inter_600SemiBold", color:"#1C1410" }}>{m.name}</Text>
+                                    <View style={{ flexDirection:"row", alignItems:"center", gap:6, marginTop:3 }}>
+                                        <View style={{ width:6, height:6, borderRadius:3, backgroundColor:"#f59e0b" }} />
+                                        <Text style={{ fontSize:12.5, fontFamily:"Inter_500Medium", color:"#9C8E7A" }}>Invitation sent · waiting to connect</Text>
+                                    </View>
+                                </View>
+                                <View style={{ flexDirection:"row", alignItems:"center", gap:4, paddingHorizontal:12, paddingVertical:8, borderRadius:12, backgroundColor:"rgba(245,158,11,0.12)" }}>
+                                    <Feather name="share-2" size={13} color="#c97d0a" />
+                                    <Text style={{ fontSize:13, fontFamily:"Inter_600SemiBold", color:"#c97d0a" }}>Remind</Text>
+                                </View>
+                            </Pressable>
+                        ))}
+                    </View>
+                )}
+
+                {/* Empty state — never a blank globe */}
+                {pins.length === 0 && pendingMembers.length === 0 && (
+                    <View style={{ paddingHorizontal:20, paddingTop:24, alignItems:"center" }}>
+                        <View style={{ backgroundColor:"#FFFFFF", borderRadius:20, padding:24, alignItems:"center", borderWidth:1, borderColor:"#F0E8D8", width:"100%" }}>
+                            <View style={{ width:60, height:60, borderRadius:30, backgroundColor:"rgba(245,158,11,0.12)", alignItems:"center", justifyContent:"center", marginBottom:14 }}>
+                                <Feather name="user-plus" size={26} color="#c97d0a" />
+                            </View>
+                            <Text style={{ fontSize:18, fontFamily:"Inter_700Bold", color:"#1C1410", marginBottom:6 }}>Your circle starts here</Text>
+                            <Text style={{ fontSize:14, fontFamily:"Inter_400Regular", color:"#6B5C46", textAlign:"center", lineHeight:20, marginBottom:18 }}>
+                                Invite someone you care about. You'll quietly see when they're okay — no constant check-ins.
+                            </Text>
+                            <Pressable onPress={onInvite} style={{ flexDirection:"row", alignItems:"center", gap:8, backgroundColor:"#f59e0b", paddingHorizontal:22, paddingVertical:13, borderRadius:14 }}>
+                                <Feather name="user-plus" size={16} color="#fff" />
+                                <Text style={{ fontSize:15, fontFamily:"Inter_600SemiBold", color:"#fff" }}>Invite someone</Text>
+                            </Pressable>
+                        </View>
                     </View>
                 )}
 

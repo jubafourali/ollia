@@ -30,7 +30,7 @@ export default function DifferentiateScreen() {
                 <View style={[styles.cta, { paddingBottom: insets.bottom + 16 }]}>
                     <PrimaryButton
                         label="Continue"
-                        onPress={() => router.push("/onboarding/relation")}
+                        onPress={() => router.push("/onboarding/profile")}
                     />
                 </View>
             </View>
