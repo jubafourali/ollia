@@ -165,34 +165,35 @@ class SaiaeOrchestrator(
         // ── LOCATION RELEVANCE ────────────────────────────────────────────────
         val distanceKm: Double
         val locationRelevance: LocationRelevance
+        val proximityKnown: Boolean
 
         when {
             event.latitude != null && event.longitude != null && userCoords != null -> {
                 distanceKm = riskEngine.haversineKm(
-                    userCoords.first, userCoords.second,
-                    event.latitude, event.longitude
+                    userCoords.first, userCoords.second, event.latitude, event.longitude
                 )
+                proximityKnown = true
                 locationRelevance = when {
-                    distanceKm <= 50   -> LocationRelevance.SAME_CITY
-                    distanceKm <= 300  -> LocationRelevance.SAME_COUNTRY
-                    distanceKm <= 500  -> LocationRelevance.BORDER_REGION
-                    else               -> LocationRelevance.DISTANT
+                    distanceKm <= 50  -> LocationRelevance.SAME_CITY
+                    distanceKm <= 300 -> LocationRelevance.SAME_COUNTRY
+                    distanceKm <= 500 -> LocationRelevance.BORDER_REGION
+                    else              -> LocationRelevance.DISTANT
                 }
             }
-
             event.country != null -> {
                 val eventCountry = event.country.lowercase().trim()
                 locationRelevance = when {
                     userCountry.isNotBlank() && eventCountry.contains(userCountry) -> LocationRelevance.SAME_COUNTRY
                     userCountry.isNotBlank() && userCountry.contains(eventCountry) -> LocationRelevance.SAME_COUNTRY
-                    else                                                            -> LocationRelevance.DISTANT
+                    else                                                           -> LocationRelevance.DISTANT
                 }
                 distanceKm = if (locationRelevance == LocationRelevance.DISTANT) 9999.0 else 150.0
+                proximityKnown = false   // ← 150 is a label, not a measurement
             }
-
             else -> {
                 locationRelevance = LocationRelevance.UNKNOWN
                 distanceKm = 9999.0
+                proximityKnown = false
             }
         }
 
@@ -201,7 +202,7 @@ class SaiaeOrchestrator(
         if (locationRelevance == LocationRelevance.UNKNOWN && !isWar) return
 
         // ── RISK ASSESSMENT ───────────────────────────────────────────────────
-        val risk = riskEngine.assess(event, confidence, distanceKm)
+        val risk = riskEngine.assess(event, confidence, distanceKm, proximityKnown = proximityKnown)
         if (risk.riskLevel == RiskLevel.NORMAL && !isWar) return
 
         val sourceMatches = eventSourceMatchRepo.findAllByNormalizedEventId(event.id!!)
