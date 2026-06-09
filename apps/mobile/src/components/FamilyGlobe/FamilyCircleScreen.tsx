@@ -244,14 +244,16 @@ const STAR_CARD: [number,number][] = [
     [0.12,0.10],[0.78,0.07],[0.88,0.22],[0.35,0.06],[0.62,0.15],[0.50,0.28],[0.20,0.32],
 ];
 
-function MemberCard({ pin, selected, onPress }: {
-    pin:ResolvedPin; selected:boolean; onPress:()=>void;
+function MemberCard({ pin, nearbyRisk, selected, onPress }: {
+    pin:ResolvedPin; nearbyRisk:"high"|"medium"|null; selected:boolean; onPress:()=>void;
 }) {
     const { phase, localTime } = getPhase(pin.lng);
     const theme  = CARD_BG[phase];
     const color  = STATUS_PIN_COLOR[pin.status] ?? "#9ca3af";
     const badge  = quietBadge(pin);
-    const check  = statusLabel(pin);
+    const check = nearbyRisk === "high"   ? "⚠ Something nearby worth checking"
+        : nearbyRisk === "medium" ? "Something nearby to stay aware of"
+            : statusLabel(pin);
     const isOvd  = pin.status === "away" || pin.status === "inactive";
 
     return (
@@ -356,7 +358,9 @@ function MemberCard({ pin, selected, onPress }: {
                 <View style={{ width:1, height:18, backgroundColor:"rgba(255,255,255,0.18)" }} />
                 <Text style={{
                     fontSize:12, fontFamily:"Inter_500Medium",
-                    color:isOvd ? "#fcd34d" : theme.dim, flex:1,
+                    color: nearbyRisk==="high" ? "#fca5a5"
+                        : nearbyRisk ? "#fcd34d"
+                            : isOvd ? "#fcd34d" : theme.dim,
                 }} numberOfLines={1}>{check}</Text>
             </View>
         </Pressable>
@@ -372,6 +376,7 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
     const bdOp      = useRef(new Animated.Value(0)).current;
 
     const pins   = useMemo(() => resolveMembers(members, meRegion), [members, meRegion]);
+    // TODO show why the pending member shows twice
     const pendingMembers = useMemo(() => members.filter(m => m.pending && !m.isMe), [members]);
     const selPin = pins.find(p => p.id === selId) ?? null;
     const hasAlert = events.some(e => e.severity === "high");
@@ -399,6 +404,13 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
             Animated.timing(bdOp,    { toValue:0, duration:180, useNativeDriver:true }),
         ]).start();
     }, [panelY, panelOp, bdOp]);
+
+    const worstNearbyFor = useCallback((pin: ResolvedPin): "high" | "medium" | null => {
+        const evs = events.filter(e => e.sentence && !!pin.name && e.sentence.includes(pin.name));
+        if (evs.some(e => e.severity === "high"))   return "high";
+        if (evs.some(e => e.severity === "medium")) return "medium";
+        return null;
+    }, [events]);
 
     return (
         <View style={{ flex:1 }}>
@@ -444,6 +456,7 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
                             <MemberCard
                                 key={pin.id}
                                 pin={pin}
+                                nearbyRisk={worstNearbyFor(pin)}
                                 selected={selId===pin.id}
                                 onPress={() => openSheet(pin)}
                             />
@@ -577,6 +590,9 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
                     // Prefer the backend's vetted calm sentence for THIS person (the
                     // SAIAE sentence names them); fall back to a calm default otherwise.
                     const pinEvs = events.filter(e => !e.sentence || (!!selPin.name && e.sentence.includes(selPin.name)));
+                    const worstNearby = pinEvs.some(e => e.severity === "high")   ? "high"
+                        : pinEvs.some(e => e.severity === "medium") ? "medium"
+                            : null;
                     const memberAlert = events.find(e => e.sentence && !!selPin.name && e.sentence.includes(selPin.name));
                     const olliaNote = memberAlert?.sentence ?? (isOvd
                         ? `Ollia hasn't noticed anything unusual near ${selPin.region.split(",")[0]}. Things seem calm.`
@@ -620,7 +636,12 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
                                 {([
                                     { icon:"clock",       label:"Last seen",  val:formatLastSeen(selPin.lastSeen),      col:undefined },
                                     { icon:"check-circle",label:"Check-in",   val:formatLastSeen(selPin.lastCheckInAt), col:undefined },
-                                    { icon:"shield",      label:"Nearby",     val:isOvd?"Seems calm":"All quiet",       col:isOvd?"#10b981":"#10b981" },
+                                    {
+                                        icon:"shield", label:"Nearby", val: worstNearby==="high"   ? "Worth checking"
+                                            : worstNearby==="medium" ? "Stay aware" : "All quiet",
+                                        col: worstNearby==="high"   ? "#ef4444"
+                                            : worstNearby==="medium" ? "#f59e0b" : "#10b981"
+                                    },
                                     { icon:"map-pin",     label:"Feeling",    val:isOvd?"Worth checking in":"Settled",  col:isOvd?"#f59e0b":"#10b981" },
                                 ] as const).map(({ icon, label, val, col }) => (
                                     <View key={label} style={{ flex:1,minWidth:"44%",backgroundColor:"#F7F0E6",borderRadius:14,padding:12,gap:4,borderWidth:1,borderColor:"#EAD9C0" }}>
