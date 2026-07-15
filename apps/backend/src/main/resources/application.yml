@@ -53,3 +53,9 @@ management:
 newsdata:
   # Secret — must be provided via env. Collector skips gracefully when blank.
   api-key: ${NEWSDATA_API_KEY:}
+
+# News aggregators (GDELT / NewsData) are off by default — official sources only.
+ollia:
+  collectors:
+    news:
+      enabled: ${OLLIA_COLLECTORS_NEWS_ENABLED:true}

@@ -219,14 +219,20 @@ class ReferenceApiController(
                 id = member.id.toString(),
                 userId = memberUser.clerkId,
                 name = memberUser.name,
-                region = memberUser.region,
+                region = if (memberUser.shareRegion) {
+                    if (memberUser.travelMode && !memberUser.travelDestination.isNullOrBlank()) {
+                        memberUser.travelDestination
+                    } else {
+                        memberUser.region
+                    }
+                } else null,
                 avatarUrl = memberUser.avatarUrl,
                 relation = member.relation,
                 lastCheckInAt = memberUser.lastCheckInAt?.toString(),
                 lastSeen = memberUser.lastSeenAt?.toString(),
                 joinedAt = null,
                 travelMode = memberUser.travelMode,
-                travelDestination = memberUser.travelDestination
+                travelDestination = if (memberUser.shareRegion) memberUser.travelDestination else null
             )
         }
 
@@ -364,14 +370,20 @@ class ReferenceApiController(
     @GetMapping("/safety-events")
     fun getSafetyEvents(): List<SafetyEventResponse> {
         val user = currentUserService.getCurrentUser()
-        val memberIds = familyMemberRepository
+        val circleIds = familyMemberRepository
             .findAllByUserId(user.id!!)
-            .map { it.userId }
-            .filter { it != user.id }
+            .map { it.circleId }
             .distinct()
-        val allIds = (memberIds + listOf(user.id!!)).distinct()
+        if (circleIds.isEmpty()) return emptyList()
+
+        val hasPeers = familyMemberRepository
+            .findAllByCircleIdIn(circleIds)
+            .any { it.userId != user.id }
+        if (!hasPeers) return emptyList()
+
+        // Cache is keyed by observer (current user), same as /api/v2/alerts.
         return saiaeAlertCacheRepository
-            .findAllByUserIdIn(allIds)
+            .findAllByUserId(user.id!!)
             .filter { it.effectiveRisk != "NORMAL" }
             .sortedByDescending { it.renderedAt }
             .take(20)
@@ -430,10 +442,12 @@ class ReferenceApiController(
         val user = currentUserService.getCurrentUser()
         if (request.notifyActivity != null) user.notifyActivity = request.notifyActivity
         if (request.notifyInactivity != null) user.notifyInactivity = request.notifyInactivity
+        if (request.shareRegion != null) user.shareRegion = request.shareRegion
         userRepository.save(user)
         return PreferencesResponse(
             notifyActivity = user.notifyActivity,
-            notifyInactivity = user.notifyInactivity
+            notifyInactivity = user.notifyInactivity,
+            shareRegion = user.shareRegion
         )
     }
 
@@ -443,7 +457,8 @@ class ReferenceApiController(
         val user = currentUserService.getCurrentUser()
         return PreferencesResponse(
             notifyActivity = user.notifyActivity,
-            notifyInactivity = user.notifyInactivity
+            notifyInactivity = user.notifyInactivity,
+            shareRegion = user.shareRegion
         )
     }
 

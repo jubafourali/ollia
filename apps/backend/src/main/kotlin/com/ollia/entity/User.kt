@@ -22,6 +22,9 @@ class User(
 
     var region: String? = null,
 
+    @Column(name = "share_region", nullable = false)
+    var shareRegion: Boolean = true,
+
     @Column(name = "avatar_url", length = 1000)
     var avatarUrl: String? = null,
 

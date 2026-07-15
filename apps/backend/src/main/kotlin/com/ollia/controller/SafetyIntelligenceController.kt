@@ -1,9 +1,7 @@
 package com.ollia.controller
 
-import com.ollia.repository.FamilyCircleRepository
 import com.ollia.repository.FamilyMemberRepository
 import com.ollia.repository.NormalizedSafetyEventRepository
-import com.ollia.repository.UserRepository
 import com.ollia.saiae.repository.SaiaeCircleAlertCacheRepository
 import com.ollia.saiae.repository.SaiaeConfidenceReportRepository
 import com.ollia.saiae.repository.SaiaeEventSourceMatchRepository
@@ -30,9 +28,7 @@ import java.util.UUID
 @RequestMapping("/api/v2/alerts")
 class SafetyIntelligenceController(
     private val currentUserService: CurrentUserService,
-    private val userRepository: UserRepository,
     private val familyMemberRepository: FamilyMemberRepository,
-    private val familyCircleRepository: FamilyCircleRepository,
     private val alertCacheRepo: SaiaeCircleAlertCacheRepository,
     private val normalizedRepo: NormalizedSafetyEventRepository,
     private val confidenceReportRepo: SaiaeConfidenceReportRepository,
@@ -43,7 +39,8 @@ class SafetyIntelligenceController(
     fun getAlerts(): ResponseEntity<List<AlertCardResponse>> {
         val user = currentUserService.getCurrentUser()
 
-        // Find all users in circles that this user is part of
+        // Cards are cached per observer (the person who should see them), not per
+        // watched member. Load the current user's feed only.
         val circleIds = familyMemberRepository
             .findAllByUserId(user.id!!)
             .map { it.circleId }
@@ -51,17 +48,13 @@ class SafetyIntelligenceController(
 
         if (circleIds.isEmpty()) return ResponseEntity.ok(emptyList())
 
-        // All members in those circles (excluding self)
-        val memberUserIds = familyMemberRepository
+        val hasPeers = familyMemberRepository
             .findAllByCircleIdIn(circleIds)
-            .map { it.userId }
-            .filter { it != user.id }
-            .distinct()
+            .any { it.userId != user.id }
 
-        if (memberUserIds.isEmpty()) return ResponseEntity.ok(emptyList())
+        if (!hasPeers) return ResponseEntity.ok(emptyList())
 
-        // Load cached alert cards for those members.
-        val cards = alertCacheRepo.findAllByUserIdIn(memberUserIds)
+        val cards = alertCacheRepo.findAllByUserId(user.id!!)
 
         // Batch-load the referenced events once, then keep only VERIFIED ones
         // (no per-card findById — that was an N+1 over the whole feed).

@@ -10,6 +10,7 @@ import com.ollia.entity.SourceType
 import com.ollia.repository.RawSafetySignalRepository
 import com.ollia.util.HashUtils
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
@@ -17,16 +18,20 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * GDELT Project collector — global news event monitoring.
+ * GDELT Project collector — optional news corroboration only.
  *
- * Free, no API key, real-time. Covers conflict, terrorism, civil unrest,
- * protests globally across 100+ languages.
- *
- * Throttled to 30 minutes between calls. GDELT sometimes returns HTML
- * instead of JSON (rate-limit page) — handled gracefully by reading
- * as raw String first, then parsing only if valid JSON.
+ * Disabled by default: Ollia surfaces official instrument / agency sources
+ * (USGS, GDACS, NOAA, government advisories). Enable with
+ * `ollia.collectors.news.enabled=true` if you need news as secondary signals
+ * gated by the confidence police.
  */
 @Component
+@ConditionalOnProperty(
+    prefix = "ollia.collectors.news",
+    name = ["enabled"],
+    havingValue = "true",
+    matchIfMissing = false
+)
 class GdeltCollector(
     private val objectMapper: ObjectMapper,
     private val repository: RawSafetySignalRepository

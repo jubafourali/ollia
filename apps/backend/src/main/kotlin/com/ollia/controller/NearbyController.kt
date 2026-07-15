@@ -82,7 +82,12 @@ class NearbyController(
             return ResponseEntity.ok(
                 otherMemberIds.mapNotNull { id ->
                     memberUsers[id]?.let { user ->
-                        NearbyMemberResponse(memberId = id, name = user.name, region = user.region ?: "", events = emptyList())
+                        NearbyMemberResponse(
+                            memberId = id,
+                            name = user.name,
+                            region = displayRegion(user),
+                            events = emptyList()
+                        )
                     }
                 }
             )
@@ -101,8 +106,9 @@ class NearbyController(
         val result = allMemberIds.mapNotNull { memberId ->
             val user = memberUsers[memberId] ?: return@mapNotNull null
 
-            val userCoords = approximateCoords(user.region)
-            val userCountry = extractCountry(user.region)
+            val presenceRegion = presenceRegion(user)
+            val userCoords = approximateCoords(presenceRegion)
+            val userCountry = extractCountry(presenceRegion)
 
             val events = verifiedEvents.mapNotNull { event ->
                 val confidence = confidenceByEventId[event.id] ?: return@mapNotNull null
@@ -154,7 +160,7 @@ class NearbyController(
             NearbyMemberResponse(
                 memberId = memberId,
                 name     = user.name,
-                region   = user.region ?: "",
+                region   = displayRegion(user),
                 events   = events,
                 isMe     = memberId == me.id
             )
@@ -329,6 +335,19 @@ class NearbyController(
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    private fun presenceRegion(user: com.ollia.entity.User): String? {
+        if (user.travelMode && !user.travelDestination.isNullOrBlank()) {
+            return user.travelDestination
+        }
+        return user.region
+    }
+
+    /** City shown to circle peers — blank when the member opted out of sharing. */
+    private fun displayRegion(user: com.ollia.entity.User): String {
+        if (!user.shareRegion) return ""
+        return presenceRegion(user) ?: ""
+    }
+
     private fun riskOrdinal(level: String) = when (level) {
         "IMPORTANT_DISRUPTION" -> 2
         "STAY_AWARE"           -> 1
@@ -344,7 +363,6 @@ class NearbyController(
         }
     }
 
-    @Suppress("unused") // Kept for when coordinate-based matching is re-enabled (see getRegion).
     private fun approximateCoords(region: String?): Pair<Double, Double>? {
         if (region.isNullOrBlank()) return null
         return CITY_COORDS.entries.firstOrNull {

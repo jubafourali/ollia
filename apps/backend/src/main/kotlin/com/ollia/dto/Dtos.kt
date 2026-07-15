@@ -136,13 +136,15 @@ data class SubscriptionStatusResponse(
 // PATCH /api/users/me/preferences — request
 data class UpdatePreferencesRequest(
     val notifyActivity: Boolean? = null,
-    val notifyInactivity: Boolean? = null
+    val notifyInactivity: Boolean? = null,
+    val shareRegion: Boolean? = null
 )
 
 // PATCH /api/users/me/preferences — response
 data class PreferencesResponse(
     val notifyActivity: Boolean,
-    val notifyInactivity: Boolean
+    val notifyInactivity: Boolean,
+    val shareRegion: Boolean
 )
 
 // GET/PATCH /api/users/me/emergency-contact — response

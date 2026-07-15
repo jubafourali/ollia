@@ -7,7 +7,6 @@ import com.ollia.entity.RiskLevel
 import com.ollia.entity.SafetyCategory
 import com.ollia.entity.SaiaeConfidenceReport
 import com.ollia.entity.User
-import com.ollia.repository.FamilyCircleRepository
 import com.ollia.repository.FamilyMemberRepository
 import com.ollia.repository.NormalizedSafetyEventRepository
 import com.ollia.repository.UserRepository
@@ -53,7 +52,6 @@ class SaiaeOrchestrator(
     private val sourceRegistryRepo: SaiaeSourceRegistryRepository,
     private val userRepository: UserRepository,
     private val familyMemberRepository: FamilyMemberRepository,
-    private val familyCircleRepository: FamilyCircleRepository,
     private val correlationService: EventCorrelationService,
     private val policeEngine: PoliceEngineService,
     private val riskEngine: RiskAssessmentService,
@@ -123,8 +121,11 @@ class SaiaeOrchestrator(
                 val observers = findCircleObservers(watchedUser, allUsers)
                 if (observers.isEmpty()) continue
 
-                val userCoords = approximateUserCoords(watchedUser.region)
-                val userCountry = extractCountry(watchedUser.region)
+                // Travel mode: geo against the destination the circle already sees,
+                // not the stale home region — otherwise alerts lag the person's trip.
+                val presenceRegion = presenceRegion(watchedUser)
+                val userCoords = approximateUserCoords(presenceRegion)
+                val userCountry = extractCountry(presenceRegion)
 
                 for (event in verifiedEvents) {
                     try {
@@ -159,8 +160,8 @@ class SaiaeOrchestrator(
     ) {
         val isWar = event.category in warEventCategories
 
-        // Skip if user has no region and it's not a war event
-        if (watchedUser.region.isNullOrBlank() && !isWar) return
+        // Skip if user has no presence region and it's not a war event
+        if (presenceRegion(watchedUser).isNullOrBlank() && !isWar) return
 
         // ── LOCATION RELEVANCE ────────────────────────────────────────────────
         val distanceKm: Double
@@ -246,15 +247,30 @@ class SaiaeOrchestrator(
         }
     }
 
+    /**
+     * Everyone else who shares a circle with [watchedUser] — peers, not only owners.
+     * Cards and pushes are keyed by observer; owners-only left the rest of the circle blind.
+     */
     private fun findCircleObservers(watchedUser: User, allUsers: List<User>): List<User> {
         val circleIds = familyMemberRepository
             .findAllByUserId(watchedUser.id!!)
             .map { it.circleId }
             .distinct()
         if (circleIds.isEmpty()) return emptyList()
-        val circles  = familyCircleRepository.findAllById(circleIds)
-        val ownerIds = circles.map { it.ownerId }.filter { it != watchedUser.id }.toSet()
-        return allUsers.filter { it.id in ownerIds }
+        val peerIds = familyMemberRepository
+            .findAllByCircleIdIn(circleIds)
+            .map { it.userId }
+            .filter { it != watchedUser.id }
+            .toSet()
+        return allUsers.filter { it.id in peerIds }
+    }
+
+    /** Region used for geo relevance: travel destination when traveling, else home. */
+    private fun presenceRegion(user: User): String? {
+        if (user.travelMode && !user.travelDestination.isNullOrBlank()) {
+            return user.travelDestination
+        }
+        return user.region
     }
 
     private fun extractCountry(region: String?): String {

@@ -3,7 +3,6 @@ package com.ollia.service
 import com.ollia.entity.SafetyEvent
 import com.ollia.repository.SafetyEventRepository
 import org.slf4j.LoggerFactory
-import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.web.reactive.function.client.WebClient
 import java.time.Instant
@@ -27,18 +26,13 @@ class SafetyEventService(
         return safetyEventRepository.findAllByFetchedAtAfterOrderByEventTimeDesc(since)
     }
 
-    // every 15 minutes
-    @Scheduled(fixedRate = 900_000)
+    // Legacy dual-path ingest into `safety_events`. SAIAE collectors own
+    // live ingestion now; this scheduled fetch is deliberately disabled so
+    // we don't hit USGS/NOAA/GDACS twice and drift from the verified pipeline.
+    // getEvents() remains for any residual reads of the legacy table.
+    // @Scheduled(fixedRate = 900_000)
     fun fetchAllSources() {
-        val now = Instant.now()
-        if (java.time.Duration.between(lastFetch.get(), now).toMinutes() < 14) return
-        lastFetch.set(now)
-
-        logger.info("Fetching safety events from all sources")
-        fetchUsgsEarthquakes()
-        fetchNoaaAlerts()
-        fetchGdacsEvents()
-        cleanupOldEvents()
+        logger.debug("Legacy SafetyEventService.fetchAllSources skipped — SAIAE pipeline is authoritative")
     }
 
     private fun fetchUsgsEarthquakes() {

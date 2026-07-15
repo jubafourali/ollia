@@ -11,6 +11,7 @@ import com.ollia.repository.RawSafetySignalRepository
 import com.ollia.util.HashUtils
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.util.UriComponentsBuilder
@@ -21,16 +22,18 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * NewsData.io collector — global news aggregator.
+ * NewsData.io collector — optional news corroboration only.
  *
- * Free tier: 200 credits/day, 10 articles per request.
- * Self-throttles to once per hour (24 calls/day max) to stay
- * well within the free tier limit.
- *
- * Single merged query replaces the previous two-query approach
- * that was burning ~576 credits/day.
+ * Disabled by default (see GdeltCollector). Enable with
+ * `ollia.collectors.news.enabled=true` when a NewsData API key is configured.
  */
 @Component
+@ConditionalOnProperty(
+    prefix = "ollia.collectors.news",
+    name = ["enabled"],
+    havingValue = "true",
+    matchIfMissing = false
+)
 class NewsDataCollector(
     private val objectMapper: ObjectMapper,
     private val repository: RawSafetySignalRepository,
