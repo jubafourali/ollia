@@ -19,6 +19,8 @@ data class CoverageInfo(
     val coveredLabels: List<String>,
     /** Human labels for gaps. */
     val notCoveredLabels: List<String>,
+    /** Short chips shown above the fold — what we do not claim. */
+    val gapChips: List<String>,
     val sourcesActive: List<String>,
     val disclaimer: String,
 )
@@ -43,6 +45,9 @@ object CoveragePolicy {
     private const val PROMISE =
         "When something major and verified happens near people you love, Ollia usually catches it from trustworthy sources. Quiet means those sources were checked — not that nothing happened on earth."
 
+    private const val PROMISE_SHORT =
+        "Quiet means instruments were checked — not that nothing happened locally."
+
     fun forPlace(country: String): CoverageInfo {
         val c = country.lowercase().trim()
         return when {
@@ -58,16 +63,15 @@ object CoveragePolicy {
     }
 
     fun checkedAndClearSummary(placeLabel: String, coverage: CoverageInfo): String {
-        val sources = coverage.sourcesActive.take(4).joinToString(", ")
-        return "Checked $sources for $placeLabel — no major verified alerts match right now. " +
-            "Quiet means those sources were clear, not that nothing happened locally."
+        val sources = coverage.sourcesActive.joinToString(", ")
+        return "No major verified alerts for $placeLabel. Checked: $sources."
     }
 
     private fun francePack(country: String) = CoverageInfo(
         country = country,
         packId = "france",
         packLabel = "France coverage pack",
-        promise = PROMISE,
+        promise = PROMISE_SHORT,
         hazardsCovered = alwaysKeys + listOf("severe_weather", "flood_warning"),
         hazardsNotCovered = neverKeys + listOf("full_national_cap_depth"),
         coveredLabels = alwaysLabels + listOf(
@@ -78,6 +82,7 @@ object CoveragePolicy {
             "Every Météo-France municipal advisory",
             "Metro / RATP disruptions",
         ),
+        gapChips = listOf("Crime", "Street-level", "Metro / RATP", "Rumors"),
         sourcesActive = listOf("USGS", "GDACS", "GOVERNMENT_ALERT", "METEOALARM", "OPEN_METEO"),
         disclaimer = "France pack: major disasters, official European weather warnings, and advisories — not crime or every local incident in Paris.",
     )
@@ -86,7 +91,7 @@ object CoveragePolicy {
         country = country,
         packId = "algeria",
         packLabel = "Algeria coverage pack",
-        promise = PROMISE,
+        promise = PROMISE_SHORT,
         hazardsCovered = alwaysKeys + listOf("severe_weather"),
         hazardsNotCovered = neverKeys + listOf("national_weather_agency", "local_security_bulletin"),
         coveredLabels = alwaysLabels + listOf(
@@ -96,6 +101,7 @@ object CoveragePolicy {
             "ONM / national CAP weather depth (not fully wired yet)",
             "Local security or municipal bulletins",
         ),
+        gapChips = listOf("Crime", "Full ONM CAP", "Local security", "Rumors"),
         sourcesActive = listOf("USGS", "GDACS", "GOVERNMENT_ALERT", "OPEN_METEO"),
         disclaimer = "Algeria pack: major disasters, extreme-condition probes, and advisories — not street crime or full national weather CAP yet.",
     )
@@ -104,7 +110,7 @@ object CoveragePolicy {
         country = country,
         packId = "uae",
         packLabel = "UAE coverage pack",
-        promise = PROMISE,
+        promise = PROMISE_SHORT,
         hazardsCovered = alwaysKeys + listOf("severe_weather"),
         hazardsNotCovered = neverKeys + listOf("ncm_full_feed", "local_security_bulletin"),
         coveredLabels = alwaysLabels + listOf(
@@ -114,6 +120,7 @@ object CoveragePolicy {
             "Full UAE NCM alert feed (not fully wired yet)",
             "Local municipal or traffic incidents",
         ),
+        gapChips = listOf("Crime", "Full NCM feed", "Traffic incidents", "Rumors"),
         sourcesActive = listOf("USGS", "GDACS", "GOVERNMENT_ALERT", "OPEN_METEO"),
         disclaimer = "UAE pack: major disasters, extreme-condition probes, and advisories — not NCM full depth or every Dubai local incident.",
     )
@@ -122,11 +129,12 @@ object CoveragePolicy {
         country = country,
         packId = "united_states",
         packLabel = "United States coverage",
-        promise = PROMISE,
+        promise = PROMISE_SHORT,
         hazardsCovered = alwaysKeys + listOf("local_weather"),
         hazardsNotCovered = neverKeys,
         coveredLabels = alwaysLabels + listOf("US severe weather (NOAA / NWS)"),
         notCoveredLabels = neverLabels,
+        gapChips = listOf("Crime", "Street-level", "Protests", "Rumors"),
         sourcesActive = listOf("USGS", "GDACS", "GOVERNMENT_ALERT", "NOAA"),
         disclaimer = "US coverage includes NOAA weather. Still not crime or every local incident.",
     )
@@ -135,7 +143,7 @@ object CoveragePolicy {
         country = country,
         packId = "europe",
         packLabel = "Europe coverage",
-        promise = PROMISE,
+        promise = PROMISE_SHORT,
         hazardsCovered = alwaysKeys + listOf("severe_weather"),
         hazardsNotCovered = neverKeys + listOf("full_national_cap_depth"),
         coveredLabels = alwaysLabels + listOf(
@@ -143,6 +151,7 @@ object CoveragePolicy {
             "Extreme-condition probes (Open-Meteo)",
         ),
         notCoveredLabels = neverLabels + listOf("Every national municipal weather advisory"),
+        gapChips = listOf("Crime", "Street-level", "Protests", "Rumors"),
         sourcesActive = listOf("USGS", "GDACS", "GOVERNMENT_ALERT", "METEOALARM", "OPEN_METEO"),
         disclaimer = "European coverage: disasters + MeteoAlarm weather warnings — not crime or street-level news.",
     )
@@ -151,11 +160,12 @@ object CoveragePolicy {
         country = country,
         packId = "global",
         packLabel = "Global baseline coverage",
-        promise = PROMISE,
+        promise = PROMISE_SHORT,
         hazardsCovered = alwaysKeys + listOf("severe_weather"),
         hazardsNotCovered = neverKeys + listOf("local_weather_agency"),
         coveredLabels = alwaysLabels + listOf("Extreme-condition probes where we monitor hubs (Open-Meteo)"),
         notCoveredLabels = neverLabels + listOf("Local national weather CAP (varies by country)"),
+        gapChips = listOf("Crime", "Street-level", "Local CAP gaps", "Rumors"),
         sourcesActive = listOf("USGS", "GDACS", "GOVERNMENT_ALERT", "OPEN_METEO"),
         disclaimer = "Baseline: major disasters and advisories. Local weather depth varies — quiet is not omniscience.",
     )

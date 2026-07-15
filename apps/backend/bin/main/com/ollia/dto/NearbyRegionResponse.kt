@@ -14,6 +14,33 @@ data class NearbyRegionResponse(
     val summary:   String,   // calm smart-summary sentence for the safety banner
     val events:    List<NearbyEventResponse>,
     val coverage:  CoverageResponse? = null,
+    /** Live place snapshot — weather + overall tone ("being there"). */
+    val situation: PlaceSituationResponse? = null,
+)
+
+data class PlaceSituationResponse(
+    val placeLabel: String,
+    val country: String?,
+    val asOf: String,
+    val weather: WeatherSnapshot?,
+    val overall: String,
+    /** calm | unsettled | disrupted */
+    val tone: String,
+    val instrumentsChecked: List<String>,
+    val alertCount: Int,
+    val caveat: String,
+)
+
+data class WeatherSnapshot(
+    val temperatureC: Double,
+    val feelsLikeC: Double? = null,
+    val weatherCode: Int,
+    val condition: String,
+    val windKmh: Double,
+    val humidityPct: Int? = null,
+    val highC: Double? = null,
+    val lowC: Double? = null,
+    val isHarsh: Boolean = false,
 )
 
 data class CoverageResponse(
@@ -25,6 +52,7 @@ data class CoverageResponse(
     val hazardsNotCovered: List<String>,
     val coveredLabels: List<String>,
     val notCoveredLabels: List<String>,
+    val gapChips: List<String> = emptyList(),
     val sourcesActive: List<String>,
     val disclaimer: String,
 )

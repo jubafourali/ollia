@@ -179,7 +179,7 @@ class CoverageGeoMatchTest {
         val s = CoveragePolicy.checkedAndClearSummary("Algiers", c)
         assertTrue(s.contains("USGS"))
         assertTrue(s.contains("Algiers"))
-        assertTrue(s.contains("Quiet means") || s.contains("not that nothing"))
+        assertTrue(s.contains("Checked:") || s.contains("No major verified"))
     }
 
     @Test

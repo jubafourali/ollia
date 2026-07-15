@@ -11,6 +11,7 @@ import com.ollia.entity.RiskLevel
 import com.ollia.entity.SafetyCategory
 import com.ollia.geo.CoveragePolicy
 import com.ollia.geo.PlaceResolver
+import com.ollia.geo.PlaceSituationService
 import com.ollia.repository.FamilyMemberRepository
 import com.ollia.repository.NormalizedSafetyEventRepository
 import com.ollia.repository.UserRepository
@@ -50,7 +51,8 @@ class NearbyController(
     private val sourceMatchRepo: SaiaeEventSourceMatchRepository,
     private val sourceRegistryRepo: SaiaeSourceRegistryRepository,
     private val riskEngine: RiskAssessmentService,
-    private val contextEngine: ContextIntelligenceService
+    private val contextEngine: ContextIntelligenceService,
+    private val placeSituationService: PlaceSituationService,
 ) {
 
     @GetMapping
@@ -200,27 +202,40 @@ class NearbyController(
             hazardsNotCovered = coverage.hazardsNotCovered,
             coveredLabels = coverage.coveredLabels,
             notCoveredLabels = coverage.notCoveredLabels,
+            gapChips = coverage.gapChips,
             sourcesActive = coverage.sourcesActive,
             disclaimer = coverage.disclaimer,
         )
         val placeLabel = place?.city?.takeIf { it.isNotBlank() }
             ?: trimmed.substringBefore(",").trim().ifBlank { "this area" }
 
-        if (trimmed.isBlank()) {
-            return ResponseEntity.ok(
-                NearbyRegionResponse(trimmed, "NORMAL", CoveragePolicy.checkedAndClearSummary(placeLabel, coverage), emptyList(), coverageDto)
+        fun respond(
+            worstRisk: String,
+            summary: String,
+            events: List<NearbyEventResponse>,
+        ): ResponseEntity<NearbyRegionResponse> {
+            val situation = placeSituationService.build(
+                place = place,
+                placeLabel = placeLabel,
+                coverage = coverage,
+                worstRisk = worstRisk,
+                alertCount = events.size,
+                topAlertSentence = events.firstOrNull()?.sentence,
             )
+            // Prefer situation overall as summary when quiet — "being there" first.
+            val effectiveSummary = if (events.isEmpty()) situation.overall else summary
+            return ResponseEntity.ok(
+                NearbyRegionResponse(trimmed, worstRisk, effectiveSummary, events, coverageDto, situation)
+            )
+        }
+
+        if (trimmed.isBlank()) {
+            return respond("NORMAL", CoveragePolicy.checkedAndClearSummary(placeLabel, coverage), emptyList())
         }
 
         val verifiedEvents = normalizedRepo.findAllByStatus(EventStatus.VERIFIED)
         if (verifiedEvents.isEmpty()) {
-            return ResponseEntity.ok(
-                NearbyRegionResponse(
-                    trimmed, "NORMAL",
-                    CoveragePolicy.checkedAndClearSummary(placeLabel, coverage),
-                    emptyList(), coverageDto
-                )
-            )
+            return respond("NORMAL", CoveragePolicy.checkedAndClearSummary(placeLabel, coverage), emptyList())
         }
 
         val verifiedEventIds = verifiedEvents.mapNotNull { it.id }
@@ -273,7 +288,7 @@ class NearbyController(
         val summary = events.firstOrNull()?.sentence
             ?: CoveragePolicy.checkedAndClearSummary(placeLabel, coverage)
 
-        return ResponseEntity.ok(NearbyRegionResponse(trimmed, worstRisk, summary, events, coverageDto))
+        return respond(worstRisk, summary, events)
     }
 
     /**
@@ -296,6 +311,7 @@ class NearbyController(
                 hazardsNotCovered = coverage.hazardsNotCovered,
                 coveredLabels = coverage.coveredLabels,
                 notCoveredLabels = coverage.notCoveredLabels,
+                gapChips = coverage.gapChips,
                 sourcesActive = coverage.sourcesActive,
                 disclaimer = coverage.disclaimer,
             )
