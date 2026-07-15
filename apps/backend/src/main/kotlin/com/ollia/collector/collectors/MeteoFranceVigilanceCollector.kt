@@ -20,14 +20,11 @@ import java.time.Instant
 import java.time.LocalDate
 
 /**
- * Official Météo-France departmental vigilance (DP Vigilance).
+ * Official Météo-France departmental vigilance (DP Vigilance V6 carte).
  *
- * Requires a free account + API key from https://portail-api.meteofrance.fr/
- * Subscribe to DonneesPubliquesVigilance, then set:
- *   METEO_FRANCE_API_KEY=<basic credentials or apikey from portal>
- *   ollia.collectors.meteofrance.enabled=true
- *
- * This is the depth path for Paris / France beyond MeteoAlarm Atom.
+ * Portal JWT (eyJ…) or Base64 OAuth credentials:
+ *   METEO_FRANCE_API_KEY=…
+ *   OLLIA_COLLECTORS_METEOFRANCE_ENABLED=true
  */
 @Component
 @ConditionalOnProperty(
@@ -54,24 +51,27 @@ class MeteoFranceVigilanceCollector(
             logger.warn("Météo-France enabled but meteofrance.api-key is blank — skipping")
             return emptyList()
         }
-        val token = fetchToken() ?: return emptyList()
-        val map = fetchVigilanceMap(token) ?: return emptyList()
+        val map = fetchVigilanceMap() ?: return emptyList()
         val now = Instant.now()
         val day = LocalDate.now().toString()
         val collected = mutableListOf<RawSafetyEvent>()
-
-        // Product schema varies; walk common vigilance color fields aggressively.
-        collectFromTree(map, day, now, collected)
+        parseV6Carte(map, day, now, collected)
         logger.info("Météo-France vigilance fetched ${collected.size} signals")
         return collected
     }
 
-    private fun fetchToken(): String? {
+    private fun resolveBearer(): String? {
+        val trimmed = apiKey.trim()
+        if (trimmed.startsWith("eyJ")) return trimmed
+        return fetchOauthToken(trimmed)
+    }
+
+    private fun fetchOauthToken(basicCredentials: String): String? {
         return try {
             val body = webClient.post()
                 .uri("https://portail-api.meteofrance.fr/token")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .header("Authorization", "Basic $apiKey")
+                .header("Authorization", "Basic $basicCredentials")
                 .bodyValue("grant_type=client_credentials")
                 .retrieve()
                 .bodyToMono(JsonNode::class.java)
@@ -83,11 +83,13 @@ class MeteoFranceVigilanceCollector(
         }
     }
 
-    private fun fetchVigilanceMap(token: String): JsonNode? {
+    private fun fetchVigilanceMap(): JsonNode? {
+        val bearer = resolveBearer() ?: return null
         return try {
             webClient.get()
                 .uri("https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours")
-                .header("Authorization", "Bearer $token")
+                .header("Authorization", "Bearer $bearer")
+                .header("apikey", bearer)
                 .header("Accept", "application/json")
                 .retrieve()
                 .bodyToMono(JsonNode::class.java)
@@ -98,104 +100,152 @@ class MeteoFranceVigilanceCollector(
         }
     }
 
-    private fun collectFromTree(
-        node: JsonNode,
+    /** Parse DP Vigilance carte V6: periods → timelaps → domain_ids → phenomenon_items → timelaps_items. */
+    private fun parseV6Carte(
+        root: JsonNode,
         day: String,
         now: Instant,
         collected: MutableList<RawSafetyEvent>,
     ) {
-        when {
-            node.isObject -> {
-                val color = node.path("color_id").asText(null)
-                    ?: node.path("color").asText(null)
-                    ?: node.path("vigilance_color").asText(null)
-                val dep = node.path("domain_id").asText(null)
-                    ?: node.path("department").asText(null)
-                    ?: node.path("dep").asText(null)
-                val phenom = node.path("phenomenon_id").asText(null)
-                    ?: node.path("phenomenon").asText(null)
-                    ?: node.path("risk_name").asText(null)
-
-                if (color != null && isActionableColor(color)) {
-                    addSignal(dep, phenom, color, day, now, node, collected)
+        val periods = root.path("product").path("periods")
+        if (!periods.isArray) {
+            logger.warn("Météo-France: unexpected schema (no product.periods)")
+            return
+        }
+        for (period in periods) {
+            val echeance = period.path("echeance").asText("J")
+            val domains = period.path("timelaps").path("domain_ids")
+            if (!domains.isArray) continue
+            for (domain in domains) {
+                val dep = domain.path("domain_id").asText(null) ?: continue
+                // Skip national FRA aggregate — emit department rows (geo matches Paris via country).
+                if (dep.equals("FRA", ignoreCase = true)) continue
+                val phenomena = domain.path("phenomenon_items")
+                if (!phenomena.isArray) continue
+                for (phen in phenomena) {
+                    val phenomId = phen.path("phenomenon_id").asText(null) ?: continue
+                    val maxColor = colorInt(phen.path("phenomenon_max_color_id"))
+                        ?: phen.path("timelaps_items").maxOfOrNull { colorInt(it.path("color_id")) ?: 0 }
+                        ?: 0
+                    if (maxColor < 3) continue // orange+ only
+                    addSignal(
+                        dep = dep,
+                        phenomId = phenomId,
+                        color = maxColor,
+                        echeance = echeance,
+                        day = day,
+                        now = now,
+                        collected = collected,
+                    )
                 }
-                node.fields().forEachRemaining { (_, child) -> collectFromTree(child, day, now, collected) }
             }
-            node.isArray -> node.forEach { collectFromTree(it, day, now, collected) }
         }
     }
 
-    private fun isActionableColor(color: String): Boolean {
-        val c = color.lowercase()
-        // 1=green, 2=yellow, 3=orange, 4=red (ids vary by product version)
-        return c in setOf("3", "4", "orange", "red", "rouge", "jaune") &&
-            c !in setOf("1", "green", "vert")
+    private fun colorInt(node: JsonNode): Int? {
+        if (node.isMissingNode || node.isNull) return null
+        return when {
+            node.isInt || node.isLong || node.isNumber -> node.asInt()
+            else -> node.asText().toIntOrNull()
+        }
     }
 
     private fun addSignal(
-        dep: String?,
-        phenom: String?,
-        color: String,
+        dep: String,
+        phenomId: String,
+        color: Int,
+        echeance: String,
         day: String,
         now: Instant,
-        payload: JsonNode,
         collected: MutableList<RawSafetyEvent>,
     ) {
-        val colorNorm = color.lowercase()
-        // Skip pure yellow unless phenomenon is flood/storm — still surface orange+
-        if (colorNorm in setOf("2", "jaune", "yellow") &&
-            phenom?.contains("inond", ignoreCase = true) != true &&
-            phenom?.contains("orage", ignoreCase = true) != true &&
-            phenom?.contains("vent", ignoreCase = true) != true
-        ) return
-
-        val externalId = "mf:$day:${dep ?: "fr"}:${phenom ?: color}:$colorNorm"
+        val phenomName = PHENOMENA[phenomId] ?: "phénomène $phenomId"
+        val colorName = if (color >= 4) "rouge" else "orange"
+        val externalId = "mf:$day:$dep:$phenomId:$color:$echeance"
         if (repository.existsBySourceAndExternalId(source, externalId)) return
         if (collected.any { it.externalId == externalId }) return
 
-        val severity = when {
-            colorNorm in setOf("4", "red", "rouge") -> Severity.CRITICAL
-            colorNorm in setOf("3", "orange") -> Severity.HIGH
-            else -> Severity.MEDIUM
-        }
-        val category = when {
-            phenom?.contains("inond", ignoreCase = true) == true ||
-                phenom?.contains("pluie", ignoreCase = true) == true -> SafetyCategory.FLOOD
-            phenom?.contains("feu", ignoreCase = true) == true -> SafetyCategory.WILDFIRE
+        val severity = if (color >= 4) Severity.CRITICAL else Severity.HIGH
+        val category = when (phenomId) {
+            "1", "2" -> SafetyCategory.FLOOD          // vent violent / pluie-inondation
+            "3" -> SafetyCategory.EXTREME_WEATHER     // orages
+            "4" -> SafetyCategory.EXTREME_WEATHER     // inondation
+            "5" -> SafetyCategory.EXTREME_WEATHER     // neige-verglas
+            "6" -> SafetyCategory.EXTREME_WEATHER     // canicule
+            "7" -> SafetyCategory.EXTREME_WEATHER     // grand froid
+            "8" -> SafetyCategory.EXTREME_WEATHER     // avalanches
+            "9" -> SafetyCategory.EXTREME_WEATHER     // vagues-submersion
             else -> SafetyCategory.EXTREME_WEATHER
         }
-        val title = buildString {
-            append("Météo-France vigilance")
-            if (!dep.isNullOrBlank()) append(" · dép. $dep")
-            if (!phenom.isNullOrBlank()) append(" · $phenom")
-            append(" ($color)")
+        // Prefer flood category for rain/flood codes
+        val finalCategory = when (phenomId) {
+            "2", "4" -> SafetyCategory.FLOOD
+            else -> category
         }
+
+        val coords = DEPT_COORDS[dep.padStart(2, '0')] ?: DEPT_COORDS[dep]
+        val title = "Vigilance $colorName · $phenomName · dép. $dep"
         val payloadNode: ObjectNode = objectMapper.createObjectNode().apply {
             put("department", dep)
-            put("phenomenon", phenom)
-            put("color", color)
-            set<JsonNode>("raw", payload)
+            put("phenomenon_id", phenomId)
+            put("phenomenon", phenomName)
+            put("color_id", color)
+            put("color", colorName)
+            put("echeance", echeance)
         }
-        val contentHash = HashUtils.sha256(externalId)
         collected.add(
             RawSafetyEvent(
                 source = source,
                 externalId = externalId,
                 title = title.take(1000),
-                description = "Official Météo-France departmental vigilance ($color).",
+                description = "Vigilance Météo-France $colorName pour $phenomName (département $dep, échéance $echeance).",
                 sourceUrl = "https://vigilance.meteofrance.fr/",
                 country = "France",
-                city = null,
-                latitude = null,
-                longitude = null,
+                city = DEPT_CITY[dep.padStart(2, '0')] ?: DEPT_CITY[dep],
+                latitude = coords?.first,
+                longitude = coords?.second,
                 eventOccurredAt = now,
                 collectedAt = now,
-                category = category,
+                category = finalCategory,
                 severityHint = severity,
                 language = "fr",
-                contentHash = contentHash,
+                contentHash = HashUtils.sha256(externalId),
                 rawPayload = payloadNode,
             )
+        )
+    }
+
+    companion object {
+        /** Official phenomenon ids (Vigilance V6). */
+        private val PHENOMENA = mapOf(
+            "1" to "vent violent",
+            "2" to "pluie-inondation",
+            "3" to "orages",
+            "4" to "inondation",
+            "5" to "neige-verglas",
+            "6" to "canicule",
+            "7" to "grand froid",
+            "8" to "avalanches",
+            "9" to "vagues-submersion",
+        )
+
+        /** Prefects / major cities for geo matching (ICP-relevant + large deps). */
+        private val DEPT_CITY = mapOf(
+            "75" to "Paris", "92" to "Paris", "93" to "Paris", "94" to "Paris",
+            "78" to "Paris", "91" to "Paris", "95" to "Paris", "77" to "Paris",
+            "69" to "Lyon", "13" to "Marseille", "06" to "Nice", "31" to "Toulouse",
+            "33" to "Bordeaux", "44" to "Nantes", "67" to "Strasbourg", "34" to "Montpellier",
+            "59" to "Lille", "35" to "Rennes",
+        )
+
+        private val DEPT_COORDS = mapOf(
+            "75" to (48.86 to 2.35), "92" to (48.89 to 2.24), "93" to (48.91 to 2.45),
+            "94" to (48.79 to 2.46), "78" to (48.80 to 2.13), "91" to (48.52 to 2.25),
+            "95" to (49.03 to 2.07), "77" to (48.61 to 2.88),
+            "69" to (45.76 to 4.84), "13" to (43.30 to 5.40), "06" to (43.70 to 7.25),
+            "31" to (43.60 to 1.44), "33" to (44.84 to -0.58), "44" to (47.22 to -1.55),
+            "67" to (48.57 to 7.75), "34" to (43.61 to 3.88), "59" to (50.63 to 3.06),
+            "35" to (48.11 to -1.68),
         )
     }
 }

@@ -55,7 +55,8 @@ newsdata:
   api-key: ${NEWSDATA_API_KEY:}
 
 meteofrance:
-  # Base64 client credentials from portail-api.meteofrance.fr (DonneesPubliquesVigilance).
+  # Base64 client credentials OR portal JWT from portail-api.meteofrance.fr
+  # JWT keys start with eyJ… and are sent as Bearer/apikey.
   api-key: ${METEO_FRANCE_API_KEY:}
 
 # News aggregators (GDELT / NewsData) are off by default — official sources only.
@@ -64,4 +65,5 @@ ollia:
     news:
       enabled: ${OLLIA_COLLECTORS_NEWS_ENABLED:false}
     meteofrance:
-      enabled: ${OLLIA_COLLECTORS_METEOFRANCE_ENABLED:false}
+      # Defaults on when local .env sets the key; override with false if needed.
+      enabled: ${OLLIA_COLLECTORS_METEOFRANCE_ENABLED:true}
