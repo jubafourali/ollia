@@ -78,7 +78,7 @@ class OpenMeteoCollector(
         val wind = current["wind_speed_10m"]?.asDouble() ?: 0.0
         val code = current["weather_code"]?.asInt() ?: 0
 
-        val extreme = classify(temp, wind, code) ?: return
+        val extreme = classify(temp, wind, code, place.country) ?: return
 
         val externalId = "openmeteo:${city.lowercase()}:$day:${extreme.kind}"
         if (repository.existsBySourceAndExternalId(source, externalId)) return
@@ -116,7 +116,18 @@ class OpenMeteoCollector(
         val severity: Severity,
     )
 
-    private fun classify(temp: Double, windKmh: Double, weatherCode: Int): Extreme? {
+    private fun classify(temp: Double, windKmh: Double, weatherCode: Int, country: String): Extreme? {
+        val hotRegion = country.contains("Arab", ignoreCase = true) ||
+            country.contains("Emirates", ignoreCase = true) ||
+            country.contains("Algeria", ignoreCase = true) ||
+            country.contains("Saudi", ignoreCase = true) ||
+            country.contains("Qatar", ignoreCase = true) ||
+            country.contains("Egypt", ignoreCase = true)
+        val heatHigh = if (hotRegion) 40.0 else 42.0
+        val heatCrit = if (hotRegion) 43.0 else 45.0
+        val windHigh = if (hotRegion) 65.0 else 75.0
+        val windCrit = if (hotRegion) 80.0 else 90.0
+
         // WMO codes: 95–99 thunderstorm; 65/67/82 heavy precip; 86 heavy snow
         if (weatherCode in setOf(95, 96, 99)) {
             return Extreme(
@@ -136,7 +147,7 @@ class OpenMeteoCollector(
                 severity = Severity.HIGH,
             )
         }
-        if (temp >= 45.0) {
+        if (temp >= heatCrit) {
             return Extreme(
                 kind = "heat",
                 title = "Extreme heat (${temp.toInt()}°C)",
@@ -145,7 +156,7 @@ class OpenMeteoCollector(
                 severity = Severity.CRITICAL,
             )
         }
-        if (temp >= 42.0) {
+        if (temp >= heatHigh) {
             return Extreme(
                 kind = "heat",
                 title = "Dangerous heat (${temp.toInt()}°C)",
@@ -154,7 +165,7 @@ class OpenMeteoCollector(
                 severity = Severity.HIGH,
             )
         }
-        if (windKmh >= 90.0) {
+        if (windKmh >= windCrit) {
             return Extreme(
                 kind = "wind",
                 title = "Damaging winds (${windKmh.toInt()} km/h)",
@@ -163,7 +174,7 @@ class OpenMeteoCollector(
                 severity = Severity.CRITICAL,
             )
         }
-        if (windKmh >= 75.0) {
+        if (windKmh >= windHigh) {
             return Extreme(
                 kind = "wind",
                 title = "Very strong winds (${windKmh.toInt()} km/h)",

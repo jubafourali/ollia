@@ -7,6 +7,7 @@ object SourceRegistryMapping {
     fun registryId(sourceType: SourceType): String = when (sourceType) {
         SourceType.USGS             -> "usgs"
         SourceType.NOAA             -> "noaa"
+        SourceType.METEO_FRANCE     -> "meteo_france"
         SourceType.METEOALARM       -> "meteoalarm"
         SourceType.OPEN_METEO       -> "open_meteo"
         SourceType.GDACS            -> "gdacs"

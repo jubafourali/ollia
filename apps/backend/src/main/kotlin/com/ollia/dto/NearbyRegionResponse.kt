@@ -42,6 +42,13 @@ data class WeatherSnapshot(
     val highC: Double? = null,
     val lowC: Double? = null,
     val isHarsh: Boolean = false,
+    /** European AQI if available. */
+    val aqi: Int? = null,
+    val aqiLabel: String? = null,
+    val pm25: Double? = null,
+    /** Next-hours precipitation sum (mm). */
+    val precipNextHoursMm: Double? = null,
+    val uvIndex: Double? = null,
 )
 
 data class CoverageResponse(

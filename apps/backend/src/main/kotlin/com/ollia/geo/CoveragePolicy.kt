@@ -76,15 +76,15 @@ object CoveragePolicy {
         hazardsNotCovered = neverKeys + listOf("full_national_cap_depth"),
         coveredLabels = alwaysLabels + listOf(
             "Severe weather warnings (MeteoAlarm / EUMETNET)",
+            "Météo-France departmental vigilance (API key)",
             "Extreme heat / storm / wind (Open-Meteo thresholds)",
         ),
         notCoveredLabels = neverLabels + listOf(
-            "Every Météo-France municipal advisory",
             "Metro / RATP disruptions",
         ),
         gapChips = listOf("Crime", "Street-level", "Metro / RATP", "Rumors"),
-        sourcesActive = listOf("USGS", "GDACS", "GOVERNMENT_ALERT", "METEOALARM", "OPEN_METEO"),
-        disclaimer = "France pack: major disasters, official European weather warnings, and advisories — not crime or every local incident in Paris.",
+        sourcesActive = listOf("USGS", "GDACS", "GOVERNMENT_ALERT", "METEOALARM", "METEO_FRANCE", "OPEN_METEO"),
+        disclaimer = "France pack: disasters, MeteoAlarm, Météo-France vigilance (when API key on), Open-Meteo — not crime or metro chaos.",
     )
 
     private fun algeriaPack(country: String) = CoverageInfo(

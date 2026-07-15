@@ -42,10 +42,11 @@ class GovernmentAdvisoryCollector(
         .build()
 
     // Advisory score (0–5) below this is "normal" and never surfaced.
-    private val minScore = 3.0
+    // 2.5 catches elevated (not just severe) standing advisories for diaspora countries.
+    private val minScore = 2.5
 
-    // Advisories change slowly — fetch at most every 6h (the orchestrator ticks every 5m).
-    private val minIntervalMs = 6 * 60 * 60 * 1000L
+    // Advisories change slowly — fetch at most every 3h.
+    private val minIntervalMs = 3 * 60 * 60 * 1000L
     private val lastFetchAt = java.util.concurrent.atomic.AtomicLong(0)
 
     override fun collect(): List<RawSafetyEvent> {

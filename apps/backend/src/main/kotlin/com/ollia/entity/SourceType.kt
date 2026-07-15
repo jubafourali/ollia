@@ -12,6 +12,9 @@ enum class SourceType(
 ) {
     USGS(95, SourceKind.DISASTER_AGENCY, false),
 
+    /** Météo-France DP Vigilance (official FR departmental alerts). Requires API key. */
+    METEO_FRANCE(96, SourceKind.GOVERNMENT, false),
+
     NOAA(95, SourceKind.GOVERNMENT, false),
 
     /** Météo-Alarm / EUMETNET CAP — European severe weather warnings. */

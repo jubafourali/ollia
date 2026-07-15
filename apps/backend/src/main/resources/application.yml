@@ -54,8 +54,14 @@ newsdata:
   # Secret — must be provided via env. Collector skips gracefully when blank.
   api-key: ${NEWSDATA_API_KEY:}
 
+meteofrance:
+  # Base64 client credentials from portail-api.meteofrance.fr (DonneesPubliquesVigilance).
+  api-key: ${METEO_FRANCE_API_KEY:}
+
 # News aggregators (GDELT / NewsData) are off by default — official sources only.
 ollia:
   collectors:
     news:
       enabled: ${OLLIA_COLLECTORS_NEWS_ENABLED:false}
+    meteofrance:
+      enabled: ${OLLIA_COLLECTORS_METEOFRANCE_ENABLED:false}
