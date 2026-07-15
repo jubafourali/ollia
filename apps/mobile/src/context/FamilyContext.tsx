@@ -877,6 +877,9 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     return true;
   });
 
+  /** Source toggles apply to the live SAIAE feed — not only the legacy shim. */
+  const prefFilteredAlerts = alerts.filter((a) => alertPassesSourcePrefs(a, alertPrefs));
+
   const activeLocation = travelMode && travelDestination
       ? travelDestination
       : (myProfile?.region ?? "");
@@ -946,7 +949,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
             travelMode,
             travelDestination,
             safetyEvents: filteredSafetyEvents,
-            alerts,
+            alerts: prefFilteredAlerts,
             nearbyRegion,
             patterns,
             alertPrefs,
@@ -982,4 +985,20 @@ export function useFamilyContext(): FamilyContextType {
   if (!ctx)
     throw new Error("useFamilyContext must be used within FamilyProvider");
   return ctx;
+}
+
+/** Keep Settings source toggles in sync with the SAIAE alert card feed. */
+function alertPassesSourcePrefs(alert: ApiAlert, prefs: AlertPrefs): boolean {
+  const names = (alert.card?.sources ?? []).map((s) => (s.name ?? "").toUpperCase());
+  const instrument = names.filter(
+    (n) => n.includes("USGS") || n.includes("NOAA") || n.includes("NWS") || n.includes("GDACS"),
+  );
+  // Non-instrument official sources (gov advisories, etc.) stay visible.
+  if (instrument.length === 0) return true;
+  return instrument.some((n) => {
+    if (n.includes("USGS") && prefs.usgs) return true;
+    if ((n.includes("NOAA") || n.includes("NWS")) && prefs.noaa) return true;
+    if (n.includes("GDACS") && prefs.gdacs) return true;
+    return false;
+  });
 }

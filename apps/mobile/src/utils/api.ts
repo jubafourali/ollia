@@ -250,14 +250,22 @@ export const api = {
     return req("/subscriptions/status");
   },
 
-  updateNotificationPrefs(prefs: { notifyActivity?: boolean; notifyInactivity?: boolean }): Promise<{ notifyActivity: boolean; notifyInactivity: boolean }> {
+  updateNotificationPrefs(prefs: {
+    notifyActivity?: boolean;
+    notifyInactivity?: boolean;
+    shareRegion?: boolean;
+  }): Promise<{ notifyActivity: boolean; notifyInactivity: boolean; shareRegion: boolean }> {
     return req("/users/me/preferences", {
       method: "PATCH",
       body: JSON.stringify(prefs),
     });
   },
 
-  getNotificationPrefs(): Promise<{ notifyActivity: boolean; notifyInactivity: boolean }> {
+  getNotificationPrefs(): Promise<{
+    notifyActivity: boolean;
+    notifyInactivity: boolean;
+    shareRegion: boolean;
+  }> {
     return req("/users/me/preferences");
   },
 
