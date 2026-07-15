@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN founding_member BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN founding_expires_at TIMESTAMP;
