@@ -51,7 +51,7 @@ class PlaceSituationService {
             tone = tone,
             instrumentsChecked = coverage.sourcesActive,
             alertCount = alertCount,
-            caveat = "Live conditions from Open-Meteo. Verified hazards only from official instruments — not crime or street-level news.",
+            caveat = "Open-Meteo · official instruments only",
         )
     }
 
@@ -61,25 +61,19 @@ class PlaceSituationService {
         tone: String,
         alertCount: Int,
         topAlertSentence: String?,
-    ): String {
+    ): String? {
         if (alertCount > 0 && !topAlertSentence.isNullOrBlank()) {
             return topAlertSentence
         }
-        val wx = weather?.let {
-            "${it.temperatureC.toInt()}°C · ${it.condition.lowercase()}" +
-                if (it.windKmh >= 25) " · wind ${it.windKmh.toInt()} km/h" else ""
+        // When weather stats are on screen, stay quiet — the UI shows numbers.
+        if (weather != null && tone == "calm") return null
+        if (weather != null && tone == "unsettled") {
+            return "Notable conditions — watch for verified alerts."
         }
-        return when {
-            wx != null && tone == "calm" ->
-                "Right now in $placeLabel: $wx. No major verified hazards from instruments we check."
-            wx != null && tone == "unsettled" ->
-                "Right now in $placeLabel: $wx. Conditions are notable — watch for verified alerts."
-            wx != null ->
-                "Right now in $placeLabel: $wx."
-            tone == "calm" ->
-                "No major verified hazards for $placeLabel from instruments we check. Live weather unavailable for this place yet."
-            else ->
-                "Situation for $placeLabel needs attention — see verified alerts below."
+        if (weather != null) return null
+        return when (tone) {
+            "calm" -> "No major verified hazards for $placeLabel."
+            else -> "Needs attention — see verified alerts."
         }
     }
 

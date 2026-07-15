@@ -223,7 +223,9 @@ class NearbyController(
                 topAlertSentence = events.firstOrNull()?.sentence,
             )
             // Prefer situation overall as summary when quiet — "being there" first.
-            val effectiveSummary = if (events.isEmpty()) situation.overall else summary
+            val effectiveSummary = if (events.isEmpty()) {
+                situation.overall ?: CoveragePolicy.checkedAndClearSummary(placeLabel, coverage)
+            } else summary
             return ResponseEntity.ok(
                 NearbyRegionResponse(trimmed, worstRisk, effectiveSummary, events, coverageDto, situation)
             )

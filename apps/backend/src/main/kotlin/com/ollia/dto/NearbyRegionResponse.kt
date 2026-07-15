@@ -23,7 +23,8 @@ data class PlaceSituationResponse(
     val country: String?,
     val asOf: String,
     val weather: WeatherSnapshot?,
-    val overall: String,
+    /** Null when weather UI already says enough. */
+    val overall: String?,
     /** calm | unsettled | disrupted */
     val tone: String,
     val instrumentsChecked: List<String>,
