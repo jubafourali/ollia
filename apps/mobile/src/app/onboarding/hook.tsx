@@ -1,51 +1,127 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 import BRAND from "@/constants/colors";
-import { OnboardingContainer, PrimaryButton } from "./_components";
+import i18n, {
+    LANGUAGE_STORAGE_KEY,
+    LanguageCode,
+    SUPPORTED_LANGUAGES,
+} from "@/i18n";
+import { api } from "@/utils/api";
+import {
+    BreathingView,
+    OnboardingContainer,
+    PrimaryButton,
+    StaggeredEnter,
+} from "./_components";
 import { UncertaintyIllustration } from "./_illustrations";
 
 export default function HookScreen() {
     const insets = useSafeAreaInsets();
+    const { t, i18n: i18nInstance } = useTranslation();
+    const [lang, setLang] = useState<LanguageCode>(
+        (i18nInstance.language?.startsWith("fr") ? "fr" : "en") as LanguageCode,
+    );
+
+    const switchLanguage = async (code: LanguageCode) => {
+        if (code === lang) return;
+        setLang(code);
+        await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, code);
+        await i18n.changeLanguage(code);
+        api.updatePreferredLanguage(code).catch(() => {});
+    };
 
     return (
         <OnboardingContainer step={1}>
             <View style={styles.content}>
-                {/* Illustration sits closer to top */}
-                <View style={styles.illustration}>
-                    <UncertaintyIllustration size={240} />
-                </View>
+                <StaggeredEnter index={0}>
+                    <View style={styles.langRow}>
+                        {SUPPORTED_LANGUAGES.map((l) => {
+                            const active = lang === l.code;
+                            return (
+                                <Pressable
+                                    key={l.code}
+                                    onPress={() => switchLanguage(l.code)}
+                                    style={[styles.langChip, active && styles.langChipActive]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.langChipText,
+                                            active && styles.langChipTextActive,
+                                        ]}
+                                    >
+                                        {l.code.toUpperCase()}
+                                    </Text>
+                                </Pressable>
+                            );
+                        })}
+                    </View>
+                </StaggeredEnter>
 
-                {/* Headline — tight to illustration */}
-                <Text style={styles.headline}>Uncertainty turns into worry</Text>
+                <StaggeredEnter index={1} style={styles.illustration}>
+                    <BreathingView>
+                        <UncertaintyIllustration size={268} />
+                    </BreathingView>
+                </StaggeredEnter>
 
-                {/* Body */}
-                <Text style={styles.supporting}>
-                    When someone you care about lives far away, silence can feel scary. Ollia helps reduce uncertainty — without constant check-ins.
-                </Text>
+                <StaggeredEnter index={2}>
+                    <Text style={styles.headline}>{t("onboarding.hook.headline")}</Text>
+                </StaggeredEnter>
 
-                {/* Flexible spacer pushes CTA down */}
+                <StaggeredEnter index={3}>
+                    <Text style={styles.supporting}>{t("onboarding.hook.body")}</Text>
+                </StaggeredEnter>
+
                 <View style={{ flex: 1 }} />
 
-                <View style={[styles.cta, { paddingBottom: insets.bottom + 16 }]}>
-                    <PrimaryButton
-                        label="Continue"
-                        onPress={() => router.push("/onboarding/differentiate")}
-                    />
-                </View>
+                <StaggeredEnter index={4}>
+                    <View style={[styles.cta, { paddingBottom: insets.bottom + 16 }]}>
+                        <PrimaryButton
+                            label={t("onboarding.continue")}
+                            onPress={() => router.push("/onboarding/differentiate")}
+                        />
+                    </View>
+                </StaggeredEnter>
             </View>
         </OnboardingContainer>
     );
 }
 
 const styles = StyleSheet.create({
-    content: { flex: 1, paddingHorizontal: 28, paddingTop: 24 },
+    content: { flex: 1, paddingHorizontal: 28, paddingTop: 8 },
+    langRow: {
+        flexDirection: "row",
+        justifyContent: "center",
+        gap: 8,
+        marginBottom: 12,
+    },
+    langChip: {
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        borderRadius: 20,
+        borderWidth: 1.5,
+        borderColor: BRAND.borderLight,
+        backgroundColor: BRAND.backgroundCard,
+    },
+    langChipActive: {
+        borderColor: `${BRAND.primary}66`,
+        backgroundColor: `${BRAND.primary}14`,
+    },
+    langChipText: {
+        fontSize: 12,
+        fontFamily: "Inter_600SemiBold",
+        color: BRAND.textMuted,
+        letterSpacing: 0.5,
+    },
+    langChipTextActive: { color: BRAND.primaryDark },
     illustration: {
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: 40,
+        marginBottom: 32,
     },
     headline: {
         fontSize: 28,

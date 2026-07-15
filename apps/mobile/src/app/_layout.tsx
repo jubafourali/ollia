@@ -83,8 +83,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       router.replace("/(auth)/sign-in");
     } else if (isSignedIn && inAuth) {
       if (onboardingComplete === null) return;
-      if (onboardingComplete) router.replace("/(tabs)");
-      else                    router.replace("/onboarding/hook");
+      // if (onboardingComplete) 
+      //   router.replace("/(tabs)");
+      // else                    
+        router.replace("/onboarding/hook");
     } else if (isSignedIn && userId && !inAuth && !inOnboarding && segments[0] === "(tabs)") {
       // Re-read fresh from storage — the React state can still be stale right after
       // completing onboarding, which previously bounced the user back into it.

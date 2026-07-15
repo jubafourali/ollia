@@ -2,37 +2,52 @@ import { router } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 import BRAND from "@/constants/colors";
-import { OnboardingContainer, PrimaryButton } from "./_components";
+import {
+    BreathingView,
+    OnboardingContainer,
+    PrimaryButton,
+    StaggeredEnter,
+} from "./_components";
 import { ReassuranceIllustration } from "./_illustrations";
 
 export default function DifferentiateScreen() {
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
 
     return (
         <OnboardingContainer step={2} onBack={() => router.back()}>
             <View style={styles.content}>
-                <View style={styles.illustration}>
-                    <ReassuranceIllustration size={240} />
-                </View>
+                <StaggeredEnter index={0} style={styles.illustration}>
+                    <BreathingView>
+                        <ReassuranceIllustration size={268} />
+                    </BreathingView>
+                </StaggeredEnter>
 
-                <Text style={styles.headline}>
-                    Peace of mind without invasive tracking
-                </Text>
+                <StaggeredEnter index={1}>
+                    <Text style={styles.headline}>
+                        {t("onboarding.differentiate.headline")}
+                    </Text>
+                </StaggeredEnter>
 
-                <Text style={styles.supporting}>
-                    Ollia helps you stay reassured using privacy-first signals and trusted context — not surveillance.
-                </Text>
+                <StaggeredEnter index={2}>
+                    <Text style={styles.supporting}>
+                        {t("onboarding.differentiate.body")}
+                    </Text>
+                </StaggeredEnter>
 
                 <View style={{ flex: 1 }} />
 
-                <View style={[styles.cta, { paddingBottom: insets.bottom + 16 }]}>
-                    <PrimaryButton
-                        label="Continue"
-                        onPress={() => router.push("/onboarding/profile")}
-                    />
-                </View>
+                <StaggeredEnter index={3}>
+                    <View style={[styles.cta, { paddingBottom: insets.bottom + 16 }]}>
+                        <PrimaryButton
+                            label={t("onboarding.continue")}
+                            onPress={() => router.push("/onboarding/profile")}
+                        />
+                    </View>
+                </StaggeredEnter>
             </View>
         </OnboardingContainer>
     );

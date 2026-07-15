@@ -13,8 +13,11 @@ import {
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from "react-native-svg";
 import Animated, {
     Easing,
+    FadeInDown,
     useAnimatedStyle,
     useSharedValue,
+    withRepeat,
+    withSpring,
     withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,33 +25,63 @@ import BRAND from "@/constants/colors";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 
-// ── Progress indicator ────────────────────────────────────────────────────────
+// ── Progress indicator (animated pips) ───────────────────────────────────────
 
 export function OnboardingProgress({ step, total }: { step: number; total: number }) {
     return (
         <View style={progressStyles.row}>
             {Array.from({ length: total }).map((_, i) => (
-                <View
-                    key={i}
-                    style={[
-                        progressStyles.pip,
-                        i === step - 1 && progressStyles.pipActive,
-                        i < step - 1 && progressStyles.pipDone,
-                    ]}
-                />
+                <ProgressPip key={i} active={i === step - 1} done={i < step - 1} />
             ))}
         </View>
     );
 }
 
+function ProgressPip({ active, done }: { active: boolean; done: boolean }) {
+    const width = useSharedValue(done || active ? (active ? 22 : 6) : 6);
+    const opacity = useSharedValue(done || active ? 1 : 0.45);
+
+    useEffect(() => {
+        width.value = withSpring(active ? 22 : 6, { damping: 16, stiffness: 180 });
+        opacity.value = withTiming(done || active ? 1 : 0.45, { duration: 220 });
+    }, [active, done]);
+
+    const style = useAnimatedStyle(() => ({
+        width: width.value,
+        opacity: opacity.value,
+        backgroundColor: active || done ? BRAND.primary : BRAND.borderLight,
+    }));
+
+    return <Animated.View style={[progressStyles.pip, style]} />;
+}
+
 const progressStyles = StyleSheet.create({
     row: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1 },
-    pip: { height: 6, width: 6, borderRadius: 3, backgroundColor: BRAND.borderLight },
-    pipActive: { width: 22, backgroundColor: BRAND.primary },
-    pipDone: { backgroundColor: `${BRAND.primary}66` },
+    pip: { height: 6, borderRadius: 3 },
 });
 
-// ── Warm gradient backdrop — cohesive with the app, premium feel ─────────────
+// ── Staggered enter helper ───────────────────────────────────────────────────
+
+export function StaggeredEnter({
+    children,
+    index = 0,
+    style,
+}: {
+    children: React.ReactNode;
+    index?: number;
+    style?: ViewStyle;
+}) {
+    return (
+        <Animated.View
+            entering={FadeInDown.delay(index * 70).duration(420).springify().damping(18)}
+            style={style}
+        >
+            {children}
+        </Animated.View>
+    );
+}
+
+// ── Warm gradient backdrop ───────────────────────────────────────────────────
 
 function GradientBackdrop() {
     return (
@@ -68,11 +101,11 @@ function GradientBackdrop() {
 // ── Container with gradient + progress + fade-in motion ──────────────────────
 
 export function OnboardingContainer({
-                                        children,
-                                        step,
-                                        total = 8,
-                                        onBack,
-                                    }: {
+    children,
+    step,
+    total = 8,
+    onBack,
+}: {
     children: React.ReactNode;
     step: number;
     total?: number;
@@ -83,8 +116,8 @@ export function OnboardingContainer({
     const translateY = useSharedValue(14);
 
     useEffect(() => {
-        opacity.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) });
-        translateY.value = withTiming(0, { duration: 380, easing: Easing.out(Easing.cubic) });
+        opacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.cubic) });
+        translateY.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) });
     }, []);
 
     const animStyle = useAnimatedStyle(() => ({
@@ -125,22 +158,38 @@ const containerStyles = StyleSheet.create({
     body: { flex: 1 },
 });
 
-// ── Primary CTA — tactile, warm shadow, inner highlight ──────────────────────
+// ── Primary CTA — press scale + optional idle pulse ──────────────────────────
 
 export function PrimaryButton({
-                                  label,
-                                  onPress,
-                                  disabled,
-                                  style,
-                                  icon,
-                              }: {
+    label,
+    onPress,
+    disabled,
+    style,
+    icon,
+    pulse,
+}: {
     label: string;
     onPress: () => void;
     disabled?: boolean;
     style?: ViewStyle;
     icon?: keyof typeof Feather.glyphMap;
+    /** Soft idle pulse to draw the eye on conversion CTAs */
+    pulse?: boolean;
 }) {
     const scale = useSharedValue(1);
+    const pulseScale = useSharedValue(1);
+
+    useEffect(() => {
+        if (!pulse || disabled) {
+            pulseScale.value = withTiming(1, { duration: 200 });
+            return;
+        }
+        pulseScale.value = withRepeat(
+            withTiming(1.025, { duration: 1100, easing: Easing.inOut(Easing.sin) }),
+            -1,
+            true,
+        );
+    }, [pulse, disabled]);
 
     const handlePress = () => {
         if (disabled) return;
@@ -149,7 +198,7 @@ export function PrimaryButton({
     };
 
     const animStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }],
+        transform: [{ scale: scale.value * pulseScale.value }],
     }));
 
     return (
@@ -185,13 +234,16 @@ export function PrimaryButton({
 // ── Secondary CTA (text link) ────────────────────────────────────────────────
 
 export function SecondaryButton({
-                                    label,
-                                    onPress,
-                                    style,
-                                }: {
+    label,
+    onPress,
+    style,
+    quiet,
+}: {
     label: string;
     onPress: () => void;
     style?: ViewStyle;
+    /** Quieter styling for demoted skip actions */
+    quiet?: boolean;
 }) {
     return (
         <Pressable
@@ -205,7 +257,9 @@ export function SecondaryButton({
                 style,
             ]}
         >
-            <Text style={buttonStyles.secondaryText}>{label}</Text>
+            <Text style={[buttonStyles.secondaryText, quiet && buttonStyles.quietText]}>
+                {label}
+            </Text>
         </Pressable>
     );
 }
@@ -259,4 +313,36 @@ const buttonStyles = StyleSheet.create({
         color: BRAND.textSecondary,
         letterSpacing: 0.2,
     },
+    quietText: {
+        fontSize: 13,
+        fontFamily: "Inter_400Regular",
+        color: BRAND.textMuted,
+    },
 });
+
+// ── Soft breathing wrapper for illustrations ─────────────────────────────────
+
+export function BreathingView({
+    children,
+    style,
+}: {
+    children: React.ReactNode;
+    style?: ViewStyle;
+}) {
+    const breath = useSharedValue(1);
+
+    useEffect(() => {
+        breath.value = withRepeat(
+            withTiming(1.035, { duration: 2800, easing: Easing.inOut(Easing.sin) }),
+            -1,
+            true,
+        );
+    }, []);
+
+    const animStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: breath.value }],
+        opacity: 0.92 + (breath.value - 1) * 2,
+    }));
+
+    return <Animated.View style={[style, animStyle]}>{children}</Animated.View>;
+}

@@ -1,17 +1,19 @@
-import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { CityPicker } from "@/components/CityPicker";
-import { OnboardingContainer, PrimaryButton } from "./_components";
+import { OnboardingContainer, PrimaryButton, StaggeredEnter } from "./_components";
+import { ProfileIcon } from "./_illustrations";
 
 export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
     const { myProfile, setMyProfile } = useFamilyContext();
 
     const [name, setName] = useState(myProfile?.name ?? "");
@@ -39,48 +41,57 @@ export default function ProfileScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
                 <View style={styles.content}>
-                    <View style={styles.iconWrap}>
-                        <Feather name="user" size={22} color={BRAND.primaryDark} />
-                    </View>
+                    <StaggeredEnter index={0}>
+                        <View style={styles.iconWrap}>
+                            <ProfileIcon size={56} />
+                        </View>
+                    </StaggeredEnter>
 
-                    <Text style={styles.title}>First, a little about you</Text>
-                    <Text style={styles.subtitle}>
-                        Your circle sees your name, and your city helps Ollia know which
-                        events are actually near you.
-                    </Text>
+                    <StaggeredEnter index={1}>
+                        <Text style={styles.title}>{t("onboarding.profile.title")}</Text>
+                        <Text style={styles.subtitle}>{t("onboarding.profile.subtitle")}</Text>
+                    </StaggeredEnter>
 
-                    <View style={styles.avatarWrap}>
-                        <AvatarPicker name={name || "?"} size={92} />
-                        <Text style={styles.avatarCaption}>Add a photo</Text>
-                    </View>
+                    <StaggeredEnter index={2}>
+                        <View style={styles.avatarWrap}>
+                            <AvatarPicker name={name || "?"} size={92} />
+                            <Text style={styles.avatarCaption}>
+                                {t("onboarding.profile.addPhoto")}
+                            </Text>
+                        </View>
+                    </StaggeredEnter>
 
-                    <Text style={styles.label}>Your name</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="e.g. Sarah"
-                        placeholderTextColor={BRAND.textMuted}
-                        value={name}
-                        onChangeText={setName}
-                        autoCapitalize="words"
-                        autoCorrect={false}
-                        returnKeyType="next"
-                    />
+                    <StaggeredEnter index={3}>
+                        <Text style={styles.label}>{t("onboarding.profile.yourName")}</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder={t("onboarding.profile.namePlaceholder")}
+                            placeholderTextColor={BRAND.textMuted}
+                            value={name}
+                            onChangeText={setName}
+                            autoCapitalize="words"
+                            autoCorrect={false}
+                            returnKeyType="next"
+                        />
 
-                    <Text style={[styles.label, { marginTop: 18 }]}>Your city</Text>
-                    <CityPicker
-                        value={city}
-                        onChange={(displayName, tz) => {
-                            setCity(displayName);
-                            if (tz) setTimezone(tz);
-                        }}
-                        placeholder="Search your city"
-                    />
+                        <Text style={[styles.label, { marginTop: 18 }]}>
+                            {t("onboarding.profile.yourCity")}
+                        </Text>
+                        <CityPicker
+                            value={city}
+                            onChange={(displayName, tz) => {
+                                setCity(displayName);
+                                if (tz) setTimezone(tz);
+                            }}
+                            placeholder={t("onboarding.profile.cityPlaceholder")}
+                        />
+                    </StaggeredEnter>
 
                     <View style={{ flex: 1 }} />
 
                     <View style={[styles.cta, { paddingBottom: insets.bottom + 12 }]}>
                         <PrimaryButton
-                            label={saving ? "Saving…" : "Continue"}
+                            label={saving ? t("onboarding.saving") : t("onboarding.continue")}
                             onPress={handleContinue}
                             disabled={!canContinue || saving}
                             icon="arrow-right"
@@ -95,11 +106,8 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
     content: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },
     iconWrap: {
-        width: 52, height: 52, borderRadius: 16,
-        backgroundColor: `${BRAND.primary}1A`,
-        borderWidth: 1.5, borderColor: `${BRAND.primary}33`,
-        alignItems: "center", justifyContent: "center",
-        marginBottom: 20,
+        marginBottom: 16,
+        alignSelf: "flex-start",
     },
     title: {
         fontSize: 26, fontFamily: "Inter_700Bold", color: BRAND.text,

@@ -257,7 +257,82 @@
     "errorGeneric": "Something went wrong. Try again.",
     "errorCode": "Incorrect code. Try again.",
     "errorSignInFailed": "Sign-in failed. Try again.",
-    "back": "Back"
+    "back": "Back",
+    "continue": "Continue",
+    "saving": "Saving…",
+    "hook": {
+      "headline": "Uncertainty turns into worry",
+      "body": "When someone you care about lives far away, silence can feel scary. Ollia helps reduce uncertainty — without constant check-ins."
+    },
+    "differentiate": {
+      "headline": "Peace of mind without invasive tracking",
+      "body": "Ollia helps you stay reassured using privacy-first signals and trusted context — not surveillance."
+    },
+    "profile": {
+      "title": "First, a little about you",
+      "subtitle": "Your circle sees your name, and your city helps Ollia know which events are actually near you.",
+      "addPhoto": "Add a photo",
+      "yourName": "Your name",
+      "namePlaceholder": "e.g. Sarah",
+      "yourCity": "Your city",
+      "cityPlaceholder": "Search your city"
+    },
+    "permissionsStep": {
+      "title": "Two things keep this gentle",
+      "subtitle": "Ollia works quietly in the background. These let it reassure your circle without anyone having to do anything.",
+      "notificationsTitle": "Notifications",
+      "notificationsDesc": "Only when something genuinely matters — never noise.",
+      "locationTitle": "Location",
+      "locationDesc": "So your circle sees you're okay, automatically.",
+      "enable": "Enable",
+      "retry": "Retry",
+      "reassure": "You're always in control — you can change these anytime in Settings."
+    },
+    "relation": {
+      "title": "Who should feel a little less worried about you?",
+      "subtitle": "Start with someone you care about.",
+      "mom": "Mom",
+      "dad": "Dad",
+      "partner": "Partner",
+      "child": "Child",
+      "sibling": "Sibling",
+      "friend": "Friend",
+      "other": "Someone else"
+    },
+    "addPerson": {
+      "title": "You're starting your circle",
+      "subtitle": "Add the first person you care about.",
+      "relation": "Relation",
+      "name": "Name",
+      "namePlaceholder": "Their first name",
+      "hint": "You can always change this later.",
+      "cta": "Add to Circle",
+      "fallbackRelation": "Family"
+    },
+    "inviteStep": {
+      "title": "Stay quietly reassured about each other",
+      "subtitle": "Ollia works best when both people are connected.",
+      "added": "Ready for your circle",
+      "cta": "Invite {{name}}",
+      "skip": "I'll invite later",
+      "shareMessage": "Hey, I started using Ollia so we can quietly stay reassured about each other without constant check-ins. Thought of you ❤️\n\nJoin my circle:\n{{link}}",
+      "yourPerson": "your person",
+      "someone": "Someone"
+    },
+    "aha": {
+      "yourCircle": "Your Circle",
+      "statusShared": "{{name}} can join in one tap · Waiting to connect",
+      "statusSkipped": "Invite when you're ready · Still in your circle",
+      "howHelps": "Here's how Ollia helps",
+      "demoTitle": "Minor weather disruption nearby",
+      "demoSentence": "Heavy rainfall has been reported nearby.",
+      "demoTrust": "Confirmed by trusted sources",
+      "demoSeverity": "Low concern",
+      "helper": "Quiet days feel calmer when you know a little more.",
+      "goToCircle": "Go to Circle",
+      "addAnother": "Add another person",
+      "fallbackName": "Mom"
+    }
   },
   "invite": {
     "title": "Invite to circle",

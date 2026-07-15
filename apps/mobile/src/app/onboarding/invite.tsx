@@ -10,7 +10,14 @@ import {
     Text,
     View,
 } from "react-native";
+import Animated, {
+    FadeInDown,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
@@ -18,17 +25,22 @@ import {
     OnboardingContainer,
     PrimaryButton,
     SecondaryButton,
+    StaggeredEnter,
 } from "./_components";
+import { RelationGlyph, RelationId } from "./_illustrations";
 
 const ONBOARDING_PERSON_KEY = "@ollia_onboarding_person";
+const ONBOARDING_INVITE_SHARED_KEY = "@ollia_onboarding_invite_shared";
 
-type StoredPerson = { name: string; relation: string; emoji?: string };
+type StoredPerson = { name: string; relation: string; relationId?: RelationId };
 
 export default function InviteOnboardingScreen() {
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
     const { inviteCode, myProfile, addMember } = useFamilyContext();
     const [person, setPerson] = useState<StoredPerson | null>(null);
     const addedRef = useRef(false);
+    const cardScale = useSharedValue(0.92);
 
     useEffect(() => {
         (async () => {
@@ -37,10 +49,13 @@ export default function InviteOnboardingScreen() {
                 if (raw) setPerson(JSON.parse(raw));
             } catch {}
         })();
+        cardScale.value = withSpring(1, { damping: 14, stiffness: 160 });
     }, []);
 
-    // Actually add the person to the circle (once) as a pending invite, so the
-    // home screen isn't empty after onboarding.
+    const cardStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: cardScale.value }],
+    }));
+
     const commitMember = () => {
         if (addedRef.current || !person) return;
         addedRef.current = true;
@@ -56,70 +71,83 @@ export default function InviteOnboardingScreen() {
     };
 
     const buildLink = (): string => {
-        const ownerName = encodeURIComponent(myProfile?.name || "Someone");
+        const ownerName = encodeURIComponent(
+            myProfile?.name || t("onboarding.inviteStep.someone"),
+        );
         return `https://ollia.app/invite?token=${inviteCode}&name=${ownerName}`;
+    };
+
+    const advance = async (shared: boolean) => {
+        await AsyncStorage.setItem(
+            ONBOARDING_INVITE_SHARED_KEY,
+            shared ? "true" : "false",
+        );
+        commitMember();
+        router.push("/onboarding/aha");
     };
 
     const handleInvite = async () => {
         if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        const name = person?.name || "Someone";
         const link = buildLink();
         try {
             await Share.share({
-                message: `Hey, I started using Ollia so we can quietly stay reassured about each other without constant check-ins. Thought of you ❤️\n\nJoin my circle:\n${link}`,
+                message: t("onboarding.inviteStep.shareMessage", { link }),
             });
-        } catch {}
-        // Whether or not the user completed share, proceed forward
-        commitMember();
-        router.push("/onboarding/aha");
+            await advance(true);
+        } catch {
+            // User cancelled share sheet — stay on this screen
+        }
     };
 
-    const handleSkip = () => {
-        commitMember();
-        router.push("/onboarding/aha");
+    const handleSkip = async () => {
+        await advance(false);
     };
 
-    const personName  = person?.name     ?? "your person";
-    const personEmoji = person?.emoji    ?? "💛";
+    const personName = person?.name ?? t("onboarding.inviteStep.yourPerson");
+    const relationId = person?.relationId ?? "other";
 
     return (
         <OnboardingContainer step={7} onBack={() => router.back()}>
             <View style={styles.content}>
-                <View style={styles.header}>
-                    <Text style={styles.title}>Stay quietly reassured about each other</Text>
-                    <Text style={styles.subtitle}>
-                        Ollia works best when both people are connected.
-                    </Text>
-                </View>
-
-                {/* Person card */}
-                <View style={styles.card}>
-                    <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>
-                            {personName[0]?.toUpperCase() ?? "?"}
-                        </Text>
+                <StaggeredEnter index={0}>
+                    <View style={styles.header}>
+                        <Text style={styles.title}>{t("onboarding.inviteStep.title")}</Text>
+                        <Text style={styles.subtitle}>{t("onboarding.inviteStep.subtitle")}</Text>
                     </View>
+                </StaggeredEnter>
+
+                <Animated.View
+                    entering={FadeInDown.delay(120).duration(450).springify().damping(16)}
+                    style={[styles.card, cardStyle]}
+                >
+                    <RelationGlyph id={relationId} size={48} selected />
                     <View style={styles.cardBody}>
                         <View style={styles.nameRow}>
                             <Text style={styles.name}>{personName}</Text>
-                            <Text style={styles.emoji}>{personEmoji}</Text>
                         </View>
-                        <Text style={styles.cardStatus}>Added to your Circle</Text>
+                        <Text style={styles.cardStatus}>
+                            {t("onboarding.inviteStep.added")}
+                        </Text>
                     </View>
                     <View style={styles.cardCheck}>
                         <Feather name="check" size={14} color={BRAND.white} />
                     </View>
-                </View>
+                </Animated.View>
 
                 <View style={{ flex: 1 }} />
 
                 <View style={[styles.cta, { paddingBottom: insets.bottom + 12 }]}>
                     <PrimaryButton
-                        label={`Invite ${personName}`}
+                        label={t("onboarding.inviteStep.cta", { name: personName })}
                         onPress={handleInvite}
                         icon="share-2"
+                        pulse
                     />
-                    <SecondaryButton label="I'll do this later" onPress={handleSkip} />
+                    <SecondaryButton
+                        label={t("onboarding.inviteStep.skip")}
+                        onPress={handleSkip}
+                        quiet
+                    />
                 </View>
             </View>
         </OnboardingContainer>
@@ -152,26 +180,11 @@ const styles = StyleSheet.create({
         borderWidth: 1.5,
         borderColor: BRAND.borderLight,
         padding: 16,
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
-    },
-    avatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: `${BRAND.primary}20`,
-        alignItems: "center",
-        justifyContent: "center",
-        borderWidth: 1.5,
-        borderColor: `${BRAND.primary}40`,
-    },
-    avatarText: {
-        fontSize: 18,
-        fontFamily: "Inter_700Bold",
-        color: BRAND.primaryDark,
+        shadowColor: BRAND.primaryDark,
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 3,
     },
     cardBody: { flex: 1 },
     nameRow: {
@@ -185,7 +198,6 @@ const styles = StyleSheet.create({
         fontFamily: "Inter_600SemiBold",
         color: BRAND.text,
     },
-    emoji: { fontSize: 16 },
     cardStatus: {
         fontSize: 13,
         fontFamily: "Inter_400Regular",

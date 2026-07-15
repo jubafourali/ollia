@@ -9,7 +9,7 @@ export default function OnboardingLayout() {
                 headerShown: false,
                 contentStyle: { backgroundColor: BRAND.background },
                 animation: "fade",
-                animationDuration: 300,
+                animationDuration: 400,
                 gestureEnabled: false,
             }}
         >
