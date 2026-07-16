@@ -35,12 +35,16 @@ class ReferenceApiController(
     private val safetyEventService: SafetyEventService,
     private val activityPatternService: ActivityPatternService,
     private val clerkService: com.ollia.service.ClerkService,
-    private val saiaeAlertCacheRepository: SaiaeCircleAlertCacheRepository
+    private val saiaeAlertCacheRepository: SaiaeCircleAlertCacheRepository,
+    private val pushNotificationService: com.ollia.service.PushNotificationService,
 ) {
 
     companion object {
         const val FREE_PLAN_MEMBER_LIMIT = 3
+        /** Deliberate "I'm OK" — never auto-foregound. */
         val HUMAN_SIGNAL_TYPES = setOf("heartbeat", "check_in_response", "shortcut")
+        /** Urgent ask for help — notifies circle immediately; not a calm check-in. */
+        val HELP_SIGNAL_TYPE = "help"
     }
 
     // ─── POST /api/users ─── upsert user
@@ -111,36 +115,44 @@ class ReferenceApiController(
     // Request: { userId: string, signalType: string }
     // Response: { recorded: boolean, timestamp: string }
     //
-    // Signals split into two classes:
-    //   human   (heartbeat, check_in_response, shortcut) → update lastCheckInAt + lastSeenAt,
-    //                                                       reset escalation/nudge state
-    //   passive (background, location, foreground)       → update lastPassiveSignalAt + lastSeenAt only.
-    //                                                       foreground is treated as passive because iOS
-    //                                                       can restore apps without any user interaction.
+    // Signals split into three classes:
+    //   human   (heartbeat, check_in_response, shortcut) → lastCheckInAt + reset escalation
+    //   help    → urgent circle push (not a calm "I'm OK")
+    //   passive (background, location, foreground)      → lastPassiveSignalAt only
     @PostMapping("/activity")
     fun sendActivity(@RequestBody request: ActivityRequest): ActivityResponse {
         val user = currentUserService.getCurrentUser()
+        val signalType = request.signalType.ifBlank { "heartbeat" }
         activitySignalRepository.save(
-            ActivitySignal(userId = user.id!!, signalType = request.signalType)
+            ActivitySignal(userId = user.id!!, signalType = signalType)
         )
         val now = Instant.now()
         user.lastSeenAt = now
 
-        val isHuman = request.signalType in HUMAN_SIGNAL_TYPES
-        if (isHuman) {
-            user.lastCheckInAt = now
-            if (user.escalationLevel > 0) {
-                user.escalationLevel = 0
-                user.escalationChangedAt = null
+        when {
+            signalType == HELP_SIGNAL_TYPE -> {
+                // Distress — notify circle now. Do not fake a calm check-in.
+                user.lastPassiveSignalAt = now
+                userRepository.save(user)
+                notifyCircleHelp(user)
             }
-            if (user.scheduledCheckInDeadline != null) {
-                user.scheduledCheckInDeadline = null
+            signalType in HUMAN_SIGNAL_TYPES -> {
+                user.lastCheckInAt = now
+                if (user.escalationLevel > 0) {
+                    user.escalationLevel = 0
+                    user.escalationChangedAt = null
+                }
+                if (user.scheduledCheckInDeadline != null) {
+                    user.scheduledCheckInDeadline = null
+                }
+                userRepository.save(user)
             }
-        } else {
-            user.lastPassiveSignalAt = now
+            else -> {
+                user.lastPassiveSignalAt = now
+                userRepository.save(user)
+            }
         }
 
-        userRepository.save(user)
         return ActivityResponse(
             recorded = true,
             timestamp = now.toString()
@@ -230,6 +242,7 @@ class ReferenceApiController(
                 avatarUrl = memberUser.avatarUrl,
                 relation = member.relation,
                 lastCheckInAt = memberUser.lastCheckInAt?.toString(),
+                lastPassiveAt = memberUser.lastPassiveSignalAt?.toString(),
                 lastSeen = memberUser.lastSeenAt?.toString(),
                 joinedAt = null,
                 travelMode = memberUser.travelMode,
@@ -581,5 +594,29 @@ class ReferenceApiController(
         val user = currentUserService.getCurrentUser()
         pushTokenRepository.deleteAllByUserId(user.id!!)
         return mapOf("success" to true)
+    }
+
+    /** Circle-wide urgent push when someone taps Help. */
+    private fun notifyCircleHelp(user: com.ollia.entity.User) {
+        val memberships = familyMemberRepository.findAllByUserId(user.id!!)
+        val circleIds = memberships.map { it.circleId }.distinct()
+        for (circleId in circleIds) {
+            val peers = familyMemberRepository.findAllByCircleId(circleId)
+                .filter { it.userId != user.id }
+            val peerUsers = userRepository.findAllById(peers.map { it.userId })
+            val tokens = pushTokenRepository.findAllByUserIdIn(peerUsers.mapNotNull { it.id })
+            val tokenMap = tokens.associateBy { it.userId }
+            for (peer in peerUsers) {
+                val token = tokenMap[peer.id] ?: continue
+                pushNotificationService.sendPushNotification(
+                    expoPushToken = token.token,
+                    title = "Ollia — Urgent",
+                    body = "${user.name} asked for help. Please reach out now.",
+                    userId = peer.id,
+                    notificationType = "help_request",
+                    data = mapOf("type" to "help", "fromUserId" to (user.clerkId)),
+                )
+            }
+        }
     }
 }

@@ -62,6 +62,8 @@ data class CircleMemberResponse(
     val avatarUrl: String? = null,
     val relation: String,
     val lastCheckInAt: String? = null,
+    /** Soft presence — phone murmur (passive / foreground), not a human "I'm OK". */
+    val lastPassiveAt: String? = null,
     val lastSeen: String? = null,
     val joinedAt: String? = null,
     val travelMode: Boolean? = null,

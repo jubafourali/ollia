@@ -8,55 +8,65 @@ import com.ollia.service.PushNotificationService
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 /**
- * Inactivity escalation chain:
+ * Authoritative quiet → family escalation ladder (one doctrine).
  *
- *   Level 0 → 1 : user inactive for their configured threshold (default 3 h)
- *                  → silent push to user: "Are you okay?"
- *   Level 1 → 2 : no response 30 min after level-1 push
- *                  → push to family circle members with notifyInactivity = true
- *   Level 2 → 3 : no signal 2 h after level-2 push
- *                  → push to user's designated emergency contact
+ *   L0 → 1 : no human check-in past [inactivityThresholdHours]
+ *            AND no recent phone murmur (passive) → nudge user
+ *   L1 → 2 : still no human response after 30 min → notify circle
+ *   L2 → 3 : still quiet after 2 h → last resort: circle gets emergency
+ *            contact name + phone so someone can call (honest, no fake SMS)
  *
- * Any incoming activity signal (heartbeat / check-in / background) resets
- * escalation_level → 0 immediately (handled in the activity endpoint).
+ * Soft "tap to check in" reminders stay in [NudgeScheduler] (user-only).
+ * Family alerting lives here only.
  *
- * Push notification bodies are sent in the user's preferred language.
+ * Human "I'm OK" resets level → 0. Passive murmur only delays L1.
  */
 
-/** Localised push notification strings for the escalation chain. */
 private object PushMessages {
-    data class Messages(val l1Body: String, val l2Body: String, val l3Body: String, val l2Title: String, val l3Title: String)
+    data class Messages(
+        val l1Body: String,
+        val l2Body: String,
+        val l3Body: String,
+        val l3BodyWithPhone: String,
+        val l2Title: String,
+        val l3Title: String,
+    )
 
     private val translations: Map<String, Messages> = mapOf(
         "en" to Messages(
             l1Body = "Are you okay? Tap to let your family know.",
-            l2Body = "%s hasn't been active for a while. You may want to check in.",
+            l2Body = "%s hasn't checked in and their phone has gone quiet. You may want to reach out.",
             l3Body = "%s has been unreachable for an extended period. Please check on them.",
+            l3BodyWithPhone = "%s is still unreachable. Last resort contact: %s — %s. Please call.",
             l2Title = "Ollia",
             l3Title = "Ollia — Urgent"
         ),
         "fr" to Messages(
             l1Body = "Vous allez bien ? Appuyez pour le faire savoir à votre famille.",
-            l2Body = "%s n'a pas été actif(ve) depuis un moment. Vous devriez peut-être lui écrire.",
+            l2Body = "%s ne s'est pas manifesté(e) et son téléphone est silencieux. Prenez de ses nouvelles.",
             l3Body = "%s est injoignable depuis une période prolongée. Veuillez vérifier.",
+            l3BodyWithPhone = "%s est toujours injoignable. Contact de secours : %s — %s. Appelez.",
             l2Title = "Ollia",
             l3Title = "Ollia — Urgent"
         ),
         "ar" to Messages(
             l1Body = "هل أنت بخير؟ اضغط لإعلام عائلتك.",
-            l2Body = "لم يكن %s نشطاً منذ فترة. ربما تريد التواصل معه.",
+            l2Body = "لم يسجل %s وهواتفه هادئ. ربما تريد التواصل.",
             l3Body = "كان %s غير متاح لفترة طويلة. يرجى التحقق منه.",
+            l3BodyWithPhone = "%s لا يزال غير متاح. جهة الطوارئ: %s — %s. يرجى الاتصال.",
             l2Title = "أوليا",
             l3Title = "أوليا — عاجل"
         ),
         "bs" to Messages(
             l1Body = "Jeste li dobro? Tapnite da obavijestite svoju porodicu.",
-            l2Body = "%s nije bio/bila aktivan/na neko vrijeme. Možda biste trebali provjeriti.",
+            l2Body = "%s se nije javio/la i telefon je tih. Možda biste trebali provjeriti.",
             l3Body = "%s je nedostupan/na duži period. Molimo provjerite.",
+            l3BodyWithPhone = "%s je još uvijek nedostupan/na. Hitni kontakt: %s — %s. Nazovite.",
             l2Title = "Ollia",
             l3Title = "Ollia — Hitno"
         )
@@ -64,6 +74,7 @@ private object PushMessages {
 
     fun forLang(lang: String): Messages = translations[lang] ?: translations["en"]!!
 }
+
 @Component
 class EscalationScheduler(
     private val userRepository: UserRepository,
@@ -74,7 +85,9 @@ class EscalationScheduler(
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    /** Runs every 5 minutes. */
+    /** Phone murmur within this window means "still soft-present" — delay L1. */
+    private val passiveSuppressHours = 2L
+
     @Scheduled(fixedRate = 300_000)
     fun processEscalations() {
         checkScheduledDeadlines()
@@ -83,13 +96,6 @@ class EscalationScheduler(
         escalateToLevel3()
     }
 
-    // ── Scheduled mode: deadline expired → jump to Level 2 ────────
-
-    /**
-     * If a user set a "scheduled check-in" deadline and it has passed without
-     * any activity signal, skip Level 1 (user already knew the risk) and
-     * immediately notify their family circle (Level 2).
-     */
     private fun checkScheduledDeadlines() {
         val now = Instant.now()
         val users = userRepository.findAllByScheduledCheckInDeadlineBeforeAndEscalationLevel(
@@ -98,9 +104,7 @@ class EscalationScheduler(
         )
 
         for (user in users) {
-            // Clear the one-time deadline
             user.scheduledCheckInDeadline = null
-            // Jump straight to Level 2 (family notification)
             notifyFamilyCircle(user)
             user.escalationLevel = 2
             user.escalationChangedAt = now
@@ -109,30 +113,31 @@ class EscalationScheduler(
         }
     }
 
-    // ── Level 0 → 1: Notify the inactive user ──────────────────────
-
     private fun escalateToLevel1() {
-        // Fetch a generous candidate set (any user whose last activity is older than
-        // the sanity floor) and filter by the authoritative signal in memory.
         val candidates = userRepository.findAllByEscalationLevelAndLastSeenAtBefore(
             escalationLevel = 0,
-            threshold = Instant.now().minus(1, ChronoUnit.HOURS) // minimum sanity floor
+            threshold = Instant.now().minus(1, ChronoUnit.HOURS)
         )
 
         val now = Instant.now()
         for (user in candidates) {
             if (!user.notifyInactivity) continue
             val thresholdInstant = now.minus(user.inactivityThresholdHours.toLong(), ChronoUnit.HOURS)
-            // Prefer last_check_in_at (human signal); fall back to last_seen_at when null.
-            val reference = user.lastCheckInAt ?: user.lastSeenAt ?: continue
-            if (reference.isAfter(thresholdInstant)) continue
+            // Authoritative quiet: human check-in stale (fallback lastSeen if never checked in).
+            val humanRef = user.lastCheckInAt ?: user.lastSeenAt ?: continue
+            if (humanRef.isAfter(thresholdInstant)) continue
+            // Soft presence: phone murmuring → don't escalate yet.
+            val passive = user.lastPassiveSignalAt
+            if (passive != null && Duration.between(passive, now).toHours() < passiveSuppressHours) continue
 
             val token = pushTokenRepository.findByUserId(user.id!!) ?: continue
             val msgs = PushMessages.forLang(user.preferredLanguage)
             pushNotificationService.sendPushNotification(
                 expoPushToken = token.token,
                 title = "Ollia",
-                body = msgs.l1Body
+                body = msgs.l1Body,
+                userId = user.id,
+                notificationType = "escalation_l1",
             )
             user.escalationLevel = 1
             user.escalationChangedAt = now
@@ -140,8 +145,6 @@ class EscalationScheduler(
             logger.info("Escalation L1 for user ${user.id}")
         }
     }
-
-    // ── Level 1 → 2: Notify family circle members ──────────────────
 
     private fun escalateToLevel2() {
         val threshold = Instant.now().minus(30, ChronoUnit.MINUTES)
@@ -161,8 +164,6 @@ class EscalationScheduler(
         }
     }
 
-    // ── Level 2 → 3: Notify emergency contact ──────────────────────
-
     private fun escalateToLevel3() {
         val threshold = Instant.now().minus(2, ChronoUnit.HOURS)
         val users = userRepository.findAllByEscalationLevelAndEscalationChangedAtBefore(
@@ -173,7 +174,7 @@ class EscalationScheduler(
         val now = Instant.now()
         for (user in users) {
             if (!user.notifyInactivity) continue
-            notifyEmergencyContact(user)
+            notifyLastResort(user)
             user.escalationLevel = 3
             user.escalationChangedAt = now
             userRepository.save(user)
@@ -181,12 +182,6 @@ class EscalationScheduler(
         }
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────
-
-    /**
-     * Send a push notification to every family-circle peer who has
-     * notifyInactivity enabled.
-     */
     private fun notifyFamilyCircle(inactiveUser: User) {
         val memberships = familyMemberRepository.findAllByUserId(inactiveUser.id!!)
         val circleIds = memberships.map { it.circleId }.distinct()
@@ -195,8 +190,7 @@ class EscalationScheduler(
             val peers = familyMemberRepository.findAllByCircleId(circleId)
                 .filter { it.userId != inactiveUser.id }
 
-            val peerUserIds = peers.map { it.userId }
-            val peerUsers = userRepository.findAllById(peerUserIds)
+            val peerUsers = userRepository.findAllById(peers.map { it.userId })
                 .filter { it.notifyInactivity }
 
             val tokens = pushTokenRepository.findAllByUserIdIn(peerUsers.mapNotNull { it.id })
@@ -204,53 +198,65 @@ class EscalationScheduler(
 
             for (peer in peerUsers) {
                 val token = tokenMap[peer.id] ?: continue
-                // Send in the *recipient's* preferred language
                 val msgs = PushMessages.forLang(peer.preferredLanguage)
                 pushNotificationService.sendPushNotification(
                     expoPushToken = token.token,
                     title = msgs.l2Title,
-                    body = msgs.l2Body.format(inactiveUser.name)
+                    body = msgs.l2Body.format(inactiveUser.name),
+                    userId = peer.id,
+                    notificationType = "escalation_l2",
                 )
             }
         }
     }
 
     /**
-     * Send a push notification to the user's designated emergency contact.
-     * Currently limited to push notifications (the emergency contact must also
-     * be an Ollia user with a push token). SMS/call escalation can be added later.
+     * Last resort: tell the whole circle who to call. We don't send SMS ourselves
+     * (honest product) — we put name + phone in the urgent push so someone can.
      */
-    private fun notifyEmergencyContact(user: User) {
-        if (user.emergencyContactPhone.isNullOrBlank()) {
-            logger.warn("User ${user.id} has no emergency contact configured — skipping L3")
-            return
-        }
+    private fun notifyLastResort(user: User) {
+        val name = user.emergencyContactName?.takeIf { it.isNotBlank() }
+        val phone = user.emergencyContactPhone?.takeIf { it.isNotBlank() }
 
-        // Try to find the emergency contact as an Ollia user by matching name
-        // within the user's family circles. This keeps everything in-app.
         val memberships = familyMemberRepository.findAllByUserId(user.id!!)
         val circleIds = memberships.map { it.circleId }.distinct()
+        var sent = 0
 
         for (circleId in circleIds) {
             val peers = familyMemberRepository.findAllByCircleId(circleId)
                 .filter { it.userId != user.id }
-
             val peerUsers = userRepository.findAllById(peers.map { it.userId })
-            val emergencyUser = peerUsers.find {
-                it.name.equals(user.emergencyContactName, ignoreCase = true)
-            } ?: continue
+            val tokens = pushTokenRepository.findAllByUserIdIn(peerUsers.mapNotNull { it.id })
+            val tokenMap = tokens.associateBy { it.userId }
 
-            val token = pushTokenRepository.findByUserId(emergencyUser.id!!) ?: continue
-            // Send in the emergency contact's preferred language
-            val msgs = PushMessages.forLang(emergencyUser.preferredLanguage)
-            pushNotificationService.sendPushNotification(
-                expoPushToken = token.token,
-                title = msgs.l3Title,
-                body = msgs.l3Body.format(user.name)
-            )
-            return
+            for (peer in peerUsers) {
+                val token = tokenMap[peer.id] ?: continue
+                val msgs = PushMessages.forLang(peer.preferredLanguage)
+                val body = if (name != null && phone != null) {
+                    msgs.l3BodyWithPhone.format(user.name, name, phone)
+                } else {
+                    msgs.l3Body.format(user.name)
+                }
+                pushNotificationService.sendPushNotification(
+                    expoPushToken = token.token,
+                    title = msgs.l3Title,
+                    body = body,
+                    userId = peer.id,
+                    notificationType = "escalation_l3",
+                    data = buildMap {
+                        put("type", "escalation_l3")
+                        if (phone != null) put("emergencyPhone", phone)
+                        if (name != null) put("emergencyName", name)
+                    },
+                )
+                sent++
+            }
         }
 
-        logger.warn("Emergency contact '${user.emergencyContactName}' not found in circles for user ${user.id}")
+        if (sent == 0) {
+            logger.warn("L3 for user ${user.id}: no circle peers to notify")
+        } else if (phone == null) {
+            logger.warn("L3 for user ${user.id}: no emergency phone configured — circle still notified")
+        }
     }
 }

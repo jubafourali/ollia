@@ -13,24 +13,13 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
 /**
- * Reassurance nudge ladder. Runs every 15 minutes.
+ * Soft personal check-in reminders only. Family alerting is owned by
+ * [EscalationScheduler] — one silence doctrine.
  *
- * Only human check-ins (lastCheckInAt) count — passive signals exist only
- * to *suppress* nudges when the phone is clearly in use.
- *
- *   T ≥ threshold      → first nudge to user  ("A little check-in goes a long way")
- *   T ≥ threshold + 3h → second nudge (premium only)
- *   T ≥ 18h            → soft family notification
- *   T ≥ 30h            → strong family notification
- *
- * Threshold is 8h fixed for free users and `inactivityThresholdHours` for premium.
- * Sleep window (11pm–8am local): free is always quiet; premium is quiet too unless
- * a scheduled deadline has passed OR the user opted into urgent overnight alerts.
+ * Only human check-ins (lastCheckInAt) count. Recent passive murmur suppresses.
+ * Threshold = user's inactivityThresholdHours (same as escalation).
  */
-private const val FREE_THRESHOLD_HOURS = 8
 private const val SECOND_NUDGE_DELAY_HOURS = 3L
-private const val FAMILY_SOFT_HOURS = 18L
-private const val FAMILY_STRONG_HOURS = 30L
 private const val PASSIVE_SUPPRESS_HOURS = 2L
 private const val SLEEP_START_HOUR = 23
 private const val SLEEP_END_HOUR = 8
@@ -133,9 +122,13 @@ class NudgeScheduler(
         if (user.familyNotifiedStrong) return
 
         val isPremium = user.effectivePlan(now) == "premium"
-        val thresholdHours = if (isPremium) user.inactivityThresholdHours else FREE_THRESHOLD_HOURS
+        // Same threshold story as EscalationScheduler — one doctrine.
+        val thresholdHours = user.inactivityThresholdHours
         val sinceCheckIn = Duration.between(lastCheckIn, now)
         if (sinceCheckIn.toHours() < thresholdHours) return
+
+        // Escalation already owns family path — don't double-notify the user once L1+.
+        if (user.escalationLevel >= 1) return
 
         val zone = resolveZone(user.timezone)
         val localHour = ZonedDateTime.ofInstant(now, zone).hour
@@ -181,20 +174,7 @@ class NudgeScheduler(
             userRepository.save(user)
             logger.info("Second nudge sent to user ${user.id}")
         }
-
-        if (!user.familyNotified && sinceCheckIn.toHours() >= FAMILY_SOFT_HOURS) {
-            notifyFamily(user, strong = false)
-            user.familyNotified = true
-            userRepository.save(user)
-            logger.info("Soft family notification sent for user ${user.id}")
-        }
-
-        if (!user.familyNotifiedStrong && sinceCheckIn.toHours() >= FAMILY_STRONG_HOURS) {
-            notifyFamily(user, strong = true)
-            user.familyNotifiedStrong = true
-            userRepository.save(user)
-            logger.info("Strong family notification sent for user ${user.id}")
-        }
+        // Family soft/strong removed — EscalationScheduler is the single family ladder.
     }
 
     private fun resolveZone(tz: String?): ZoneId =
