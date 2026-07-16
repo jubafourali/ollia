@@ -23,11 +23,13 @@ import Animated, {
 
 import BRAND from "@/constants/colors";
 import type { MyProfile } from "@/context/FamilyContext";
+import { trackInviteSent } from "@/utils/analytics";
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   inviteCode: string;
+  circleId: string;
   myProfile: MyProfile | null;
   onInviteSent: (pendingName: string, relation: string) => void;
   onNameSet?: (name: string) => void;
@@ -37,6 +39,7 @@ export function InviteModal({
   visible,
   onClose,
   inviteCode,
+  circleId,
   myProfile,
   onInviteSent,
   onNameSet,
@@ -90,6 +93,7 @@ export function InviteModal({
         message: `${name} cares about you \u{1F49B}\n\nThey're using Ollia to quietly make sure everyone is okay.\n\nJoin their circle:\n${link}`,
         title: t("invite.shareSheetTitle"),
       });
+      if (circleId) await trackInviteSent(circleId);
       if (relation) {
         onInviteSent(relation, relation);
       }
@@ -104,9 +108,11 @@ export function InviteModal({
     try {
       const Clipboard = await import("expo-clipboard");
       await Clipboard.default.setStringAsync(link);
+      if (circleId) await trackInviteSent(circleId);
     } catch {
       try {
         await navigator.clipboard.writeText(link);
+        if (circleId) await trackInviteSent(circleId);
       } catch {}
     }
     setLinkCopied(true);

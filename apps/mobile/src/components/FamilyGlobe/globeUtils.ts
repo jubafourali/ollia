@@ -219,7 +219,7 @@ export function resolveMembers(members: GlobeMember[], meRegion?: string): Resol
     if (!coords) continue;
     pins.push({
       id: m.id, name: m.name, relation: m.relation, region,
-      status: m.status, lastCheckInAt: m.lastCheckInAt, lastSeen: m.lastSeen,
+      status: m.status, lastCheckInAt: m.lastCheckInAt, lastPassiveAt: m.lastPassiveAt ?? null, lastSeen: m.lastSeen,
       isMe: m.isMe, lat: coords[0], lng: coords[1],
       pinColor: m.status === "inactive" ? "#9ca3af" : getPinColor(m.id),
       avatarUrl: m.avatarUrl,
@@ -229,7 +229,7 @@ export function resolveMembers(members: GlobeMember[], meRegion?: string): Resol
 }
 
 export function formatLastSeen(date: Date | null): string {
-  if (!date || date.getTime() === 0) return "Never checked in";
+  if (!date || date.getTime() === 0) return "—";
   const mins = Math.floor((Date.now() - date.getTime()) / 60000);
   if (mins < 2)   return "Just now";
   if (mins < 60)  return `${mins}m ago`;

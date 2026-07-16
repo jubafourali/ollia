@@ -36,6 +36,7 @@ import { CityPicker } from "@/components/CityPicker";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { SkyHeader, sheetStyle } from "@/components/SkyScreen";
 import { api } from "@/utils/api";
+import type { ApiCoverage } from "@/utils/api";
 import i18n, { SUPPORTED_LANGUAGES, LANGUAGE_STORAGE_KEY, type LanguageCode } from "@/i18n";
 import {
   APP_CATALOG,
@@ -302,6 +303,7 @@ export default function SettingsScreen() {
   const [editTimezone, setEditTimezone] = useState<string | undefined>(myProfile?.timezone);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [regionCoverage, setRegionCoverage] = useState<ApiCoverage | null>(null);
 
   const [notifActivity, setNotifActivity] = useState(true);
   const [notifInactivity, setNotifInactivity] = useState(true);
@@ -340,6 +342,19 @@ export default function SettingsScreen() {
     setEditCity(myProfile?.region ?? "");
     setEditTimezone(myProfile?.timezone);
   }, [myProfile]);
+
+  useEffect(() => {
+    const region = (editCity || myProfile?.region || "").trim();
+    if (!region) {
+      setRegionCoverage(null);
+      return;
+    }
+    let cancelled = false;
+    api.getCoverage(region)
+      .then((c) => { if (!cancelled) setRegionCoverage(c); })
+      .catch(() => { if (!cancelled) setRegionCoverage(null); });
+    return () => { cancelled = true; };
+  }, [editCity, myProfile?.region]);
 
   useEffect(() => {
     api.getNotificationPrefs()
@@ -666,9 +681,32 @@ export default function SettingsScreen() {
       <View style={styles.sourceDisclaimer}>
         <Feather name="info" size={12} color={BRAND.textMuted} />
         <Text style={styles.sourceDisclaimerText}>
-          {t("sources.disclaimer")}
+          {regionCoverage?.disclaimer || t("sources.disclaimer")}
         </Text>
       </View>
+
+      {regionCoverage ? (
+        <View style={styles.coveragePack}>
+          <Text style={styles.coveragePackTitle}>
+            {regionCoverage.packLabel}
+          </Text>
+          <Text style={styles.coveragePackPromise}>{regionCoverage.promise}</Text>
+          <Text style={styles.coveragePackSection}>{t("sources.weCheck")}</Text>
+          {(regionCoverage.coveredLabels || []).slice(0, 6).map((label) => (
+            <View key={`cov-${label}`} style={styles.coveragePackRow}>
+              <Feather name="check" size={12} color={BRAND.statusGreen} />
+              <Text style={styles.coveragePackRowText}>{label}</Text>
+            </View>
+          ))}
+          <Text style={[styles.coveragePackSection, { marginTop: 10 }]}>{t("sources.weDoNotClaim")}</Text>
+          {(regionCoverage.notCoveredLabels || []).slice(0, 6).map((label) => (
+            <View key={`gap-${label}`} style={styles.coveragePackRow}>
+              <Feather name="minus" size={12} color={BRAND.textMuted} />
+              <Text style={styles.coveragePackRowMuted}>{label}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       <Text style={styles.sectionTitle}>{t("settings.notifications")}</Text>
       <View style={styles.section}>
@@ -1651,6 +1689,55 @@ const styles = StyleSheet.create({
     color: BRAND.textMuted,
     flex: 1,
     lineHeight: 15,
+  },
+  coveragePack: {
+    marginBottom: 20,
+    borderRadius: 14,
+    padding: 14,
+    backgroundColor: BRAND.backgroundCard,
+    borderWidth: 1,
+    borderColor: BRAND.borderLight,
+  },
+  coveragePackTitle: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+    color: BRAND.text,
+    marginBottom: 6,
+  },
+  coveragePackPromise: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.textSecondary,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  coveragePackSection: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    color: BRAND.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+  coveragePackRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    paddingVertical: 3,
+  },
+  coveragePackRowText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.text,
+    lineHeight: 18,
+  },
+  coveragePackRowMuted: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.textSecondary,
+    lineHeight: 18,
   },
   row: {
     flexDirection: "row",

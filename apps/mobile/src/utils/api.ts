@@ -66,6 +66,7 @@ export type ApiCircleMember = {
   avatarUrl?: string | null;
   relation: string;
   lastCheckInAt?: string | null;
+  lastPassiveAt?: string | null;
   lastSeen?: string;
   joinedAt?: string;
   travelMode?: boolean;
@@ -161,11 +162,71 @@ export type ApiNearbyMember = {
   isMe: boolean;
 };
 
+export type ApiCoverage = {
+  country: string;
+  packId: string;
+  packLabel: string;
+  promise: string;
+  hazardsCovered: string[];
+  hazardsNotCovered: string[];
+  coveredLabels: string[];
+  notCoveredLabels: string[];
+  gapChips?: string[];
+  sourcesActive: string[];
+  disclaimer: string;
+};
+
+export type ApiWeatherSnapshot = {
+  temperatureC: number;
+  feelsLikeC?: number | null;
+  weatherCode: number;
+  condition: string;
+  windKmh: number;
+  humidityPct?: number | null;
+  highC?: number | null;
+  lowC?: number | null;
+  isHarsh?: boolean;
+  aqi?: number | null;
+  aqiLabel?: string | null;
+  pm25?: number | null;
+  precipNextHoursMm?: number | null;
+  uvIndex?: number | null;
+  dustUgM3?: number | null;
+  dustLabel?: string | null;
+  pollenType?: string | null;
+  pollenLevel?: string | null;
+  pollenValue?: number | null;
+};
+
+export type ApiCityHoliday = {
+  isToday: boolean;
+  name?: string | null;
+  nextName?: string | null;
+  nextDate?: string | null;
+};
+
+export type ApiPlaceSituation = {
+  placeLabel: string;
+  country?: string | null;
+  asOf: string;
+  weather?: ApiWeatherSnapshot | null;
+  overall?: string | null;
+  tone: "calm" | "unsettled" | "disrupted" | string;
+  instrumentsChecked: string[];
+  alertCount: number;
+  caveat: string;
+  /** Instrument/calendar city knowledge — never crime/street. */
+  knowledge?: string[];
+  holiday?: ApiCityHoliday | null;
+};
+
 export type ApiNearbyRegion = {
   region: string;
   worstRisk: "NORMAL" | "STAY_AWARE" | "IMPORTANT_DISRUPTION";
-  summary: string;        // calm smart-summary sentence for the safety banner
+  summary: string;
   events: ApiNearbyEvent[];
+  coverage?: ApiCoverage | null;
+  situation?: ApiPlaceSituation | null;
 };
 
 export const api = {
@@ -317,6 +378,10 @@ export const api = {
   // Region-scoped safety feed — "what's happening around this place right now?"
   getNearbyRegion(region: string): Promise<ApiNearbyRegion> {
     return req(`/v2/nearby/region?region=${encodeURIComponent(region)}`);
+  },
+
+  getCoverage(region: string): Promise<ApiCoverage> {
+    return req(`/v2/nearby/coverage?region=${encodeURIComponent(region)}`);
   },
 
   registerPushToken(token: string, platform = "expo"): Promise<{ success: boolean }> {

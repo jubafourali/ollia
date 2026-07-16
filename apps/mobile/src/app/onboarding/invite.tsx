@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
+import { trackInviteSent } from "@/utils/analytics";
 import {
     OnboardingContainer,
     PrimaryButton,
@@ -37,7 +38,7 @@ type StoredPerson = { name: string; relation: string; relationId?: RelationId };
 export default function InviteOnboardingScreen() {
     const insets = useSafeAreaInsets();
     const { t } = useTranslation();
-    const { inviteCode, myProfile, addMember } = useFamilyContext();
+    const { inviteCode, circleId, myProfile, addMember } = useFamilyContext();
     const [person, setPerson] = useState<StoredPerson | null>(null);
     const addedRef = useRef(false);
     const cardScale = useSharedValue(0.92);
@@ -93,6 +94,7 @@ export default function InviteOnboardingScreen() {
             await Share.share({
                 message: t("onboarding.inviteStep.shareMessage", { link }),
             });
+            if (circleId) await trackInviteSent(circleId);
             await advance(true);
         } catch {
             // User cancelled share sheet — stay on this screen

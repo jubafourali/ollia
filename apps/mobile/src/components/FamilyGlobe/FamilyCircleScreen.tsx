@@ -14,6 +14,8 @@ import {
     resolveMembers, formatLastSeen, STATUS_PIN_COLOR as _STATUS_PIN_COLOR,
 } from "./globeUtils";
 import { Phase, getPhase, SKY, PHASE_EMOJI, usePhase } from "@/components/SkyBackground";
+import { api, type ApiCoverage } from "@/utils/api";
+import { formatCoverageQuietLine } from "@/utils/coverageCopy";
 
 // Emotional status color palette — atmosphere, not UI
 const STATUS_PIN_COLOR: Record<string, string> = {
@@ -379,8 +381,22 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
     // TODO show why the pending member shows twice
     const pendingMembers = useMemo(() => members.filter(m => m.pending && !m.isMe), [members]);
     const selPin = pins.find(p => p.id === selId) ?? null;
+    const [pinCoverage, setPinCoverage] = useState<ApiCoverage | null>(null);
     const hasAlert = events.some(e => e.severity === "high");
     const { text: subText, color: subColor } = heroSubtext(pins, hasAlert);
+
+    useEffect(() => {
+        const region = selPin?.region?.trim();
+        if (!region) {
+            setPinCoverage(null);
+            return;
+        }
+        let cancelled = false;
+        api.getCoverage(region)
+            .then((c) => { if (!cancelled) setPinCoverage(c); })
+            .catch(() => { if (!cancelled) setPinCoverage(null); });
+        return () => { cancelled = true; };
+    }, [selPin?.region]);
 
     // Sky follows the user's local time of day. The full-screen background is
     // rendered once in the tabs layout; here we only need the phase for the
@@ -594,9 +610,9 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
                         : pinEvs.some(e => e.severity === "medium") ? "medium"
                             : null;
                     const memberAlert = events.find(e => e.sentence && !!selPin.name && e.sentence.includes(selPin.name));
-                    const olliaNote = memberAlert?.sentence ?? (isOvd
-                        ? `Ollia hasn't noticed anything unusual near ${selPin.region.split(",")[0]}. Things seem calm.`
-                        : `${selPin.name}'s area is quiet right now. Nothing unusual nearby.`);
+                    const place = selPin.region.split(",")[0] || "their area";
+                    const olliaNote = memberAlert?.sentence
+                        ?? formatCoverageQuietLine(place, pinCoverage);
                     return (
                         <>
                             <View style={{ width:38,height:4,borderRadius:2,backgroundColor:"#E0D0B8",alignSelf:"center",marginBottom:18 }} />
@@ -631,18 +647,23 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
                                 </View>
                             </View>
 
-                            {/* Meta — warm, not operational */}
+                            {/* Trust spine — presence, place, silence doctrine */}
                             <View style={{ flexDirection:"row",flexWrap:"wrap",gap:10,marginBottom:14 }}>
                                 {([
-                                    { icon:"clock",       label:"Last seen",  val:formatLastSeen(selPin.lastSeen),      col:undefined },
-                                    { icon:"check-circle",label:"Check-in",   val:formatLastSeen(selPin.lastCheckInAt), col:undefined },
+                                    { icon:"heart",       label:"I'm OK",     val:formatLastSeen(selPin.lastCheckInAt), col:undefined },
+                                    {
+                                      icon:"smartphone",
+                                      label:"Phone",
+                                      val: formatLastSeen(selPin.lastPassiveAt ?? selPin.lastSeen),
+                                      col: undefined,
+                                    },
                                     {
                                         icon:"shield", label:"Nearby", val: worstNearby==="high"   ? "Worth checking"
-                                            : worstNearby==="medium" ? "Stay aware" : "All quiet",
+                                            : worstNearby==="medium" ? "Stay aware" : "Checked · clear",
                                         col: worstNearby==="high"   ? "#ef4444"
                                             : worstNearby==="medium" ? "#f59e0b" : "#10b981"
                                     },
-                                    { icon:"map-pin",     label:"Feeling",    val:isOvd?"Worth checking in":"Settled",  col:isOvd?"#f59e0b":"#10b981" },
+                                    { icon:"bell",        label:"If quiet",   val:isOvd?"We'll escalate":"Listening",  col:isOvd?"#f59e0b":"#10b981" },
                                 ] as const).map(({ icon, label, val, col }) => (
                                     <View key={label} style={{ flex:1,minWidth:"44%",backgroundColor:"#F7F0E6",borderRadius:14,padding:12,gap:4,borderWidth:1,borderColor:"#EAD9C0" }}>
                                         <Feather name={icon as any} size={13} color="#9C8E7A" />
@@ -652,12 +673,24 @@ export function FamilyCircleScreen({ members, meRegion, events=[], onInvite, onM
                                 ))}
                             </View>
 
+                            <Text style={{ fontSize:11, fontFamily:"Inter_400Regular", color:"#9C8E7A", marginBottom:12, lineHeight:16 }}>
+                              Quiet means we checked instruments and are still listening — not that nothing happened on earth.
+                            </Text>
+
                             {/* Ollia note */}
                             <View style={{ backgroundColor:"rgba(245,158,11,0.07)", borderRadius:14, padding:14, marginBottom:14, borderWidth:1, borderColor:"rgba(245,158,11,0.18)" }}>
                                 <Text style={{ fontSize:13, fontFamily:"Inter_400Regular", color:"#6B5C46", lineHeight:20 }}>
                                     <Text style={{ fontFamily:"Inter_600SemiBold", color:"#c97d0a" }}>Ollia  </Text>
                                     {olliaNote}
                                 </Text>
+                                {pinCoverage?.packLabel && !memberAlert ? (
+                                    <Text style={{ fontSize:11, fontFamily:"Inter_400Regular", color:"#9C8E7A", marginTop:8, lineHeight:15 }}>
+                                        {pinCoverage.packLabel}
+                                        {pinCoverage.notCoveredLabels?.[0]
+                                            ? ` · e.g. not ${pinCoverage.notCoveredLabels[0].toLowerCase()}`
+                                            : ""}
+                                    </Text>
+                                ) : null}
                             </View>
 
                             {/* Member events */}

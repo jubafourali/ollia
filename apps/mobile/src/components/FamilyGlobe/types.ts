@@ -5,6 +5,7 @@ export type GlobeMember = {
   region: string;
   status: "active" | "recent" | "away" | "inactive";
   lastCheckInAt: Date | null;
+  lastPassiveAt?: Date | null;
   lastSeen: Date;
   isMe?: boolean;
   pending?: boolean;
@@ -18,6 +19,7 @@ export type ResolvedPin = {
   region: string;
   status: GlobeMember["status"];
   lastCheckInAt: Date | null;
+  lastPassiveAt?: Date | null;
   lastSeen: Date;
   isMe?: boolean;
   lat: number;

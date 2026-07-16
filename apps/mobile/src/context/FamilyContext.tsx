@@ -22,6 +22,11 @@ import {
 import * as BackgroundFetch from "expo-background-fetch";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import {
+  maybeTrackCircleActivated,
+  setAnalyticsRole,
+  trackCircleCreated,
+} from "@/utils/analytics";
 import {triggerReviewAfterFirstMember} from "@/utils/reviewPrompt";
 
 export type ActivityStatus = "active" | "recent" | "away" | "inactive";
@@ -36,6 +41,8 @@ export type FamilyMember = {
   status: ActivityStatus;
   lastSeen: Date;
   lastCheckInAt: Date | null;
+  /** Soft presence murmur (passive / foreground). */
+  lastPassiveAt: Date | null;
   region: string;
   isMe?: boolean;
   pending?: boolean;
@@ -86,6 +93,7 @@ type FamilyContextType = {
   clearAllState: () => Promise<void>;
   respondToCheckIn: (requestId: string, response: "fine" | "help") => void;
   sendHeartbeat: () => void;
+  sendHelp: () => Promise<void>;
   setMyProfile: (profile: MyProfile) => Promise<void>;
   updateMyAvatar: (url: string) => Promise<void>;
   pendingCheckIn: CheckInRequest | null;
@@ -154,8 +162,9 @@ function getStatusFromLastSeen(lastSeen: Date | null): ActivityStatus {
 function apiMemberToLocal(m: ApiCircleMember, meId: string): FamilyMember {
   const lastSeen = m.lastSeen ? new Date(m.lastSeen) : new Date(0);
   const lastCheckInAt = m.lastCheckInAt ? new Date(m.lastCheckInAt) : null;
-  // Internal fallback only — the UI reads lastCheckInAt directly.
-  const statusReference = lastCheckInAt ?? (m.lastSeen ? lastSeen : null);
+  const lastPassiveAt = m.lastPassiveAt ? new Date(m.lastPassiveAt) : null;
+  // Soft presence: human OK first, else phone murmur / last seen.
+  const statusReference = lastCheckInAt ?? lastPassiveAt ?? (m.lastSeen ? lastSeen : null);
   return {
     id: m.id,
     userId: m.userId,
@@ -166,6 +175,7 @@ function apiMemberToLocal(m: ApiCircleMember, meId: string): FamilyMember {
     status: getStatusFromLastSeen(statusReference),
     lastSeen,
     lastCheckInAt,
+    lastPassiveAt,
     region: m.region ?? "",
     isMe: m.userId === meId,
     pending: false,
@@ -290,6 +300,15 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
     setAuthTokenGetter(null);
   }, [stopAllIntervals]);
 
+  const sendPassiveToServer = useCallback(async (uid: string) => {
+    if (!uid) return;
+    try {
+      await api.sendHeartbeat(uid, "foreground");
+    } catch (e) {
+      console.warn("Passive presence failed:", e);
+    }
+  }, []);
+
   const sendHeartbeatToServer = useCallback(async (uid: string) => {
     if (!uid) return;
     try {
@@ -297,6 +316,16 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       setMyLastSeen(new Date());
     } catch (e) {
       console.warn("Heartbeat failed:", e);
+    }
+  }, []);
+
+  const sendHelpToServer = useCallback(async (uid: string) => {
+    if (!uid) return;
+    try {
+      await api.sendHeartbeat(uid, "help");
+    } catch (e) {
+      console.warn("Help signal failed:", e);
+      throw e;
     }
   }, []);
 
@@ -357,10 +386,19 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
         await AsyncStorage.setItem(INVITE_CODE_KEY, data.inviteCode);
       }
 
+      if (data.ownerId) {
+        await setAnalyticsRole(data.ownerId === devId ? "worrier" : "watched");
+      }
+
       const remoteMembers = data.members
           .filter((m) => m.userId !== devId)
           .map((m) => apiMemberToLocal(m, devId));
       setMembers(remoteMembers);
+
+      await maybeTrackCircleActivated({
+        circleId: cId,
+        memberCount: data.members.length,
+      });
 
       // Prompt the current user to reach out to peers whose last human check-in
       // is over 18h old. Based on lastCheckInAt so passive signals don't hide it.
@@ -391,13 +429,14 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
   const startHeartbeat = useCallback(
       (uid: string) => {
         if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-        sendHeartbeatToServer(uid);
+        // Soft presence only — deliberate "I'm OK" is sendHeartbeat / Shortcuts / notification action.
+        sendPassiveToServer(uid);
         heartbeatRef.current = setInterval(
-            () => sendHeartbeatToServer(uid),
+            () => sendPassiveToServer(uid),
             HEARTBEAT_INTERVAL_MS
         );
       },
-      [sendHeartbeatToServer]
+      [sendPassiveToServer]
   );
 
   const startRefresh = useCallback(() => {
@@ -443,10 +482,9 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           (prev === "background" || prev === "inactive") &&
           next === "active"
       ) {
-        sendHeartbeatToServer(deviceIdRef.current);
+        sendPassiveToServer(deviceIdRef.current);
         refreshCircle();
         syncSubscription();
-        // Re-check founding status in case DB was just updated
         if (deviceIdRef.current) checkFoundingStatus(deviceIdRef.current);
         // Refresh cached auth token for background tasks
         getToken().then((t: string | null) => storeBackgroundToken(t)).catch(() => {});
@@ -496,7 +534,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       responseSub.remove();
       stopAllIntervals();
     };
-  }, [sendHeartbeatToServer, refreshCircle, syncSubscription, registerPushNotifications, checkFoundingStatus]);
+  }, [sendPassiveToServer, sendHeartbeatToServer, refreshCircle, syncSubscription, registerPushNotifications, checkFoundingStatus]);
 
   // Listen for ollia://heartbeat deep links (e.g. from iOS Shortcuts)
   useEffect(() => {
@@ -524,6 +562,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
             code = circle.inviteCode;
             await AsyncStorage.setItem(CIRCLE_KEY, cId);
             await AsyncStorage.setItem(INVITE_CODE_KEY, code);
+            await trackCircleCreated(cId);
           } catch (e) {
             console.warn("createCircle failed:", e);
           }
@@ -535,6 +574,11 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
             code = circle.inviteCode;
             if (code) {
               await AsyncStorage.setItem(INVITE_CODE_KEY, code);
+            }
+            if (circle.ownerId) {
+              await setAnalyticsRole(
+                circle.ownerId === devId ? "worrier" : "watched",
+              );
             }
           } catch (e) {
             console.warn("Failed to fetch inviteCode:", e);
@@ -703,6 +747,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           status: "inactive",
           lastSeen: new Date(0),
           lastCheckInAt: null,
+          lastPassiveAt: null,
         };
         setMembers((prev) => [...prev, newMember]);
       },
@@ -728,7 +773,12 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
       async (requestId: string, response: "fine" | "help") => {
         const devId = deviceIdRef.current;
         if (devId) {
-          api.sendHeartbeat(devId, "check_in_response").catch(() => {});
+          if (response === "help") {
+            sendHelpToServer(devId).catch(() => {});
+          } else {
+            api.sendHeartbeat(devId, "check_in_response").catch(() => {});
+            setMyLastSeen(new Date());
+          }
         }
         setCheckInRequests((prev) => {
           const updated = prev.map((c) =>
@@ -737,15 +787,18 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.setItem(CHECKINS_KEY, JSON.stringify(updated));
           return updated;
         });
-        setMyLastSeen(new Date());
       },
-      []
+      [sendHelpToServer]
   );
 
   const sendHeartbeat = useCallback(() => {
     setMyLastSeen(new Date());
     sendHeartbeatToServer(deviceIdRef.current);
   }, [sendHeartbeatToServer]);
+
+  const sendHelp = useCallback(async () => {
+    await sendHelpToServer(deviceIdRef.current);
+  }, [sendHelpToServer]);
 
   const setMyProfile = useCallback(
       async (profile: MyProfile) => {
@@ -960,6 +1013,7 @@ export function FamilyProvider({ children }: { children: React.ReactNode }) {
             clearAllState,
             respondToCheckIn,
             sendHeartbeat,
+            sendHelp,
             setMyProfile,
             updateMyAvatar,
             pendingCheckIn,

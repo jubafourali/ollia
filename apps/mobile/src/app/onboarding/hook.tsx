@@ -64,7 +64,7 @@ export default function HookScreen() {
 
                 <StaggeredEnter index={1} style={styles.illustration}>
                     <BreathingView>
-                        <UncertaintyIllustration size={268} />
+                        <UncertaintyIllustration size={300} />
                     </BreathingView>
                 </StaggeredEnter>
 

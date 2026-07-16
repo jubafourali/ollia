@@ -16,7 +16,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BRAND from "@/constants/colors";
 import { useFamilyContext } from "@/context/FamilyContext";
-import type { ApiNearbyEvent } from "@/utils/api";
+import type { ApiCoverage, ApiNearbyEvent, ApiPlaceSituation } from "@/utils/api";
+import { formatCoverageQuietLine, coveragePackTitle, coverageGapChips } from "@/utils/coverageCopy";
 import { SkyHeader, sheetStyle } from "@/components/SkyScreen";
 import { CityPicker } from "@/components/CityPicker";
 
@@ -46,8 +47,21 @@ const RISK_LABEL: Record<string, string> = {
 const BANNER_STATUS: Record<string, { label: string; icon: string }> = {
     IMPORTANT_DISRUPTION: { label: "Important disruption", icon: "alert-triangle" },
     STAY_AWARE:           { label: "Stay aware",           icon: "alert-circle" },
-    NORMAL:               { label: "All clear",            icon: "check-circle" },
+    NORMAL:               { label: "Checked & clear",      icon: "check-circle" },
 };
+
+const TONE_META: Record<string, { label: string; color: string; icon: string }> = {
+    calm:      { label: "Settled",    color: BRAND.statusGreen, icon: "sun" },
+    unsettled: { label: "Unsettled",  color: "#F59E0B",         icon: "cloud" },
+    disrupted: { label: "Disrupted",  color: "#EF4444",         icon: "alert-triangle" },
+};
+
+function weatherIcon(code: number): string {
+    if (code === 0 || code === 1) return "sun";
+    if (code >= 95) return "cloud-lightning";
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "cloud-drizzle";
+    return "cloud";
+}
 
 /** First comma-separated token of a region string, lower-cased — the "city". */
 function cityToken(region: string): string {
@@ -232,21 +246,192 @@ const ov = StyleSheet.create({
     chipTextActive: { color: BRAND.primaryDark, fontFamily: "Inter_600SemiBold" },
 });
 
-// ── Safety status banner (SAIAE smart summary) ──────────────────────────────────
+// ── Place situation ("being there") ───────────────────────────────────────────
+
+function SituationCard({ situation }: { situation: ApiPlaceSituation }) {
+    const tone = TONE_META[situation.tone] ?? TONE_META.calm;
+    const wx = situation.weather;
+    return (
+        <View style={[sit.card, { borderColor: `${tone.color}35`, backgroundColor: `${tone.color}0C` }]}>
+            <View style={sit.topRow}>
+                <View style={[sit.iconWrap, { backgroundColor: `${tone.color}22` }]}>
+                    <Feather
+                        name={(wx ? weatherIcon(wx.weatherCode) : tone.icon) as any}
+                        size={22}
+                        color={tone.color}
+                    />
+                </View>
+                <View style={{ flex: 1 }}>
+                    <Text style={sit.place}>{situation.placeLabel}</Text>
+                    <Text style={[sit.tone, { color: tone.color }]}>{tone.label}</Text>
+                </View>
+                {wx ? (
+                    <View style={sit.tempBlock}>
+                        <Text style={sit.temp}>{Math.round(wx.temperatureC)}°</Text>
+                    </View>
+                ) : null}
+            </View>
+
+            {situation.overall ? <Text style={sit.overall}>{situation.overall}</Text> : null}
+
+            {situation.knowledge && situation.knowledge.length > 0 ? (
+                <View style={sit.knowledgeWrap}>
+                    {situation.knowledge.slice(0, 4).map((line) => (
+                        <View key={line} style={sit.knowledgeChip}>
+                            <Text style={sit.knowledgeText}>{line}</Text>
+                        </View>
+                    ))}
+                </View>
+            ) : null}
+
+            {wx ? (
+                <View style={sit.statsRow}>
+                    <Text style={sit.statInline}>{wx.condition}</Text>
+                    <Text style={sit.dot}>·</Text>
+                    <Text style={sit.statInline}>{Math.round(wx.windKmh)} km/h</Text>
+                    {wx.humidityPct != null ? (
+                        <>
+                            <Text style={sit.dot}>·</Text>
+                            <Text style={sit.statInline}>{wx.humidityPct}%</Text>
+                        </>
+                    ) : null}
+                    {wx.aqi != null ? (
+                        <>
+                            <Text style={sit.dot}>·</Text>
+                            <Text style={sit.statInline}>AQI {wx.aqi}</Text>
+                        </>
+                    ) : null}
+                    {wx.dustLabel && wx.dustLabel !== "low" && wx.dustLabel !== "none" ? (
+                        <>
+                            <Text style={sit.dot}>·</Text>
+                            <Text style={sit.statInline}>Dust {wx.dustLabel}</Text>
+                        </>
+                    ) : null}
+                    {wx.pollenLevel && wx.pollenLevel !== "none" && wx.pollenLevel !== "low" ? (
+                        <>
+                            <Text style={sit.dot}>·</Text>
+                            <Text style={sit.statInline}>
+                                {wx.pollenType ?? "Pollen"} {wx.pollenLevel}
+                            </Text>
+                        </>
+                    ) : null}
+                    {wx.uvIndex != null && wx.uvIndex >= 1 ? (
+                        <>
+                            <Text style={sit.dot}>·</Text>
+                            <Text style={sit.statInline}>UV {Math.round(wx.uvIndex)}</Text>
+                        </>
+                    ) : null}
+                    {wx.precipNextHoursMm != null && wx.precipNextHoursMm >= 0.2 ? (
+                        <>
+                            <Text style={sit.dot}>·</Text>
+                            <Text style={sit.statInline}>{wx.precipNextHoursMm.toFixed(1)} mm</Text>
+                        </>
+                    ) : null}
+                    {wx.highC != null && wx.lowC != null ? (
+                        <>
+                            <Text style={sit.dot}>·</Text>
+                            <Text style={sit.statInline}>
+                                {Math.round(wx.highC)}°/{Math.round(wx.lowC)}°
+                            </Text>
+                        </>
+                    ) : null}
+                </View>
+            ) : null}
+        </View>
+    );
+}
+
+const sit = StyleSheet.create({
+    card: { borderRadius: 18, padding: 16, borderWidth: 1, gap: 10, marginBottom: 10 },
+    topRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+    iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+    place: { fontSize: 18, fontFamily: "Inter_700Bold", color: BRAND.text },
+    tone: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginTop: 2 },
+    tempBlock: { flexDirection: "row", alignItems: "flex-start" },
+    temp: { fontSize: 34, fontFamily: "Inter_700Bold", color: BRAND.text, lineHeight: 36 },
+    overall: { fontSize: 13, fontFamily: "Inter_400Regular", color: "#374151", lineHeight: 19 },
+    knowledgeWrap: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+    knowledgeChip: {
+        backgroundColor: "rgba(255,255,255,0.7)",
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: "rgba(0,0,0,0.06)",
+    },
+    knowledgeText: { fontSize: 12, fontFamily: "Inter_500Medium", color: BRAND.textSecondary },
+    statsRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 },
+    statInline: { fontSize: 13, fontFamily: "Inter_500Medium", color: BRAND.textSecondary },
+    dot: { fontSize: 13, color: BRAND.textMuted },
+});
+
+// ── Instruments strip (minimal) ───────────────────────────────────────────────
+
+function InstrumentsStrip({
+    worstRisk,
+    eventCount,
+    coverage,
+}: {
+    worstRisk: Risk;
+    eventCount: number;
+    coverage?: ApiCoverage | null;
+}) {
+    const status = BANNER_STATUS[worstRisk];
+    const color = worstRisk === "NORMAL" ? BRAND.statusGreen : RISK_COLOR[worstRisk];
+    const gaps = worstRisk === "NORMAL" ? coverageGapChips(coverage).slice(0, 3) : [];
+
+    return (
+        <View style={[inst.card, { borderColor: `${color}22` }]}>
+            <View style={inst.topRow}>
+                <Feather name={status.icon as any} size={14} color={color} />
+                <Text style={[inst.status, { color }]}>{status.label}</Text>
+                <Text style={inst.count}>
+                    {eventCount} {eventCount === 1 ? "alert" : "alerts"}
+                </Text>
+            </View>
+            {gaps.length > 0 ? (
+                <Text style={inst.gapLine}>
+                    Not {gaps.map((g) => g.toLowerCase()).join(" · ")}
+                </Text>
+            ) : null}
+        </View>
+    );
+}
+
+const inst = StyleSheet.create({
+    card: {
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 11,
+        borderWidth: 1,
+        backgroundColor: BRAND.backgroundCard,
+        gap: 4,
+        marginBottom: 12,
+    },
+    topRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    status: { fontSize: 13, fontFamily: "Inter_700Bold", flex: 1 },
+    count: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: BRAND.textMuted },
+    gapLine: { fontSize: 11, fontFamily: "Inter_400Regular", color: BRAND.textMuted, paddingLeft: 22 },
+});
+
+// ── Legacy banner kept for alert-heavy states without situation ───────────────
 
 function SafetyBanner({
     region,
     worstRisk,
     eventCount,
     summary,
+    coverage,
 }: {
     region: string;
     worstRisk: Risk;
     eventCount: number;
     summary: string;
+    coverage?: ApiCoverage | null;
 }) {
     const status = BANNER_STATUS[worstRisk];
     const color = worstRisk === "NORMAL" ? BRAND.statusGreen : RISK_COLOR[worstRisk];
+    const gaps = worstRisk === "NORMAL" ? coverageGapChips(coverage) : [];
 
     return (
         <View style={[sb.card, { borderColor: `${color}40`, backgroundColor: `${color}0E` }]}>
@@ -269,16 +454,29 @@ function SafetyBanner({
 
             <Text style={sb.summary}>{summary}</Text>
 
+            {gaps.length > 0 ? (
+                <View style={sb.gapBlock}>
+                    <Text style={sb.gapLabel}>Not covered</Text>
+                    <View style={sb.chipRow}>
+                        {gaps.map((g) => (
+                            <View key={g} style={sb.chip}>
+                                <Text style={sb.chipText}>{g}</Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            ) : null}
+
             <View style={sb.footer}>
                 <Feather name="shield" size={11} color={BRAND.textMuted} />
-                <Text style={sb.footerText}>Cross-checked by Ollia · verified sources only</Text>
+                <Text style={sb.footerText}>Instruments checked · quiet ≠ omniscience</Text>
             </View>
         </View>
     );
 }
 
 const sb = StyleSheet.create({
-    card: { borderRadius: 18, padding: 16, borderWidth: 1, gap: 12, marginBottom: 22 },
+    card: { borderRadius: 18, padding: 16, borderWidth: 1, gap: 12, marginBottom: 18 },
     topRow: { flexDirection: "row", alignItems: "center", gap: 12 },
     iconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
     status: { fontSize: 16, fontFamily: "Inter_700Bold" },
@@ -286,6 +484,24 @@ const sb = StyleSheet.create({
     countPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
     countText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
     summary: { fontSize: 14, fontFamily: "Inter_400Regular", color: "#374151", lineHeight: 21 },
+    gapBlock: { gap: 8 },
+    gapLabel: {
+        fontSize: 11,
+        fontFamily: "Inter_600SemiBold",
+        color: BRAND.textMuted,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+    },
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+    chip: {
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 999,
+        backgroundColor: "rgba(107,114,128,0.10)",
+        borderWidth: 1,
+        borderColor: "rgba(107,114,128,0.18)",
+    },
+    chipText: { fontSize: 11, fontFamily: "Inter_500Medium", color: BRAND.textSecondary },
     footer: { flexDirection: "row", alignItems: "center", gap: 5 },
     footerText: { fontSize: 11, fontFamily: "Inter_500Medium", color: BRAND.textMuted },
 });
@@ -336,28 +552,50 @@ const ec = StyleSheet.create({
     pillText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 });
 
-// ── Quiet / empty feed ──────────────────────────────────────────────────────────
+// ── Coverage pack (compact) ───────────────────────────────────────────────────
 
-function QuietFeed({ region }: { region: string }) {
+function CoveragePackPanel({ coverage }: { coverage?: ApiCoverage | null }) {
+    const [open, setOpen] = useState(false);
+    if (!coverage) return null;
+    const sources = coverage.sourcesActive || [];
     return (
-        <View style={qf.card}>
-            <View style={qf.dot} />
-            <Text style={qf.text}>
-                Nothing to flag around {shortLabel(region) || "this area"} right now. Ollia is keeping watch.
-            </Text>
+        <View style={cp.card}>
+            <Pressable
+                style={cp.header}
+                onPress={() => setOpen((v) => !v)}
+                hitSlop={6}
+            >
+                <Text style={cp.title}>{coveragePackTitle(coverage)}</Text>
+                <Feather name={open ? "chevron-up" : "chevron-down"} size={16} color={BRAND.textMuted} />
+            </Pressable>
+            {open ? (
+                <View style={cp.body}>
+                    <Text style={cp.line}>Sources: {sources.join(", ")}</Text>
+                    {coverage.disclaimer ? <Text style={cp.disclaimer}>{coverage.disclaimer}</Text> : null}
+                </View>
+            ) : (
+                <Text style={cp.hint}>Tap for sources</Text>
+            )}
         </View>
     );
 }
 
-const qf = StyleSheet.create({
+const cp = StyleSheet.create({
     card: {
-        flexDirection: "row", alignItems: "center", gap: 10,
-        backgroundColor: `${BRAND.statusGreen}08`,
-        borderRadius: 14, paddingHorizontal: 14, paddingVertical: 14,
-        borderWidth: 1, borderColor: `${BRAND.statusGreen}30`,
+        marginTop: 4,
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        backgroundColor: BRAND.backgroundCard,
+        borderWidth: 1,
+        borderColor: BRAND.borderLight,
     },
-    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: BRAND.statusGreen },
-    text: { fontSize: 13, fontFamily: "Inter_400Regular", color: BRAND.textSecondary, flex: 1, lineHeight: 19 },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    title: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: BRAND.text },
+    hint: { marginTop: 4, fontSize: 11, fontFamily: "Inter_400Regular", color: BRAND.textMuted },
+    body: { marginTop: 10, gap: 6 },
+    line: { fontSize: 12, fontFamily: "Inter_400Regular", color: BRAND.textSecondary, lineHeight: 17 },
+    disclaimer: { fontSize: 11, fontFamily: "Inter_400Regular", color: BRAND.textMuted, lineHeight: 15 },
 });
 
 // ── Main screen ───────────────────────────────────────────────────────────────
@@ -452,14 +690,16 @@ export default function NearbyScreen() {
 
     const events = nearbyRegion?.events ?? [];
     const worstRisk: Risk = nearbyRegion?.worstRisk ?? "NORMAL";
+    const coverage = nearbyRegion?.coverage;
+    const situation = nearbyRegion?.situation;
     const summary = nearbyRegion?.summary
-        || `Things look calm around ${shortLabel(region) || "this area"}. Nothing needs your attention right now.`;
+        || formatCoverageQuietLine(shortLabel(region) || "this area", coverage);
 
     return (
         <View style={styles.container}>
             <SkyHeader
                 title="Nearby"
-                subtitle={loading ? "Checking…" : "Live safety & local events"}
+                subtitle={loading ? "Checking…" : "Live conditions"}
                 right={
                     <RegionDropdown
                         region={region}
@@ -487,25 +727,37 @@ export default function NearbyScreen() {
                 {loading ? (
                     <SkeletonSection />
                 ) : (
-                    // Banner + feed share one Animated.View so they fade together.
                     <Animated.View style={{ opacity: contentOpacity }}>
-                        <SafetyBanner
-                            region={region}
-                            worstRisk={worstRisk}
-                            eventCount={events.length}
-                            summary={summary}
-                        />
-
-                        <View style={styles.feedHeader}>
-                            <Text style={styles.feedTitle}>Local events</Text>
-                            <Text style={styles.feedSub}>{shortLabel(region) || "Your area"}</Text>
-                        </View>
-
-                        {events.length === 0 ? (
-                            <QuietFeed region={region} />
+                        {situation ? (
+                            <>
+                                <SituationCard situation={situation} />
+                                <InstrumentsStrip
+                                    worstRisk={worstRisk}
+                                    eventCount={events.length}
+                                    coverage={coverage}
+                                />
+                            </>
                         ) : (
-                            events.map((e) => <EventCard key={e.eventId} event={e} />)
+                            <SafetyBanner
+                                region={region}
+                                worstRisk={worstRisk}
+                                eventCount={events.length}
+                                summary={summary}
+                                coverage={coverage}
+                            />
                         )}
+
+                        {events.length > 0 ? (
+                            <>
+                                <View style={styles.feedHeader}>
+                                    <Text style={styles.feedTitle}>Verified alerts</Text>
+                                    <Text style={styles.feedSub}>{shortLabel(region) || "Your area"}</Text>
+                                </View>
+                                {events.map((e) => <EventCard key={e.eventId} event={e} />)}
+                            </>
+                        ) : null}
+
+                        <CoveragePackPanel coverage={coverage} />
                     </Animated.View>
                 )}
             </ScrollView>

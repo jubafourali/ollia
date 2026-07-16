@@ -7,21 +7,29 @@ import {
 } from "@expo-google-fonts/inter";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import * as SecureStore from "expo-secure-store";
-import { Stack, useRouter, useSegments } from "expo-router";
+import * as Linking from "expo-linking";
+import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useRef, useState } from "react";
 import {I18nManager, Platform, View} from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { PostHogProvider } from "posthog-react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Localization from "expo-localization";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { FamilyProvider } from "@/context/FamilyContext";
 import { FoundingModal } from "@/components/FoundingModal";
+import { posthog } from "@/config/posthog";
 import i18n, { mapLocaleToSupported, LANGUAGE_STORAGE_KEY } from "@/i18n";
 import Purchases, {STOREKIT_VERSION} from 'react-native-purchases';
 
 import "@/services/backgroundActivity";
+import {
+  identifyUser,
+  initSourceChannelFromUrl,
+  resetAnalytics,
+} from "@/utils/analytics";
 import {initInstallDate, triggerReviewAfter7Days} from "@/utils/reviewPrompt";
 
 SplashScreen.preventAutoHideAsync();
@@ -49,7 +57,12 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (isSignedIn && userId) Purchases.logIn(userId);
+    if (isSignedIn && userId) {
+      Purchases.logIn(userId);
+      identifyUser(userId);
+    } else if (!isSignedIn) {
+      resetAnalytics();
+    }
   }, [isSignedIn, userId]);
 
   useEffect(() => {
@@ -104,6 +117,18 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function RootLayoutNav() {
+  const pathname = usePathname();
+  const previousPathname = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (previousPathname.current !== pathname) {
+      posthog.screen(pathname, {
+        previous_screen: previousPathname.current ?? null,
+      });
+      previousPathname.current = pathname;
+    }
+  }, [pathname]);
+
   return (
       <AuthGate>
         <Stack screenOptions={{ headerShown: false }}>
@@ -179,17 +204,36 @@ export default function RootLayout() {
     triggerReviewAfter7Days();
   }, []);
 
+  // Privacy-respecting channel attribution (promo links / UTMs only).
+  useEffect(() => {
+    Linking.getInitialURL().then(initSourceChannelFromUrl).catch(() => {});
+    const sub = Linking.addEventListener("url", ({ url }) => {
+      initSourceChannelFromUrl(url);
+    });
+    return () => sub.remove();
+  }, []);
+
   return (
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-        <SafeAreaProvider>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <SplashGate fontsReady={fontsReady} i18nReady={i18nReady}>
-              <FamilyProvider>
-                <RootLayoutNav />
-              </FamilyProvider>
-            </SplashGate>
-          </GestureHandlerRootView>
-        </SafeAreaProvider>
+        <PostHogProvider
+          client={posthog}
+          autocapture={{
+            captureScreens: false,
+            captureTouches: true,
+            propsToCapture: ["testID"],
+            maxElementsCaptured: 20,
+          }}
+        >
+          <SafeAreaProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <SplashGate fontsReady={fontsReady} i18nReady={i18nReady}>
+                <FamilyProvider>
+                  <RootLayoutNav />
+                </FamilyProvider>
+              </SplashGate>
+            </GestureHandlerRootView>
+          </SafeAreaProvider>
+        </PostHogProvider>
       </ClerkProvider>
   );
 }

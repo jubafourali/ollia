@@ -22,7 +22,7 @@ export default function DifferentiateScreen() {
             <View style={styles.content}>
                 <StaggeredEnter index={0} style={styles.illustration}>
                     <BreathingView>
-                        <ReassuranceIllustration size={268} />
+                        <ReassuranceIllustration size={300} />
                     </BreathingView>
                 </StaggeredEnter>
 

@@ -58,7 +58,8 @@
     "title": "Family Circle",
     "activeNow": "{{count}} of {{total}} active now",
     "checkedInToday": "{{count}} of {{total}} checked in today",
-    "watching": "Ollia is quietly watching over everyone",
+    "watching": "Quiet = instruments checked · still listening",
+    "doctrine": "If something major and verified happens near them, we surface it. Quiet means we checked — not that nothing happened on earth.",
     "travelBanner_one": "{{names}} is currently traveling",
     "travelBanner_other": "{{names}} are currently traveling",
     "cityBannerUpgrade": "Upgrade to Premium to filter alerts for {{city}}",
@@ -85,8 +86,16 @@
   "myStatus": {
     "title": "My Status",
     "subtitle": "Your family can see this",
-    "sendHeartbeat": "Send heartbeat now",
-    "lastHeartbeat": "Last heartbeat: {{elapsed}}",
+    "sendHeartbeat": "Send I'm OK now",
+    "sendHelp": "I need help",
+    "helpConfirmTitle": "Alert your circle?",
+    "helpConfirmMsg": "This sends an urgent alert to everyone in your family circle right now — not a calm check-in.",
+    "helpConfirmSend": "Send help alert",
+    "helpSentTitle": "Circle alerted",
+    "helpSentMsg": "Your family got an urgent notification. Reach out to them if you can.",
+    "helpFailedTitle": "Couldn't send",
+    "helpFailedMsg": "Check your connection and try again.",
+    "lastHeartbeat": "Last I'm OK: {{elapsed}}",
     "activityPattern": "Activity Pattern",
     "activityPatterns": "Activity Patterns",
     "unlockPatterns": "Unlock with Premium to see your activity trends",
@@ -152,7 +161,7 @@
     "addApps": "Add apps",
     "activityAppsLocked": "Select apps that count as proof of life — Premium feature",
     "emergencyContact": "Emergency Contact",
-    "emergencyContactHint": "If you're unreachable for an extended period, Ollia will alert this person as a last resort.",
+    "emergencyContactHint": "If you go fully quiet, we'll urgently notify your circle with this name and phone so someone can call — we don't send SMS ourselves.",
     "name": "Name",
     "ecNamePlaceholder": "e.g. Mom, Sara",
     "phoneNumber": "Phone number",
@@ -421,7 +430,9 @@
       "website": "gdacs.org",
       "description": "Worldwide disaster alerts — earthquakes, cyclones, floods, and volcanoes. Covers UAE, Middle East, and all regions not served by NOAA."
     },
-    "disclaimer": "Ollia does not modify official alert data. Data is sourced directly from USGS, NOAA, and GDACS (EU Joint Research Centre) and linked to original reports. NOAA covers the US only — enable GDACS for global coverage including UAE and Middle East."
+    "disclaimer": "Ollia checks official disaster and weather sources — USGS, NOAA (US weather), GDACS, MeteoAlarm (Europe), and Open-Meteo extremes for diaspora hubs. NOAA is US-only; local weather outside the US depends on CAP/extreme probes, not a full city incident feed. Crime and civil unrest are not covered.",
+    "weCheck": "We check",
+    "weDoNotClaim": "We do not claim"
   },
   "notifications": {
     "nudgeTitle": "Ollia",

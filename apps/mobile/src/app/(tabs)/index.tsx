@@ -6,7 +6,7 @@
  */
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -19,6 +19,7 @@ import { InviteModal } from "@/components/InviteModal";
 import { UpgradeModal } from "@/components/UpgradeModal";
 import { FamilyCircleScreen } from "@/components/FamilyGlobe/FamilyCircleScreen";
 import type { SafetyEvent } from "@/components/FamilyGlobe/FamilyCircleScreen";
+import { trackReassuranceStateViewed } from "@/utils/analytics";
 
 export default function FamilyTab() {
   const { t } = useTranslation();
@@ -29,6 +30,7 @@ export default function FamilyTab() {
     respondToCheckIn,
     addMember,
     inviteCode,
+    circleId,
     myProfile,
     setMyProfile,
     alerts,
@@ -42,6 +44,19 @@ export default function FamilyTab() {
   const [showInvite,        setShowInvite]        = useState(false);
   const [showUpgrade,       setShowUpgrade]        = useState(false);
   const [bgBannerDismissed, setBgBannerDismissed] = useState(false);
+
+  // ★ Aha: Worrier sees at least one loved one's reassurance state on Family.
+  useEffect(() => {
+    if (!circleId) return;
+    const lovedOnes = members.filter((m) => !m.isMe && !m.pending);
+    if (lovedOnes.length === 0) return;
+    trackReassuranceStateViewed({
+      circleId,
+      memberId: lovedOnes[0].id,
+      // members list is peers-only; +1 for self → total circle size.
+      memberCount: lovedOnes.length + 1,
+    }).catch(() => {});
+  }, [circleId, members]);
 
   // Map SAIAE alert cards → the SafetyEvent shape FamilyCircleScreen renders.
   // Risk level (not raw source severity) drives the visual treatment, and the
@@ -125,6 +140,7 @@ export default function FamilyTab() {
             visible={showInvite}
             onClose={() => setShowInvite(false)}
             inviteCode={inviteCode}
+            circleId={circleId}
             myProfile={myProfile}
             onInviteSent={(name, relation) => {
               addMember({

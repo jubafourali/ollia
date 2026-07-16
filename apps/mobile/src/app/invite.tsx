@@ -32,6 +32,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BRAND from "@/constants/colors";
 import { api, ApiCircleMember, setAuthTokenGetter } from "@/utils/api";
 import { useFamilyContext } from "@/context/FamilyContext";
+import {
+  trackInviteAccepted,
+} from "@/utils/analytics";
 import { getCheckInLabel } from "@/utils/checkInLabel";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -206,7 +209,9 @@ export default function InviteOnboardingScreen() {
 
       await AsyncStorage.setItem(CIRCLE_KEY, circle.id);
       await AsyncStorage.setItem(INVITE_CODE_KEY, circle.inviteCode);
+      await trackInviteAccepted(circle.id);
       await api.sendHeartbeat(userId, "app_open");
+      // circle_activated waits for Worrier's reassurance_state_viewed — not join alone.
 
       // Fetch circle directly — the invitee's AsyncStorage has no circleId yet,
       // so reloadCircleFromStorage would no-op

@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Alert,
   Platform,
   Pressable,
   RefreshControl,
@@ -30,6 +31,7 @@ import { requestLocationPermission, hasBackgroundLocationPermission } from "@/se
 import { CityPicker } from "@/components/CityPicker";
 import { SkyHeader, sheetStyle } from "@/components/SkyScreen";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { trackHeartbeat } from "@/utils/analytics";
 import { getCheckInLabel } from "@/utils/checkInLabel";
 
 function HeartbeatTimer({ lastSeen }: { lastSeen: Date }) {
@@ -72,6 +74,7 @@ export default function MyStatusScreen() {
     heartbeatIntervalLabel,
     myLastSeen,
     sendHeartbeat,
+    sendHelp,
     members,
     myProfile,
     isRegistered,
@@ -83,6 +86,7 @@ export default function MyStatusScreen() {
     plan,
     upgradePlan,
     locationPermissionMissing,
+    circleId,
   } = useFamilyContext();
   // Local heartbeat sends are human check-ins, so myLastSeen doubles as
   // the local "lastCheckInAt" for the current user. The server-side value is
@@ -175,9 +179,35 @@ export default function MyStatusScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     sendHeartbeat();
+    if (circleId) trackHeartbeat(circleId);
     scale.value = withSequence(
       withSpring(1.3, { damping: 3 }),
       withSpring(1, { damping: 6 })
+    );
+  };
+
+  const handleHelp = () => {
+    Alert.alert(
+      t("myStatus.helpConfirmTitle"),
+      t("myStatus.helpConfirmMsg"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("myStatus.helpConfirmSend"),
+          style: "destructive",
+          onPress: async () => {
+            if (Platform.OS !== "web") {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            }
+            try {
+              await sendHelp();
+              Alert.alert(t("myStatus.helpSentTitle"), t("myStatus.helpSentMsg"));
+            } catch {
+              Alert.alert(t("myStatus.helpFailedTitle"), t("myStatus.helpFailedMsg"));
+            }
+          },
+        },
+      ]
     );
   };
 
@@ -277,6 +307,15 @@ export default function MyStatusScreen() {
         >
           <Ionicons name="heart" size={16} color={BRAND.white} />
           <Text style={styles.heartbeatBtnText}>{t("myStatus.sendHeartbeat")}</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.helpBtn, pressed && { opacity: 0.8 }]}
+          onPress={handleHelp}
+          testID="send-help-btn"
+        >
+          <Feather name="alert-triangle" size={15} color={BRAND.statusRed} />
+          <Text style={styles.helpBtnText}>{t("myStatus.sendHelp")}</Text>
         </Pressable>
       </View>
 
@@ -593,6 +632,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
     color: BRAND.white,
+  },
+  helpBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: `${BRAND.statusRed}12`,
+    borderWidth: 1.5,
+    borderColor: `${BRAND.statusRed}40`,
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderRadius: 999,
+    marginTop: 8,
+  },
+  helpBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: BRAND.statusRed,
   },
   patternCard: {
     flexDirection: "row",

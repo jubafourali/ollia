@@ -27,6 +27,9 @@ import BRAND from "@/constants/colors";
 import { api, setAuthTokenGetter } from "@/utils/api";
 import { CityPicker } from "@/components/CityPicker";
 import { useFamilyContext } from "@/context/FamilyContext";
+import {
+  trackInviteAccepted,
+} from "@/utils/analytics";
 
 const CIRCLE_KEY = "@ollia_circle_v2";
 const INVITE_CODE_KEY = "@ollia_invite_code_v2";
@@ -96,7 +99,9 @@ export default function JoinScreen() {
       await AsyncStorage.setItem(CIRCLE_KEY, circle.id);
       await AsyncStorage.setItem(INVITE_CODE_KEY, circle.inviteCode);
 
+      await trackInviteAccepted(circle.id);
       await api.sendHeartbeat(userId, "app_open");
+      // circle_activated waits for Worrier's reassurance_state_viewed — not join alone.
 
       await reloadCircleFromStorage();
 

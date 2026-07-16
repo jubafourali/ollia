@@ -333,7 +333,7 @@ export function BreathingView({
 
     useEffect(() => {
         breath.value = withRepeat(
-            withTiming(1.035, { duration: 2800, easing: Easing.inOut(Easing.sin) }),
+            withTiming(1.015, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
             -1,
             true,
         );
@@ -341,7 +341,6 @@ export function BreathingView({
 
     const animStyle = useAnimatedStyle(() => ({
         transform: [{ scale: breath.value }],
-        opacity: 0.92 + (breath.value - 1) * 2,
     }));
 
     return <Animated.View style={[style, animStyle]}>{children}</Animated.View>;

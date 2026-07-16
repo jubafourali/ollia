@@ -1,7 +1,7 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -18,14 +18,25 @@ import BRAND from "@/constants/colors";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { useFamilyContext } from "@/context/FamilyContext";
 import { getCheckInLabel } from "@/utils/checkInLabel";
+import { trackReassuranceStateViewed } from "@/utils/analytics";
 
 export default function MemberDetailScreen() {
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const { members, removeMember } = useFamilyContext();
+  const { members, removeMember, circleId } = useFamilyContext();
 
   const member = members.find((m) => m.id === id);
+
+  useEffect(() => {
+    if (!circleId || !member || member.isMe || member.pending) return;
+    const peers = members.filter((m) => !m.isMe && !m.pending);
+    trackReassuranceStateViewed({
+      circleId,
+      memberId: member.id,
+      memberCount: peers.length + 1,
+    }).catch(() => {});
+  }, [circleId, member?.id, member?.isMe, member?.pending, members]);
 
   if (!member) {
     return (

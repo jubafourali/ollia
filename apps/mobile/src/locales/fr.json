@@ -62,7 +62,8 @@
     "title": "Cercle familial",
     "activeNow": "{{count}} sur {{total}} actifs",
     "checkedInToday": "{{count}} sur {{total}} ont donné un signe aujourd'hui",
-    "watching": "Ollia veille discrètement sur tout le monde",
+    "watching": "Calme = instruments vérifiés · on écoute encore",
+    "doctrine": "Si quelque chose de majeur et vérifié se passe près d'eux, on le signale. Le calme veut dire qu'on a vérifié — pas que rien n'est arrivé.",
     "travelBanner_one": "{{names}} est en voyage",
     "travelBanner_other": "{{names}} sont en voyage",
     "cityBannerUpgrade": "Passe à Premium pour filtrer les alertes pour {{city}}",
@@ -90,8 +91,16 @@
   "myStatus": {
     "title": "Mon statut",
     "subtitle": "C'est ce que voit ta famille",
-    "sendHeartbeat": "Envoyer un signal maintenant",
-    "lastHeartbeat": "Dernier signal : {{elapsed}}",
+    "sendHeartbeat": "Envoyer un « ça va »",
+    "sendHelp": "J'ai besoin d'aide",
+    "helpConfirmTitle": "Alerter ton cercle ?",
+    "helpConfirmMsg": "Ceci envoie une alerte urgente à tout ton cercle familial — ce n'est pas un check-in calme.",
+    "helpConfirmSend": "Envoyer l'alerte",
+    "helpSentTitle": "Cercle alerté",
+    "helpSentMsg": "Ta famille a reçu une notification urgente. Contacte-les si tu peux.",
+    "helpFailedTitle": "Échec d'envoi",
+    "helpFailedMsg": "Vérifie ta connexion et réessaie.",
+    "lastHeartbeat": "Dernier « ça va » : {{elapsed}}",
     "activityPattern": "Activité",
     "activityPatterns": "Activités",
     "unlockPatterns": "Passe à Premium pour voir tes habitudes",
@@ -158,7 +167,7 @@
     "addApps": "Ajouter",
     "activityAppsLocked": "Fonction Premium",
     "emergencyContact": "Contact d'urgence",
-    "emergencyContactHint": "Contacté si tu es injoignable trop longtemps",
+    "emergencyContactHint": "Si tu restes totalement silencieux, on prévient ton cercle en urgence avec ce nom et ce numéro pour qu'ils puissent appeler — on n'envoie pas de SMS nous-mêmes.",
     "name": "Nom",
     "ecNamePlaceholder": "ex : Maman",
     "phoneNumber": "Téléphone",
@@ -436,7 +445,9 @@
       "website": "gdacs.org",
       "description": "Alertes mondiales — séismes, cyclones, inondations et volcans. Couvre les EAU, le Moyen-Orient et toutes les régions hors couverture NOAA."
     },
-    "disclaimer": "Ollia ne modifie pas les données d'alerte officielles. Les données proviennent directement de l'USGS, de la NOAA et du GDACS et sont liées aux rapports originaux."
+    "disclaimer": "Ollia vérifie des sources officielles (USGS, NOAA pour les États-Unis, GDACS, MeteoAlarm en Europe, Open-Meteo pour les conditions extrêmes hors USA). La météo locale hors USA n'est pas une couverture complète ; le crime et les troubles civils ne sont pas surveillés.",
+    "weCheck": "Nous vérifions",
+    "weDoNotClaim": "Nous ne prétendons pas"
   },
 
   "notifications": {
