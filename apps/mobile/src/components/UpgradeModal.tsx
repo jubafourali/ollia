@@ -32,6 +32,32 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
   const [showComingSoon, setShowComingSoon] = React.useState(false);
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
+  const [storePrices, setStorePrices] = React.useState<{
+    monthly?: string;
+    annual?: string;
+  }>({});
+
+  // Prefer live App Store localized prices (Guideline 3.1.2).
+  React.useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const offerings = await Purchases.getOfferings();
+        const offering = offerings.current;
+        if (!offering || cancelled) return;
+        setStorePrices({
+          monthly: offering.monthly?.product.priceString,
+          annual: offering.annual?.product.priceString,
+        });
+      } catch {
+        // Fall back to localized strings in en.json
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
 
   const unlockFeatures = [
     { icon: "users", text: t("upgrade.features.unlimitedMembers") },
@@ -178,7 +204,9 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
                       <Text style={styles.ctaBtnSub}>{t("upgrade.savePercent")}</Text>
                     </View>
                     <View style={styles.ctaBtnRight}>
-                      <Text style={styles.ctaBtnPrice}>{t("upgrade.annualPrice")}</Text>
+                      <Text style={styles.ctaBtnPrice}>
+                        {storePrices.annual ?? t("upgrade.annualPrice")}
+                      </Text>
                       <Text style={styles.ctaBtnPriceSub}>{t("upgrade.annualPriceSub")}</Text>
                     </View>
                   </>
@@ -200,8 +228,13 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
                   <ActivityIndicator color={BRAND.primary} size="small" />
                 ) : (
                   <>
-                    <Text style={styles.ctaBtnMonthlyText}>{t("upgrade.monthly")}</Text>
-                    <Text style={styles.ctaBtnMonthlyPrice}>{t("upgrade.monthlyPrice")}</Text>
+                    <View style={styles.ctaBtnLeft}>
+                      <Text style={styles.ctaBtnMonthlyText}>{t("upgrade.monthly")}</Text>
+                      <Text style={styles.ctaBtnSubMuted}>{t("upgrade.monthlyLength")}</Text>
+                    </View>
+                    <Text style={styles.ctaBtnMonthlyPrice}>
+                      {storePrices.monthly ?? t("upgrade.monthlyPrice")}
+                    </Text>
                   </>
                 )}
               </Pressable>
@@ -210,6 +243,16 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
             <Text style={styles.legalNote}>
               {t("upgrade.legalNote")}
             </Text>
+
+            <View style={styles.legalLinks}>
+              <Pressable onPress={() => Linking.openURL("https://www.ollia.app/privacy")}>
+                <Text style={styles.legalLink}>{t("upgrade.privacyPolicy")}</Text>
+              </Pressable>
+              <Text style={styles.legalDot}>·</Text>
+              <Pressable onPress={() => Linking.openURL("https://www.ollia.app/terms")}>
+                <Text style={styles.legalLink}>{t("upgrade.termsOfUse")}</Text>
+              </Pressable>
+            </View>
 
             {!isLoading && (
                 <>
@@ -232,18 +275,6 @@ export function UpgradeModal({ visible, onClose, onSelect, loading }: Props) {
                   }} style={styles.dismissBtn}>
                     <Text style={styles.dismissText}>{t("upgrade.restorePurchases")}</Text>
                   </Pressable>
-                  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 }}>
-                    <Pressable onPress={() => Linking.openURL('https://ollia.app/privacy')}>
-                      <Text style={{ fontSize: 12, color: BRAND.textMuted, textDecorationLine: 'underline' }}>
-                        Privacy Policy
-                      </Text>
-                    </Pressable>
-                    <Pressable onPress={() => Linking.openURL('https://ollia.app/terms')}>
-                      <Text style={{ fontSize: 12, color: BRAND.textMuted, textDecorationLine: 'underline' }}>
-                        Terms of Use
-                      </Text>
-                    </Pressable>
-                  </View>
                 </>
             )}
           </>
@@ -406,6 +437,29 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 8,
     lineHeight: 15,
+  },
+  legalLinks: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  legalLink: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: BRAND.textSecondary,
+    textDecorationLine: "underline",
+  },
+  legalDot: {
+    fontSize: 12,
+    color: BRAND.textMuted,
+  },
+  ctaBtnSubMuted: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: BRAND.textMuted,
+    marginTop: 1,
   },
   dismissBtn: {
     alignItems: "center",
