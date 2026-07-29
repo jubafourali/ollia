@@ -67,3 +67,12 @@ ollia:
     meteofrance:
       # Defaults on when local .env sets the key; override with false if needed.
       enabled: ${OLLIA_COLLECTORS_METEOFRANCE_ENABLED:true}
+
+juba:
+  outcomes:
+    endpoint: ${JUBA_INGEST_ENDPOINT:https://app.getjuba.com/api/analytics/events}
+    ingest-key: ${JUBA_INGEST_KEY:}
+    source-id: ${JUBA_INGEST_SOURCE_ID:}
+    event-name: ${JUBA_GTM_EVENT_NAME:customer_acquired}
+    campaign-id: ${JUBA_GTM_CAMPAIGN_ID:}
+    experiment-id: ${JUBA_GTM_EXPERIMENT_ID:}

@@ -6,6 +6,7 @@ import com.ollia.dto.SubscriptionStatusResponse
 import com.ollia.repository.FamilyCircleRepository
 import com.ollia.repository.UserRepository
 import com.ollia.service.CurrentUserService
+import com.ollia.service.JubaOutcomeService
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.stripe.Stripe
 import com.stripe.model.Customer
@@ -14,6 +15,7 @@ import com.stripe.model.checkout.Session
 import com.stripe.net.Webhook
 import com.stripe.param.CustomerCreateParams
 import com.stripe.param.checkout.SessionCreateParams
+import java.time.Instant
 import java.util.UUID
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -33,6 +35,7 @@ class SubscriptionController(
     private val userRepository: UserRepository,
     private val familyCircleRepository: FamilyCircleRepository,
     private val objectMapper: ObjectMapper,
+    private val jubaOutcomeService: JubaOutcomeService,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -148,6 +151,12 @@ class SubscriptionController(
                     familyCircleRepository.save(circle)
                     logger.info("checkout.session.completed: upgraded circle id=${circle.id} to premium")
                 }
+                jubaOutcomeService.recordCustomerAcquired(
+                    externalId = "stripe:${event.id}",
+                    actorId = user.id.toString(),
+                    occurredAt = Instant.ofEpochSecond(event.created),
+                    sourceEvent = "stripe.checkout.session.completed",
+                )
             }
             "customer.subscription.deleted" -> {
                 val customerId = dataObj.path("customer").asText(null)
