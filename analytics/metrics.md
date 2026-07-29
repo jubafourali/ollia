@@ -9,6 +9,11 @@ Measurement principle: privacy-first. Instrument **loop events** (not location).
 - **Product analytics:** PostHog **EU Cloud** (`https://eu.i.posthog.com`) or self-host — matches privacy brand.
 - Env: `EXPO_PUBLIC_POSTHOG_KEY`, `EXPO_PUBLIC_POSTHOG_HOST` (default EU).
 - Channel attribution: deep-link / install URL `?channel=` or `?utm_source=` → stored as `source_channel`.
+- **GTM outcomes (server):** [Juba](https://app.getjuba.com) ingest from the Spring backend only (`JubaAnalyticsClient`). Never put `JUBA_INGEST_KEY` in the mobile app. PostHog remains the client product-analytics spine; Juba receives authoritative loop outcomes (e.g. `invite_accepted` → `customer_acquired`).
+
+Env (Railway / local): `JUBA_INGEST_KEY` (required to send), optional `JUBA_INGEST_URL`, `JUBA_SOURCE_ID` (defaults match the Ollia production HTTP source).
+
+If the ingest key is ever pasted into chat or committed, rotate it in Juba and update Railway — Juba stores only a hash.
 
 ## P0.1 event contract
 
@@ -73,3 +78,11 @@ Tune once production volume exists (person vs circle grouping, unprompted defini
 | `circle_activated` | After reassurance viewed + `memberCount ≥ 2` (deduped); re-checked on `refreshCircle` |
 | `heartbeat` | `my-status` manual tap only |
 | `active_7d` | PostHog cohort / HogQL — not client-fired |
+
+## Implementation map (server → Juba)
+
+| Product event | Juba `eventName` | Hook |
+|---|---|---|
+| `invite_accepted` | `customer_acquired` (`sourceEvent=invite_accepted`) | `ReferenceApiController.joinCircle` after new membership save |
+
+Idempotency: `externalId` = `invite_accepted:{circleId}:{userId}`. No-op when `JUBA_INGEST_KEY` is blank.

@@ -37,6 +37,7 @@ class ReferenceApiController(
     private val clerkService: com.ollia.service.ClerkService,
     private val saiaeAlertCacheRepository: SaiaeCircleAlertCacheRepository,
     private val pushNotificationService: com.ollia.service.PushNotificationService,
+    private val jubaAnalyticsClient: com.ollia.service.JubaAnalyticsClient,
 ) {
 
     companion object {
@@ -291,6 +292,18 @@ class ReferenceApiController(
                     userId = user.id,
                     relation = request.relation ?: "Family"
                 )
+            )
+
+            // GTM outcome: invite accepted → Juba customer_acquired (server-authoritative)
+            jubaAnalyticsClient.trackAsync(
+                eventName = "customer_acquired",
+                externalId = "invite_accepted:${circle.id}:${user.id}",
+                actorId = user.id.toString(),
+                occurredAt = Instant.now(),
+                properties = mapOf(
+                    "sourceEvent" to "invite_accepted",
+                    "circleId" to circle.id.toString(),
+                ),
             )
 
             // ── Mutual join — add A to B's circle automatically ──────────

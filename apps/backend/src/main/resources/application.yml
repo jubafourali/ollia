@@ -36,6 +36,12 @@ revenuecat:
   # Secret — must be provided via env. No fallback is committed.
   webhook-secret: ${REVENUECAT_WEBHOOK_SECRET:}
 
+juba:
+  # Secret — must be provided via env (Railway). Never commit the ingest key.
+  ingest-key: ${JUBA_INGEST_KEY:}
+  ingest-url: ${JUBA_INGEST_URL:https://app.getjuba.com/api/analytics/events}
+  source-id: ${JUBA_SOURCE_ID:analytics-ollia-fe7b909170-http}
+
 stripe:
   secret-key: ${STRIPE_SECRET_KEY:}
   price-id: ${STRIPE_PRICE_ID:}
