@@ -41,6 +41,14 @@ juba:
   ingest-key: ${JUBA_INGEST_KEY:}
   ingest-url: ${JUBA_INGEST_URL:https://app.getjuba.com/api/analytics/events}
   source-id: ${JUBA_SOURCE_ID:analytics-ollia-fe7b909170-http}
+  # Revenue / subscription outcomes (JubaOutcomeService)
+  outcomes:
+    endpoint: ${JUBA_INGEST_ENDPOINT:https://app.getjuba.com/api/analytics/events}
+    ingest-key: ${JUBA_INGEST_KEY:}
+    source-id: ${JUBA_INGEST_SOURCE_ID:analytics-ollia-fe7b909170-http}
+    event-name: ${JUBA_GTM_EVENT_NAME:customer_acquired}
+    campaign-id: ${JUBA_GTM_CAMPAIGN_ID:}
+    experiment-id: ${JUBA_GTM_EXPERIMENT_ID:}
 
 stripe:
   secret-key: ${STRIPE_SECRET_KEY:}
@@ -73,12 +81,3 @@ ollia:
     meteofrance:
       # Defaults on when local .env sets the key; override with false if needed.
       enabled: ${OLLIA_COLLECTORS_METEOFRANCE_ENABLED:true}
-
-juba:
-  outcomes:
-    endpoint: ${JUBA_INGEST_ENDPOINT:https://app.getjuba.com/api/analytics/events}
-    ingest-key: ${JUBA_INGEST_KEY:}
-    source-id: ${JUBA_INGEST_SOURCE_ID:}
-    event-name: ${JUBA_GTM_EVENT_NAME:customer_acquired}
-    campaign-id: ${JUBA_GTM_CAMPAIGN_ID:}
-    experiment-id: ${JUBA_GTM_EXPERIMENT_ID:}
