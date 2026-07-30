@@ -1,26 +1,41 @@
 package com.ollia.collector.collectors
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.ollia.collector.SafetyCollector
+import com.ollia.entity.RawSafetyEvent
 import com.ollia.entity.SafetyCategory
 import com.ollia.entity.Severity
 import com.ollia.entity.SourceType
 import com.ollia.repository.RawSafetySignalRepository
 import com.ollia.util.HashUtils
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.ollia.entity.RawSafetyEvent
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.WebClientResponseException
+import org.springframework.web.util.UriComponentsBuilder
+import java.net.URI
 import java.time.Instant
-import java.time.temporal.ChronoUnit
+import java.time.LocalDate
+import java.time.ZoneOffset
 
+/**
+ * GDACS SEARCH feed — official params use lowercase fromdate / todate
+ * (YYYY-MM-DD) and semicolon-separated alertlevel / eventlist.
+ * @see https://www.gdacs.org/Documents/2025/GDACS_API_quickstart_v2.pdf
+ */
 @Component
-class GdacsCollector(private val objectMapper: ObjectMapper, private val repository: RawSafetySignalRepository) : SafetyCollector {
+class GdacsCollector(
+    private val objectMapper: ObjectMapper,
+    private val repository: RawSafetySignalRepository,
+) : SafetyCollector {
 
     companion object {
-        private const val GDAC_BASE_URL =
-            "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH" + "?alertlevel=Green;Orange;Red" + "&eventlist=EQ;TC;FL;VO;WF;DR" + "&fromDate=%s"
+        private const val GDACS_SEARCH =
+            "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
+        private const val LOOKBACK_DAYS = 7L
+        private const val MAX_FEATURES = 30
+
         private const val PROPERTIES_KEY = "properties"
         private const val GEOMETRY_KEY = "geometry"
         private const val COORDINATES_KEY = "coordinates"
@@ -29,8 +44,10 @@ class GdacsCollector(private val objectMapper: ObjectMapper, private val reposit
         private const val COUNTRY_KEY = "country"
         private const val ALERT_LEVEL_KEY = "alertlevel"
         private const val DESCRIPTION_KEY = "description"
-        private const val FORM_DATA_KEY = "fromdate"
+        private const val FROMDATE_PROP_KEY = "fromdate"
         private const val EVENT_NAME_KEY = "eventname"
+        private const val NAME_KEY = "name"
+
         private const val EARTHQUAKE_CATEGORY = "EQ"
         private const val HURRICANE_CATEGORY = "TC"
         private const val FLOOD_CATEGORY = "FL"
@@ -49,30 +66,63 @@ class GdacsCollector(private val objectMapper: ObjectMapper, private val reposit
     private val webClient = WebClient.builder().build()
 
     override fun collect(): List<RawSafetyEvent> {
+        val toDate = LocalDate.now(ZoneOffset.UTC)
+        val fromDate = toDate.minusDays(LOOKBACK_DAYS)
+        val uri = buildSearchUri(fromDate, toDate)
 
-        val url = GDAC_BASE_URL.format(Instant.now().minus(7, ChronoUnit.DAYS).toString().substringBefore("T"))
-
-        val response = webClient.get()
-            .uri(url)
-            .header("Accept", "application/json")
-            .retrieve()
-            .bodyToMono(JsonNode::class.java)
-            .block()
-            ?: return emptyList()
+        val response = try {
+            webClient.get()
+                .uri(uri)
+                .header("Accept", "application/json")
+                .retrieve()
+                .bodyToMono(JsonNode::class.java)
+                .block()
+        } catch (e: WebClientResponseException) {
+            logger.warn(
+                "GDACS SEARCH HTTP {}: {} — uri={}",
+                e.statusCode.value(),
+                e.responseBodyAsString.take(300),
+                uri,
+            )
+            return emptyList()
+        } catch (e: Exception) {
+            logger.warn("GDACS SEARCH failed: {}", e.message)
+            return emptyList()
+        } ?: return emptyList()
 
         val features = response["features"] ?: return emptyList()
         val now = Instant.now()
         val collectedSignals = mutableListOf<RawSafetyEvent>()
 
-        // TODO check if there is a limit param for the call
-        features.take(30).forEach { feature -> processEvent(feature, now, collectedSignals) }
+        features.take(MAX_FEATURES).forEach { feature ->
+            processEvent(feature, now, collectedSignals)
+        }
 
         logger.info("GDACS collector fetched ${collectedSignals.size} signals")
-
         return collectedSignals
     }
 
-    private fun processEvent(feature: JsonNode, now: Instant, collectedSignals: MutableList<RawSafetyEvent>) {
+    /**
+     * Build an absolute [URI] via [UriComponentsBuilder] so `;` in alert/event
+     * lists is percent-encoded. Passing a raw string to WebClient `.uri(String)`
+     * can mangle the query (semicolon / template rules) and yield HTTP 400.
+     */
+    private fun buildSearchUri(fromDate: LocalDate, toDate: LocalDate): URI =
+        UriComponentsBuilder
+            .fromHttpUrl(GDACS_SEARCH)
+            .queryParam("alertlevel", "Green;Orange;Red")
+            .queryParam("eventlist", "EQ;TC;FL;VO;WF;DR")
+            .queryParam("fromdate", fromDate.toString())
+            .queryParam("todate", toDate.toString())
+            .build()
+            .encode()
+            .toUri()
+
+    private fun processEvent(
+        feature: JsonNode,
+        now: Instant,
+        collectedSignals: MutableList<RawSafetyEvent>,
+    ) {
         val properties = feature[PROPERTIES_KEY] ?: return
         val geometry = feature[GEOMETRY_KEY]
         val coordinates = geometry?.get(COORDINATES_KEY)
@@ -104,26 +154,22 @@ class GdacsCollector(private val objectMapper: ObjectMapper, private val reposit
 
         val eventOccurredAt =
             try {
-                properties[FORM_DATA_KEY]
+                properties[FROMDATE_PROP_KEY]
                     ?.asText()
-                    ?.let {
-                        Instant.parse(it)
-                    }
+                    ?.let { Instant.parse(it) }
             } catch (_: Exception) {
                 now
             }
 
         val title =
-            properties[EVENT_NAME_KEY]?.asText()
-                ?.takeIf { it.isNotBlank() }
+            properties[EVENT_NAME_KEY]?.asText()?.takeIf { it.isNotBlank() }
+                ?: properties[NAME_KEY]?.asText()?.takeIf { it.isNotBlank() }
                 ?: country
 
-        val sourceUrl =
-            properties["url"]?.asText()
-                ?: "https://www.gdacs.org/report.aspx?eventid=$eventId&eventtype=$eventType"
+        // GDACS now returns url as an object: { report, details, geometry }
+        val sourceUrl = resolveSourceUrl(properties, eventId, eventType)
 
         val payloadString = objectMapper.writeValueAsString(feature)
-
         val contentHash = HashUtils.sha256(payloadString)
 
         if (repository.existsBySourceAndContentHash(source, contentHash)) return
@@ -144,8 +190,25 @@ class GdacsCollector(private val objectMapper: ObjectMapper, private val reposit
                 severityHint = severity,
                 language = "en",
                 contentHash = contentHash,
-                rawPayload = feature
-            )
+                rawPayload = feature,
+            ),
         )
+    }
+
+    private fun resolveSourceUrl(
+        properties: JsonNode,
+        eventId: String?,
+        eventType: String?,
+    ): String {
+        val urlNode = properties["url"]
+        when {
+            urlNode == null || urlNode.isNull -> { /* fall through */ }
+            urlNode.isTextual -> urlNode.asText().takeIf { it.isNotBlank() }?.let { return it }
+            urlNode.isObject -> {
+                urlNode["report"]?.asText()?.takeIf { it.isNotBlank() }?.let { return it }
+                urlNode["details"]?.asText()?.takeIf { it.isNotBlank() }?.let { return it }
+            }
+        }
+        return "https://www.gdacs.org/report.aspx?eventid=$eventId&eventtype=$eventType"
     }
 }
