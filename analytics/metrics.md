@@ -106,3 +106,16 @@ Idempotency: `externalId` = `invite_accepted:{circleId}:{userId}`. No-op when `J
   acquisition. Do not send synthetic events and claim they came from an app.
 - Existing installs need an updated binary. This repository has no configured
   EAS Update runtime/channel, so changing source files does not update store apps.
+- Live verification passed on an iPhone 16e / iOS 26 simulator with a native
+  Debug build. PostHog's activity view for project `632787` showed 11 events,
+  including `Application Installed`, `Application Opened`, `Screen`,
+  `Application Backgrounded`, and `Application Became Active`, from
+  `posthog-react-native`. Initial network failures recovered; queued events arrived.
+  This is simulator test traffic, not a production-user or signup measurement.
+- Juba's event mapping is still pending. Its update form requires the secret key
+  again, and Railway's SSH endpoint timed out during the attempt to reuse the
+  existing encrypted key safely. No mapping or Juba visitor count was changed.
+- The native Debug build and the three analytics configuration tests passed.
+  The full mobile TypeScript check still reports eight errors in untouched
+  onboarding, invite, UpgradeModal, and presence code; this is not full app
+  release certification. Android and store distribution remain untested here.
