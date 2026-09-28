@@ -10,7 +10,9 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ollia-production.up.railway.app",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_YmlnLWthdHlkaWQtODQuY2xlcmsuYWNjb3VudHMuZGV2JA"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_YmlnLWthdHlkaWQtODQuY2xlcmsuYWNjb3VudHMuZGV2JA",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_Ah5wkEXw56gD6cHAUE7Do9iZty8Vd6vXFXCeVs6gHhZz",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
       }
     },
     "preview": {
@@ -18,14 +20,18 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ollia-production.up.railway.app",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_YmlnLWthdHlkaWQtODQuY2xlcmsuYWNjb3VudHMuZGV2JA"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_YmlnLWthdHlkaWQtODQuY2xlcmsuYWNjb3VudHMuZGV2JA",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_Ah5wkEXw56gD6cHAUE7Do9iZty8Vd6vXFXCeVs6gHhZz",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ollia-production.up.railway.app",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsub2xsaWEuYXBwJA"
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsub2xsaWEuYXBwJA",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_Ah5wkEXw56gD6cHAUE7Do9iZty8Vd6vXFXCeVs6gHhZz",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
       }
     }
   },

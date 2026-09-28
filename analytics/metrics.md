@@ -6,8 +6,9 @@ Measurement principle: privacy-first. Instrument **loop events** (not location).
 
 ## Stack
 
-- **Product analytics:** PostHog **EU Cloud** (`https://eu.i.posthog.com`) or self-host — matches privacy brand.
-- Env: `EXPO_PUBLIC_POSTHOG_KEY`, `EXPO_PUBLIC_POSTHOG_HOST` (default EU).
+- **Product analytics:** PostHog **US Cloud** (`https://us.i.posthog.com`), Ollia organization, project **632787** (Default project), matching Ollia's read-only connection in Juba.
+- Env: `EXPO_PUBLIC_POSTHOG_KEY` (public ingestion token), `EXPO_PUBLIC_POSTHOG_HOST`. Both must be explicit; there is no implicit region fallback. Keep the token/host pair together in both EAS configuration files. Never put a personal or secret read-access API key in the app.
+- This corrects the previous EU destination and different project token. It affects new builds only; existing installations keep their bundled configuration until updated. No historical analytics migration is performed.
 - Channel attribution: deep-link / install URL `?channel=` or `?utm_source=` → stored as `source_channel`.
 - **GTM outcomes (server):** [Juba](https://app.getjuba.com) ingest from the Spring backend only (`JubaAnalyticsClient`). Never put `JUBA_INGEST_KEY` in the mobile app. PostHog remains the client product-analytics spine; Juba receives authoritative loop outcomes (e.g. `invite_accepted` → `customer_acquired`).
 
@@ -86,3 +87,40 @@ Tune once production volume exists (person vs circle grouping, unprompted defini
 | `invite_accepted` | `customer_acquired` (`sourceEvent=invite_accepted`) | `ReferenceApiController.joinCircle` after new membership save |
 
 Idempotency: `externalId` = `invite_accepted:{circleId}:{userId}`. No-op when `JUBA_INGEST_KEY` is blank.
+
+## Juba connection verification (2026-09-28)
+
+- Juba reads US project `632787` through its existing restricted read-only key.
+- The SDK public token and US ingestion host are paired in both EAS files. Missing
+  host/token disables collection rather than choosing a region implicitly.
+- Run `npm run test:analytics --workspace apps/mobile` from the repository root.
+  These tests stub the SDK and send no analytics.
+- An iOS Expo export passed with the configured US host and intended public token
+  embedded in the Hermes bundle; the old token is absent.
+- For live verification, launch a newly built app and confirm its SDK-generated
+  `Application Opened` event in PostHog before mapping it to Juba's Visitors step.
+  This represents app users, not website traffic. Keep Signups and Retained blank:
+  the current event contract does not establish those counts. Do not map circle
+  creation to account signup or a heartbeat to seven-day retention.
+- A simulator/owner rehearsal event is test activity, not evidence of customer
+  acquisition. Do not send synthetic events and claim they came from an app.
+- Existing installs need an updated binary. This repository has no configured
+  EAS Update runtime/channel, so changing source files does not update store apps.
+- Live verification passed on an iPhone 16e / iOS 26 simulator with a native
+  Debug build. PostHog's activity view for project `632787` showed 11 events,
+  including `Application Installed`, `Application Opened`, `Screen`,
+  `Application Backgrounded`, and `Application Became Active`, from
+  `posthog-react-native`. Initial network failures recovered; queued events arrived.
+  This is simulator test traffic, not a production-user or signup measurement.
+- Juba's event mapping and sync passed after Railway connectivity recovered.
+  The existing encrypted read-only key was reused through the connection service;
+  `Application Opened` maps to Visitors, with signup/retention left unmapped.
+  Sync `87066394-84f5-4dd5-b145-386c92ccf2d6` completed with 30 daily readings.
+  Overview shows 1 visitor for both the last seven days and four weeks, alongside
+  RevenueCat USD 0.00. That visitor is the simulator rehearsal, not customer growth.
+  A subsequent PostHog aggregate query returned seven events (one app open);
+  the earlier activity-view row count is not a unique-visitor measurement.
+- The native Debug build and the three analytics configuration tests passed.
+  The full mobile TypeScript check still reports eight errors in untouched
+  onboarding, invite, UpgradeModal, and presence code; this is not full app
+  release certification. Android and store distribution remain untested here.
