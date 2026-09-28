@@ -112,9 +112,14 @@ Idempotency: `externalId` = `invite_accepted:{circleId}:{userId}`. No-op when `J
   `Application Backgrounded`, and `Application Became Active`, from
   `posthog-react-native`. Initial network failures recovered; queued events arrived.
   This is simulator test traffic, not a production-user or signup measurement.
-- Juba's event mapping is still pending. Its update form requires the secret key
-  again, and Railway's SSH endpoint timed out during the attempt to reuse the
-  existing encrypted key safely. No mapping or Juba visitor count was changed.
+- Juba's event mapping and sync passed after Railway connectivity recovered.
+  The existing encrypted read-only key was reused through the connection service;
+  `Application Opened` maps to Visitors, with signup/retention left unmapped.
+  Sync `87066394-84f5-4dd5-b145-386c92ccf2d6` completed with 30 daily readings.
+  Overview shows 1 visitor for both the last seven days and four weeks, alongside
+  RevenueCat USD 0.00. That visitor is the simulator rehearsal, not customer growth.
+  A subsequent PostHog aggregate query returned seven events (one app open);
+  the earlier activity-view row count is not a unique-visitor measurement.
 - The native Debug build and the three analytics configuration tests passed.
   The full mobile TypeScript check still reports eight errors in untouched
   onboarding, invite, UpgradeModal, and presence code; this is not full app
