@@ -124,3 +124,54 @@ Idempotency: `externalId` = `invite_accepted:{circleId}:{userId}`. No-op when `J
   The full mobile TypeScript check still reports eight errors in untouched
   onboarding, invite, UpgradeModal, and presence code; this is not full app
   release certification. Android and store distribution remain untested here.
+
+## Signup and D7 return instrumentation — September 29, 2026
+
+Activation is now mapped in Juba: `circle_activated` → Activated users. Its
+count is distinct observed owners per day, not distinct circles or newly acquired
+customers. The September 29 test sync produced one activation; this is owner
+TestFlight traffic. Visitors remain daily distinct persons with app-open events.
+Neither the displayed ratio nor the aggregated daily counts establish a customer
+conversion rate or a cohort survival rate.
+
+The next mobile build adds these events:
+
+| Event | Exact contract | Juba mapping after live verification |
+| --- | --- | --- |
+| `account_created` | A completed Clerk signup with a created user and the same session successfully activated. Email verification and Apple/Google SSO paths on both normal and invite routes. Existing login, reinstall and circle creation do not qualify. | Signups |
+| `activated_user_returned_7d` | Same identified owner and circle, manual heartbeat at elapsed time ≥7 days and <14 days after activation observed by this instrumented build. | Retained (D7 manual-return proxy) |
+
+Signup uses Clerk's [completed signup result](https://clerk.com/docs/expo/reference/objects/sign-up),
+not the age of a cached profile. A snapshot is taken before activating the session.
+No email, authentication token or session ID is sent as event properties.
+
+The return event is a **person-level proxy**, separate from the `active_7d`
+circle-level north star above. A manual heartbeat does not prove it was unprompted.
+Activation dates are not backfilled from existing local flags. An existing circle
+with no observed activation timestamp therefore remains ineligible for this
+client-side return measurement. Local deduplication does not guarantee exact-once
+measurement across devices or reinstalls. Analytics/storage failures cannot block
+authentication or check-ins. Client delivery can still be interrupted or disabled;
+a server-derived cohort remains preferable for audited retention rates.
+
+Release verification:
+
+1. Ship this branch in a new TestFlight build; build 54 does not contain these events.
+2. Create a new test account through email verification; confirm `account_created`
+   in PostHog, then sign out/in and confirm no additional signup. Repeat with a
+   fresh Apple/Google SSO account and the invite route where available.
+3. With that identified owner, activate a new test circle (joined loved one +
+   reassurance viewed). Confirm `circle_activated` and preserve the installation.
+4. The same owner sends a manual check-in in that circle 7–13 days later. Confirm
+   `activated_user_returned_7d`; another check-in must not emit it again. Do not
+   alter clocks or send synthetic production events to claim this live check.
+5. Only after the corresponding event is observed, map it in Juba and sync.
+   Keep unverified steps unmapped/unknown; zero is not evidence of missing setup.
+
+Validation: 13 analytics checks pass, including concurrent callbacks, stale SSO
+results, incomplete signup, account/circle separation, elapsed-time bounds,
+missing/corrupt timestamps, disabled analytics, storage failure, and hook guards.
+An iOS Expo export passes. The full TypeScript check still has the eight existing
+errors in family/onboarding/invite/UpgradeModal/presence code; no new funnel
+instrumentation type error was reported. This is not an Android or native release
+build certification.

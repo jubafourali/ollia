@@ -1,3 +1,4 @@
+import { signupSnapshot, trackAccountCreated } from "@/utils/funnelAnalytics";
 import {useAuth, useSignIn, useSignUp, useSSO} from "@clerk/clerk-expo";
 import { Feather } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
@@ -99,7 +100,9 @@ export default function SignInScreen() {
       } else {
         const result = await signUp!.attemptEmailAddressVerification({ code: otp.trim() });
         if (result.status === "complete") {
+          const completed = signupSnapshot(result);
           await setSignUpActive!({ session: result.createdSessionId! });
+          void trackAccountCreated(completed, completed?.createdSessionId ?? null);
           router.replace("/(tabs)");
         }
       }
@@ -115,9 +118,11 @@ export default function SignInScreen() {
     setError("");
     try {
       const redirectUrl = Linking.createURL("/oauth-native-callback");
-      const { createdSessionId, setActive } = await startSSOFlow({ strategy, redirectUrl });
+      const { createdSessionId, setActive, signUp: completedSignUp } = await startSSOFlow({ strategy, redirectUrl });
       if (createdSessionId && setActive) {
+        const completed = signupSnapshot(completedSignUp);
         await setActive({ session: createdSessionId });
+        void trackAccountCreated(completed, createdSessionId);
         router.replace("/(tabs)");
       }
     } catch (e: any) {
