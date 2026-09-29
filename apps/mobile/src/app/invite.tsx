@@ -1,3 +1,4 @@
+import { signupSnapshot, trackAccountCreated } from "@/utils/funnelAnalytics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSignIn, useSignUp, useSSO, useAuth } from "@clerk/clerk-expo";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -322,7 +323,9 @@ export default function InviteOnboardingScreen() {
           code: otp.trim(),
         });
         if (result.status === "complete") {
+          const completed = signupSnapshot(result);
           await setSignUpActive!({ session: result.createdSessionId! });
+          void trackAccountCreated(completed, completed?.createdSessionId ?? null);
         }
       }
       authRetryCount.current = 0;
@@ -349,12 +352,14 @@ export default function InviteOnboardingScreen() {
           name: encodeURIComponent(inviterName),
         },
       });
-      const { createdSessionId, setActive } = await startSSOFlow({
+      const { createdSessionId, setActive, signUp: completedSignUp } = await startSSOFlow({
         strategy,
         redirectUrl,
       });
       if (createdSessionId && setActive) {
+        const completed = signupSnapshot(completedSignUp);
         await setActive({ session: createdSessionId });
+        void trackAccountCreated(completed, createdSessionId);
         // handlePostAuth will be triggered by isSignedIn change
       }
     } catch (e: any) {

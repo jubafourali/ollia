@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { posthog } from "@/config/posthog";
+import { recordObservedActivation, setFunnelAnalyticsUser, trackActivatedReturn } from "./funnelAnalytics";
 
 /**
  * P0.1 measurement spine — event names are an analytics contract.
@@ -107,12 +108,14 @@ export function identifyUser(
   properties?: Record<string, string | number | boolean | null>,
 ) {
   if (!userId) return;
+  setFunnelAnalyticsUser(userId);
   posthog.identify(userId, properties);
 }
 
 export async function resetAnalytics() {
   cachedChannel = null;
   cachedRole = null;
+  setFunnelAnalyticsUser(null);
   posthog.reset();
 }
 
@@ -194,9 +197,11 @@ export async function maybeTrackCircleActivated(opts: {
   }
 
   posthog.capture(AnalyticsEvents.CIRCLE_ACTIVATED, await coreProps(circleId));
+  await recordObservedActivation(circleId);
 }
 
 /** Manual "I'm okay" tap only — not automatic/background/passive signals. */
 export async function trackHeartbeat(circleId: string) {
   posthog.capture(AnalyticsEvents.HEARTBEAT, await coreProps(circleId));
+  if (await getAnalyticsRole() === "worrier") await trackActivatedReturn(circleId);
 }
